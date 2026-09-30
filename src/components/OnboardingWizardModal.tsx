@@ -210,42 +210,42 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
-      <div className="bn-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-auto transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-6 overflow-y-auto">
+      <div className="bn-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92dvh] flex flex-col overflow-hidden my-auto transition-all">
         {/* Top Gradient Banner */}
-        <div className="relative bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 px-6 py-6 text-white border-b border-blue-500/20">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="p-2.5 rounded-2xl bg-blue-500/15 backdrop-blur-xs border border-blue-400/30 shadow-inner">
-                <BlueNoteLogo size={38} />
+        <div className="relative shrink-0 bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 px-4 sm:px-6 py-3.5 sm:py-5 text-white border-b border-blue-500/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-blue-500/15 backdrop-blur-xs border border-blue-400/30 shadow-inner shrink-0">
+                <BlueNoteLogo size={32} />
               </div>
-              <div>
-                <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-blue-300">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Interactive Onboarding Guide • Step {step + 1} of 4</span>
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-blue-300">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Onboarding • Step {step + 1} of 4</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight truncate">
                   Welcome to BlueNote
                 </h2>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  AI Second Brain, Executive Organizer & Personal Pattern Engine — Zero Demo Clutter
+                <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5 line-clamp-1">
+                  AI Second Brain, Executive Organizer & Personal Pattern Engine
                 </p>
               </div>
             </div>
 
-            {/* Step Progress Pills */}
-            <div className="flex items-center gap-2">
+            {/* Step Progress Pills (Responsive Grid on Mobile) */}
+            <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2">
               {[
-                { idx: 0, label: '1. Theme & Identity' },
-                { idx: 1, label: '2. 6 Core Pillars' },
-                { idx: 2, label: '3. Pattern Engine' },
-                { idx: 3, label: '4. Clean Launch' },
+                { idx: 0, label: '1. Theme' },
+                { idx: 1, label: '2. Pillars' },
+                { idx: 2, label: '3. Patterns' },
+                { idx: 3, label: '4. Launch' },
               ].map((s) => (
                 <button
                   key={s.idx}
                   type="button"
                   onClick={() => setStep(s.idx as 0 | 1 | 2 | 3)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all text-center ${
                     step === s.idx
                       ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/40'
                       : step > s.idx
@@ -261,7 +261,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="p-6 sm:p-8 max-h-[72vh] overflow-y-auto space-y-6">
+        <div className="flex-1 min-h-0 p-4 sm:p-8 overflow-y-auto overscroll-contain space-y-5">
           {/* =================================================================
               STEP 0: PROFILE, UPDATED THEME ENGINE & ENERGY CALIBRATION
               ================================================================= */}
@@ -826,7 +826,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/70 border-t border-slate-200 dark:border-slate-800">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/70 border-t border-slate-200 dark:border-slate-800">
           <div>
             {step > 0 ? (
               <button

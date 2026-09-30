@@ -1,8 +1,13 @@
 node_modules/
 build/
 dist/
+android/app/src/main/assets/public/
+android/.gradle/
+android/app/build/
 coverage/
 .DS_Store
 *.log
+bun.lock
 .env*
 !.env.example
+

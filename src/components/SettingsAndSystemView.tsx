@@ -12,6 +12,8 @@ import {
   RotateCcw,
   Check,
   Eye,
+  Key,
+  ExternalLink,
 } from 'lucide-react';
 import {
   AIConfirmationMode,
@@ -20,6 +22,7 @@ import {
   UserSettings,
   WorkspaceState,
 } from '../types/bluenote';
+import { getActiveAIProviderBadge } from '../services/aiService';
 
 interface SettingsAndSystemViewProps {
   initialSection?: 'settings' | 'help';
@@ -30,6 +33,7 @@ interface SettingsAndSystemViewProps {
   onRestoreDeletedItem: (type: 'task' | 'note', id: string) => void;
   onEmptyRecycleBin: () => void;
   onResetDemoWorkspace: () => void;
+  onOpenAIKeysModal?: () => void;
 }
 
 export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
@@ -41,6 +45,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
   onRestoreDeletedItem,
   onEmptyRecycleBin,
   onResetDemoWorkspace,
+  onOpenAIKeysModal,
 }) => {
   const [tab, setTab] = useState<
     'general' | 'ai' | 'emails' | 'automations' | 'export-recycle' | 'help'
@@ -77,17 +82,28 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 Workspace Appearance, AI Behavior & System Control
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Configure your theme engine, accessibility scaling, AI assistant personality, automated digests, and data vault.
+                Configure your theme engine, accessibility scaling, Free AI & API keys, automated digests, and data vault.
               </p>
             </div>
           </div>
+
+          {onOpenAIKeysModal && (
+            <button
+              type="button"
+              onClick={onOpenAIKeysModal}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shrink-0 transition-all"
+            >
+              <Key className="w-4 h-4" />
+              <span>Free AI & API Keys ({getActiveAIProviderBadge()})</span>
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
           {(
             [
               ['general', 'Appearance & Accessibility', Palette],
-              ['ai', 'AI Personality & Memory', Sparkles],
+              ['ai', 'Free AI, API Keys & Memory', Sparkles],
               ['emails', 'Daily & Weekly Emails', Mail],
               ['automations', 'Automations', Zap],
               ['export-recycle', 'Export, Privacy & Recycle Bin', Download],
@@ -352,9 +368,37 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
         </div>
       )}
 
-      {/* TAB 2: AI PERSONALITY & MEMORY CONTROLS */}
+      {/* TAB 2: AI PERSONALITY, FREE AI & API KEYS */}
       {tab === 'ai' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-6 shadow-2xs space-y-6">
+          {/* Free AI & API Keys Banner inside AI Settings Tab */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/25 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-emerald-500" />
+                  Free AI Engine & Optional API Key Manager
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-600 text-white font-bold">
+                  Active: {getActiveAIProviderBadge()}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                BlueNote works out-of-the-box with <strong>100% Free Cloud & On-Device AI (Zero API Key Needed)</strong>, or you can connect free API keys from Groq (<code className="font-mono">console.groq.com/keys</code>), Google AI Studio (<code className="font-mono">aistudio.google.com/app/apikey</code>), OpenRouter (<code className="font-mono">openrouter.ai/keys</code>), or Hugging Face (<code className="font-mono">huggingface.co/settings/tokens</code>).
+              </p>
+            </div>
+            {onOpenAIKeysModal && (
+              <button
+                type="button"
+                onClick={onOpenAIKeysModal}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shrink-0 shadow-sm"
+              >
+                <Key className="w-4 h-4" />
+                <span>Open Free AI & API Keys Popup</span>
+              </button>
+            )}
+          </div>
+
           <h2 className="text-base font-bold text-slate-900 dark:text-white">
             AI Assistant Personality, Confirmation & Memory Controls
           </h2>

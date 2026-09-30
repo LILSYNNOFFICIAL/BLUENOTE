@@ -4,8 +4,9 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 
-function getGeminiClient(): GoogleGenAI | null {
+function getGeminiClient(overrideKey?: string): GoogleGenAI | null {
   const apiKey =
+    (overrideKey && overrideKey.trim()) ||
     process.env.GEMINI_API_KEY ||
     process.env.VITE_GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY;
@@ -38,7 +39,7 @@ async function startServer() {
 
   // 1. Server-Side Gemini Text / Chat / Grounding / Brain Dump Endpoint (gemini-3-flash-preview)
   app.post('/api/ai/chat', async (req, res) => {
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(req.body?.userGeminiKey);
     if (!ai) {
       res.status(503).json({ error: 'GEMINI_API_KEY not configured in environment' });
       return;
@@ -113,7 +114,7 @@ async function startServer() {
 
   // 2. Server-Side Gemini Music Composition & Lyrics Endpoint (gemini-3-flash-preview)
   app.post('/api/ai/music', async (req, res) => {
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(req.body?.userGeminiKey);
     if (!ai) {
       res.status(503).json({ error: 'GEMINI_API_KEY not configured in environment' });
       return;
@@ -157,7 +158,7 @@ async function startServer() {
 
   // 3. Server-Side Gemini Image Generation & SVG Vector Art Endpoint
   app.post('/api/ai/image', async (req, res) => {
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(req.body?.userGeminiKey);
     if (!ai) {
       res.status(503).json({ error: 'GEMINI_API_KEY not configured in environment' });
       return;
@@ -232,7 +233,7 @@ async function startServer() {
 
   // 4. Server-Side Audio Transcription Endpoint (gemini-3-flash-preview)
   app.post('/api/ai/transcribe', async (req, res) => {
-    const ai = getGeminiClient();
+    const ai = getGeminiClient(req.body?.userGeminiKey);
     if (!ai) {
       res.status(503).json({ error: 'GEMINI_API_KEY not configured in environment' });
       return;

@@ -35,6 +35,7 @@ import {
   Smartphone,
   Download,
   Menu,
+  Key,
 } from 'lucide-react';
 import {
   ActiveSection,
@@ -68,7 +69,12 @@ import {
   OperationType,
   User,
 } from './firebase';
-import { BrainDumpExtractedItem, parseQuickCaptureLocally } from './services/aiService';
+import {
+  BrainDumpExtractedItem,
+  getActiveAIProviderBadge,
+  parseQuickCaptureLocally,
+} from './services/aiService';
+import { AIKeysAndFreeAIModal } from './components/AIKeysAndFreeAIModal';
 import { DashboardView } from './components/DashboardView';
 import { UniversalInboxView } from './components/UniversalInboxView';
 import { TasksAndChecklistsView } from './components/TasksAndChecklistsView';
@@ -237,7 +243,9 @@ export default function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [androidModalOpen, setAndroidModalOpen] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [aiKeysModalOpen, setAiKeysModalOpen] = useState(true);
+  const [aiProviderLabel, setAiProviderLabel] = useState(() => getActiveAIProviderBadge());
+  const [showSplash, setShowSplash] = useState(false);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(
     () => !workspace.settings.onboardingCompleted
   );
@@ -250,6 +258,13 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const isApplyingRemoteUpdate = useRef(false);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (mainScrollRef.current) {
+      mainScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activeSection]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -1050,14 +1065,14 @@ export default function App() {
     <div
       className={`${isDark ? 'dark' : ''} theme-${activeTheme} ${
         workspace.settings.largeText ? 'text-[106%]' : ''
-      } ${workspace.settings.highContrast ? 'contrast-125' : ''} min-h-screen`}
+      } ${workspace.settings.highContrast ? 'contrast-125' : ''} h-[100dvh] max-h-[100dvh] overflow-hidden`}
     >
-      <div className="bn-app-shell min-h-screen bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
+      <div className="bn-app-shell h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
         {/* Left Collapsible Executive Command Sidebar */}
         <aside
           className={`bn-sidebar ${
             sidebarCollapsed ? 'md:w-20' : 'md:w-68'
-          } hidden md:flex flex-col justify-between bg-white dark:bg-slate-900 border-r border-slate-200/90 dark:border-slate-800/90 transition-all duration-200 shrink-0 select-none z-20 shadow-xl shadow-slate-950/5`}
+          } hidden md:flex flex-col justify-between md:h-screen md:max-h-screen md:overflow-y-auto bg-white dark:bg-slate-900 border-r border-slate-200/90 dark:border-slate-800/90 transition-all duration-200 shrink-0 select-none z-20 shadow-xl shadow-slate-950/5`}
         >
           <div className="p-4 space-y-5">
             {/* Brand Logo + Collapse Toggle */}
@@ -1179,6 +1194,14 @@ export default function App() {
           {/* Bottom System & Settings Links */}
           <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1.5">
             <button
+              onClick={() => setAiKeysModalOpen(true)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition-colors"
+              title="Configure 100% Free AI or Enter Free API Keys"
+            >
+              <Key className="w-4 h-4 shrink-0" />
+              {!sidebarCollapsed && <span>Free AI & API Keys</span>}
+            </button>
+            <button
               onClick={() => setAndroidModalOpen(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
             >
@@ -1218,11 +1241,11 @@ export default function App() {
         </aside>
 
         {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-          {/* Top Global Executive Header Bar */}
-          <header className="bn-header bn-safe-header sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-5 lg:px-7 py-2.5 flex items-center justify-between gap-2.5">
-            {/* Left: Mobile Drawer Trigger, Command Palette Search Trigger & Quick Capture */}
-            <div className="flex items-center gap-2 flex-1 max-w-2xl min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 h-[100dvh] max-h-[100dvh] overflow-hidden">
+          {/* Top Global Executive Header Bar (Mobile-Optimized, Zero Horizontal Overflow) */}
+          <header className="bn-header bn-safe-header shrink-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-2.5 sm:px-5 lg:px-7 py-2 flex items-center justify-between gap-2">
+            {/* Left: Mobile Drawer Trigger, Brand Logo, Search & Desktop Quick Capture */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 max-w-2xl min-w-0">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
@@ -1235,10 +1258,10 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveSection('dashboard')}
-                className="md:hidden flex items-center gap-1.5 shrink-0 pr-1"
+                className="md:hidden flex items-center gap-1.5 shrink-0 pr-0.5"
               >
-                <BlueNoteLogo size={28} />
-                <span className="font-extrabold text-sm tracking-tight hidden xs:inline">
+                <BlueNoteLogo size={26} />
+                <span className="font-extrabold text-sm tracking-tight">
                   <span className="text-slate-900 dark:text-white">Blue</span>
                   <span className="text-blue-600">Note</span>
                 </span>
@@ -1246,16 +1269,17 @@ export default function App() {
 
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 transition-colors shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200/80 dark:border-slate-700/80 transition-colors shrink-0"
+                title="Search & Command Palette (⌘K)"
               >
                 <Search className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span className="hidden sm:inline">Search & Command...</span>
+                <span className="hidden sm:inline">Search...</span>
                 <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 text-slate-400">
                   ⌘K
                 </kbd>
               </button>
 
-              {/* Inline Universal Quick Capture Bar */}
+              {/* Inline Universal Quick Capture Bar (Desktop) */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1263,7 +1287,7 @@ export default function App() {
                   handleQuickCapture(headerQuickInput.trim());
                   setHeaderQuickInput('');
                 }}
-                className="hidden md:flex items-center flex-1 relative"
+                className="hidden lg:flex items-center flex-1 relative min-w-0"
               >
                 <input
                   type="text"
@@ -1281,22 +1305,33 @@ export default function App() {
               </form>
             </div>
 
-            {/* Right: Multimodal Capture, Focus Timer, Segmented Theme Bar, Cloud Sync, AI Drawer */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Right: Free AI & API Keys Button, Studio, Theme Bar, Cloud Sync, AI Drawer */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Prominent Free AI & API Keys Popup Button (Visible on BOTH Mobile and Desktop) */}
+              <button
+                type="button"
+                onClick={() => setAiKeysModalOpen(true)}
+                title={`Free AI & API Keys Setup (${aiProviderLabel})`}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all shrink-0"
+              >
+                <Key className="w-3.5 h-3.5 shrink-0" />
+                <span>Free AI / Keys</span>
+              </button>
+
               {isInstallable && !isInstalled ? (
                 <button
                   onClick={install}
                   title="Install BlueNote App onto your Android or Desktop Home Screen"
-                  className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+                  className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">Install App</span>
+                  <span className="hidden xl:inline">Install</span>
                 </button>
               ) : (
                 <button
                   onClick={() => setAndroidModalOpen(true)}
                   title="Android APK, F-Droid & Google Play Store Hub"
-                  className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                  className="hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
                 >
                   <Smartphone className="w-4 h-4" />
                   <span className="hidden 2xl:inline">Android</span>
@@ -1305,8 +1340,8 @@ export default function App() {
 
               <button
                 onClick={() => setActiveSection('ai-studio')}
-                title="Open Multimodal AI Studio (Nano Banana 2, Veo 3, Live Voice, Lyria 3, Grounding)"
-                className={`p-2 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-semibold ${
+                title="Open Multimodal AI Studio"
+                className={`hidden sm:flex p-2 rounded-xl transition-colors items-center gap-1.5 text-xs font-semibold ${
                   activeSection === 'ai-studio'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25'
@@ -1319,30 +1354,15 @@ export default function App() {
               <button
                 onClick={() => setBrainDumpModal({ open: true, tab: 'ocr-scanner' })}
                 title="Scan Receipt, Business Card, or Handwritten Note (OCR)"
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors flex items-center gap-1.5 text-xs font-medium"
+                className="hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
               >
                 <Camera className="w-4 h-4 text-blue-500" />
                 <span className="hidden 2xl:inline">OCR</span>
               </button>
 
-              <button
-                onClick={() => {
-                  const firstActive =
-                    workspace.tasks.find((t) => !t.deletedAt && t.status !== 'Completed') ||
-                    null;
-                  setFocusTask(firstActive);
-                  setFocusModalOpen(true);
-                }}
-                title="Launch Focus & Pomodoro Timer"
-                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors flex items-center gap-1.5 text-xs font-medium"
-              >
-                <Play className="w-4 h-4 text-emerald-500" />
-                <span className="hidden 2xl:inline">Focus</span>
-              </button>
-
               {/* Interactive 5-Theme Switcher Bar (Default: White 'light') */}
               <div
-                className="hidden sm:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700"
+                className="hidden md:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700"
                 role="group"
                 aria-label="Quick Theme Switcher"
               >
@@ -1375,26 +1395,16 @@ export default function App() {
                       }`}
                     >
                       <span className={`w-2 h-2 rounded-full ${t.dot}`} />
-                      <span className="hidden lg:inline">{t.label}</span>
+                      <span className="hidden xl:inline">{t.label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Onboarding Guide Quick Launcher */}
-              <button
-                onClick={() => setOnboardingModalOpen(true)}
-                className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:border-blue-500 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition-colors"
-                title="Open Interactive Onboarding Guide"
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-blue-500" />
-                <span className="hidden xl:inline">Onboarding Guide</span>
-              </button>
-
               {/* Cloud Sync & Auth Status Button */}
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                   currentUser
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-400'
@@ -1419,14 +1429,14 @@ export default function App() {
               {/* Collapsible AI Assistant Panel Toggle */}
               <button
                 onClick={() => setAiDrawerOpen((o) => !o)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   aiDrawerOpen
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-500/25 hover:bg-blue-500/20'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ask AI</span>
+                <span className="hidden xs:inline">Ask AI</span>
               </button>
             </div>
           </header>
@@ -1447,8 +1457,87 @@ export default function App() {
             </div>
           )}
 
-          {/* Active Workspace View */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-10 overflow-y-auto">
+          {/* Active Workspace View (Smooth Scroll on Mobile & Desktop) */}
+          <main
+            ref={mainScrollRef}
+            className="bn-main-scroll flex-1 min-h-0 p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 overflow-y-auto overflow-x-hidden"
+          >
+            {/* Mobile Compact Quick Capture & Theme Strip (Visible only on Mobile < 768px) */}
+            <div className="md:hidden mb-3.5 p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!headerQuickInput.trim()) return;
+                  handleQuickCapture(headerQuickInput.trim());
+                  setHeaderQuickInput('');
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <input
+                  type="text"
+                  value={headerQuickInput}
+                  onChange={(e) => setHeaderQuickInput(e.target.value)}
+                  placeholder='Quick capture task, reminder, or note...'
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBrainDumpModal({ open: true, tab: 'brain-dump' })}
+                  className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 shrink-0"
+                  title="Voice & AI Brain Dump"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-1 overflow-x-auto">
+                  {(
+                    [
+                      { id: 'light', label: 'White', dot: 'bg-white border border-slate-400' },
+                      { id: 'dark', label: 'Dark', dot: 'bg-black border border-white/50' },
+                      { id: 'blue', label: 'Blue', dot: 'bg-blue-500' },
+                      { id: 'emerald', label: 'Pine', dot: 'bg-emerald-500' },
+                      { id: 'violet', label: 'Plum', dot: 'bg-violet-500' },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() =>
+                        setWorkspace((prev) => ({
+                          ...prev,
+                          settings: { ...prev.settings, theme: t.id },
+                        }))
+                      }
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 ${
+                        activeTheme === t.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${t.dot}`} />
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAiKeysModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center gap-1 shrink-0"
+                >
+                  <Key className="w-3 h-3" />
+                  <span>Free AI Setup</span>
+                </button>
+              </div>
+            </div>
             {activeSection === 'dashboard' && (
               <DashboardView
                 workspace={workspace}
@@ -2411,6 +2500,7 @@ export default function App() {
                 onSendToBrainDump={(rawText) => {
                   handleQuickCapture(rawText);
                 }}
+                onOpenAIKeysModal={() => setAiKeysModalOpen(true)}
               />
             )}
 
@@ -2496,6 +2586,7 @@ export default function App() {
                   setOnboardingModalOpen(true);
                   showToast('Workspace cleared — starting fresh onboarding tutorial');
                 }}
+                onOpenAIKeysModal={() => setAiKeysModalOpen(true)}
               />
             )}
           </main>
@@ -2558,6 +2649,19 @@ export default function App() {
                     <X className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Prominent Free AI & API Keys Button in Mobile Drawer */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setAiKeysModalOpen(true);
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Free AI & API Keys Setup</span>
+                </button>
 
                 {/* Mobile Quick Actions */}
                 <div className="grid grid-cols-2 gap-2">
@@ -2700,13 +2804,12 @@ export default function App() {
         )}
 
         {/* Mobile / Android WebView Bottom Navigation Bar */}
-        <nav className="md:hidden bn-safe-bottom-nav fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800 px-1.5 py-1.5 flex items-center justify-around shadow-lg">
+        <nav className="md:hidden bn-safe-bottom-nav fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800 px-1 py-1.5 grid grid-cols-6 gap-0.5 shadow-lg">
           {[
             { id: 'dashboard' as ActiveSection, label: 'Today', icon: LayoutDashboard },
-            { id: 'predictive' as ActiveSection, label: 'Predictive', icon: Sparkles },
             { id: 'tasks' as ActiveSection, label: 'Tasks', icon: CheckSquare },
             { id: 'notes' as ActiveSection, label: 'Notes', icon: FileText },
-            { id: 'ai-studio' as ActiveSection, label: 'AI Studio', icon: Wand2 },
+            { id: 'ai-studio' as ActiveSection, label: 'Studio', icon: Wand2 },
           ].map((m) => {
             const Icon = m.icon;
             const active = activeSection === m.id;
@@ -2714,26 +2817,44 @@ export default function App() {
               <button
                 key={m.id}
                 onClick={() => setActiveSection(m.id)}
-                className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all ${
+                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all ${
                   active
                     ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                     : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                <span>{m.label}</span>
+                <span className="truncate max-w-full">{m.label}</span>
               </button>
             );
           })}
           <button
             type="button"
+            onClick={() => setAiKeysModalOpen(true)}
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+          >
+            <Key className="w-4 h-4" />
+            <span className="truncate max-w-full">Free AI</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl text-[10px] font-semibold text-slate-500 dark:text-slate-400"
+            className="flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold text-slate-500 dark:text-slate-400"
           >
             <Menu className="w-4 h-4" />
-            <span>All (14)</span>
+            <span className="truncate max-w-full">Menu</span>
           </button>
         </nav>
+
+        {/* Free AI & API Keys Setup Popup Modal */}
+        <AIKeysAndFreeAIModal
+          isOpen={aiKeysModalOpen}
+          onClose={() => setAiKeysModalOpen(false)}
+          onConfigSaved={(cfg) => {
+            setAiProviderLabel(getActiveAIProviderBadge(cfg));
+            showToast(`AI Engine updated: ${getActiveAIProviderBadge(cfg)}`);
+          }}
+        />
 
         {/* Modals */}
         <BrainDumpModal

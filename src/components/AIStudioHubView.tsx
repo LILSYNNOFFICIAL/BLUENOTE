@@ -26,6 +26,7 @@ import {
   downloadVeoVideoBlobUrl,
   generateMusicWithLyria,
   generateOrEditImage,
+  getActiveAIProviderBadge,
   getAspectDimensions,
   GroundingLink,
   pollVeoVideoStatus,
@@ -42,6 +43,7 @@ interface AIStudioHubViewProps {
   onSaveTranscriptAsNote: (title: string, content: string) => void;
   onSaveLink: (link: Omit<SavedLink, 'id' | 'createdAt'>) => void;
   onSendToBrainDump: (rawText: string) => void;
+  onOpenAIKeysModal?: () => void;
 }
 
 type StudioTab =
@@ -145,6 +147,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   onSaveTranscriptAsNote,
   onSaveLink,
   onSendToBrainDump,
+  onOpenAIKeysModal,
 }) => {
   const [activeTab, setActiveTab] = useState<StudioTab>('image-studio');
 
@@ -571,11 +574,14 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-6 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-1">
+          <div className="flex flex-wrap items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-1">
             <Sparkles className="w-4 h-4" />
             <span>Multimodal Creative & Intelligence Suite</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+              Engine: {getActiveAIProviderBadge()}
+            </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             BlueNote AI Studio Lab
@@ -584,6 +590,17 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             Generate & edit HD artwork, render 60FPS animated scenes & videos, compose stereo 44.1kHz songs with lyrics & vocals, transcribe voice notes, and research with Google Search & Maps Grounding.
           </p>
         </div>
+
+        {onOpenAIKeysModal && (
+          <button
+            type="button"
+            onClick={onOpenAIKeysModal}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shrink-0 transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Free AI & API Keys Setup</span>
+          </button>
+        )}
       </div>
 
       {/* Interactive Tool Tabs */}
