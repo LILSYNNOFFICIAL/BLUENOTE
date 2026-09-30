@@ -1,0 +1,276 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --bn-accent: #2563eb;
+    --bn-accent-hover: #1d4ed8;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* ============================================================================
+   1. BLUE THEME ("Signature Blue" — Deep Midnight Navy & Sapphire Slate,
+      what Dark Mode used to be: rich #020617 / #0f172a navy & cobalt cards)
+   ============================================================================ */
+html.theme-blue body,
+html.theme-blue .bn-app-shell {
+  background: radial-gradient(circle at top right, #0f2347 0%, #09152b 45%, #020617 100%) !important;
+  color: #f1f5f9 !important;
+}
+
+html.theme-blue aside.bn-sidebar {
+  background: linear-gradient(180deg, #061021 0%, #0a1832 60%, #0d1f40 100%) !important;
+  border-right-color: #1e3a8a !important;
+  color: #f1f5f9 !important;
+}
+
+html.theme-blue header.bn-header {
+  background: rgba(10, 24, 50, 0.88) !important;
+  border-bottom-color: #1e3a8a !important;
+  backdrop-filter: blur(16px);
+}
+
+html.theme-blue main .bg-white,
+html.theme-blue main .dark\:bg-slate-900,
+html.theme-blue .bn-card {
+  background-color: #0d1b36 !important;
+  border-color: #1e3a8a !important;
+  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.75), inset 0 1px 0 0 rgba(59, 130, 246, 0.14) !important;
+}
+
+html.theme-blue main .bg-slate-50,
+html.theme-blue main .bg-slate-50\/80,
+html.theme-blue main .bg-slate-50\/50,
+html.theme-blue main .dark\:bg-slate-800,
+html.theme-blue main .dark\:bg-slate-800\/60,
+html.theme-blue main .dark\:bg-slate-800\/50,
+html.theme-blue main .dark\:bg-slate-800\/40 {
+  background-color: #132647 !important;
+  border-color: #1e40af !important;
+}
+
+html.theme-blue input,
+html.theme-blue textarea,
+html.theme-blue select {
+  background-color: #0a162c !important;
+  border-color: #1e3a8a !important;
+  color: #f8fafc !important;
+}
+
+/* ============================================================================
+   2. TRUE DARK THEME ("True Black OLED" — Pitch Black #000000 Background
+      & Crisp Pure White #FFFFFF Text with high-contrast carbon surfaces)
+   ============================================================================ */
+html.theme-dark body,
+html.theme-dark .bn-app-shell {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.theme-dark aside.bn-sidebar {
+  background: #000000 !important;
+  border-right-color: #27272a !important;
+  color: #ffffff !important;
+}
+
+html.theme-dark header.bn-header {
+  background: rgba(0, 0, 0, 0.94) !important;
+  border-bottom-color: #27272a !important;
+  backdrop-filter: blur(16px);
+}
+
+html.theme-dark main .bg-white,
+html.theme-dark main .dark\:bg-slate-900,
+html.theme-dark .bn-card,
+html.theme-dark .fixed .bg-white,
+html.theme-dark .fixed .dark\:bg-slate-900 {
+  background-color: #09090b !important;
+  border-color: #27272a !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.98), inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.theme-dark main .bg-slate-50,
+html.theme-dark main .bg-slate-50\/80,
+html.theme-dark main .bg-slate-50\/70,
+html.theme-dark main .bg-slate-50\/50,
+html.theme-dark main .dark\:bg-slate-800,
+html.theme-dark main .dark\:bg-slate-800\/90,
+html.theme-dark main .dark\:bg-slate-800\/80,
+html.theme-dark main .dark\:bg-slate-800\/60,
+html.theme-dark main .dark\:bg-slate-800\/50,
+html.theme-dark main .dark\:bg-slate-800\/40 {
+  background-color: #121215 !important;
+  border-color: #2e2e33 !important;
+  color: #ffffff !important;
+}
+
+html.theme-dark .text-slate-900,
+html.theme-dark .dark\:text-white,
+html.theme-dark .text-slate-800,
+html.theme-dark .text-slate-700,
+html.theme-dark .dark\:text-slate-100,
+html.theme-dark .dark\:text-slate-200,
+html.theme-dark h1,
+html.theme-dark h2,
+html.theme-dark h3,
+html.theme-dark h4 {
+  color: #ffffff !important;
+}
+
+html.theme-dark .text-slate-600,
+html.theme-dark .text-slate-500,
+html.theme-dark .text-slate-400,
+html.theme-dark .dark\:text-slate-300,
+html.theme-dark .dark\:text-slate-400 {
+  color: #e4e4e7 !important;
+}
+
+html.theme-dark input,
+html.theme-dark textarea,
+html.theme-dark select {
+  background-color: #050507 !important;
+  border-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+html.theme-dark input::placeholder,
+html.theme-dark textarea::placeholder {
+  color: #a1a1aa !important;
+}
+
+/* ============================================================================
+   3. DAYLIGHT MINIMAL THEME ("Executive Daylight" — Crisp Alabaster & Slate)
+   ============================================================================ */
+html.theme-light body,
+html.theme-light .bn-app-shell {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.theme-light aside.bn-sidebar {
+  background: #ffffff !important;
+  border-right-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light header.bn-header {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: #e2e8f0 !important;
+  backdrop-filter: blur(16px);
+}
+
+html.theme-light main .bg-white,
+html.theme-light .bn-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 2px 12px -4px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ============================================================================
+   4. EMERALD FOREST THEME (Deep Pine Dark Surface & Luminous Emerald)
+   ============================================================================ */
+html.theme-emerald body,
+html.theme-emerald .bn-app-shell {
+  background: radial-gradient(circle at top right, #064e3b 0%, #022c22 65%, #011c16 100%) !important;
+  color: #ecfdf5 !important;
+}
+
+html.theme-emerald aside.bn-sidebar {
+  background: #022019 !important;
+  border-right-color: #065f46 !important;
+}
+
+html.theme-emerald header.bn-header {
+  background: rgba(2, 32, 25, 0.9) !important;
+  border-bottom-color: #065f46 !important;
+}
+
+html.theme-emerald main .bg-white,
+html.theme-emerald main .dark\:bg-slate-900 {
+  background-color: #042f24 !important;
+  border-color: #047857 !important;
+}
+
+/* ============================================================================
+   5. ROYAL AMETHYST THEME (Deep Cosmic Plum Surface & Violet Glow)
+   ============================================================================ */
+html.theme-violet body,
+html.theme-violet .bn-app-shell {
+  background: radial-gradient(circle at top right, #2e1065 0%, #170736 65%, #0b031c 100%) !important;
+  color: #f5f3ff !important;
+}
+
+html.theme-violet aside.bn-sidebar {
+  background: #120529 !important;
+  border-right-color: #4c1d95 !important;
+}
+
+html.theme-violet header.bn-header {
+  background: rgba(18, 5, 41, 0.9) !important;
+  border-bottom-color: #4c1d95 !important;
+}
+
+html.theme-violet main .bg-white,
+html.theme-violet main .dark\:bg-slate-900 {
+  background-color: #1b093b !important;
+  border-color: #5b21b6 !important;
+}
+
+/* ============================================================================
+   ACCESSIBILITY MODIFIERS
+   ============================================================================ */
+html.bn-large-text {
+  font-size: 112.5%;
+}
+
+html.bn-reduced-motion *,
+html.bn-reduced-motion *::before,
+html.bn-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.bn-high-contrast {
+  filter: contrast(1.18);
+}
+
+/* Subtle custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+}

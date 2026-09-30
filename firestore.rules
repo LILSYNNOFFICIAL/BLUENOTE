@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserWorkspace(data) {
+      return data.keys().hasAll(['uid', 'updatedAt', 'workspace'])
+        && data.keys().hasOnly(['uid', 'email', 'name', 'updatedAt', 'workspace'])
+        && data.uid is string
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.uid == request.auth.uid
+        && data.updatedAt is string
+        && data.updatedAt.size() >= 1
+        && data.updatedAt.size() <= 64
+        && data.workspace is map
+        && (!('email' in data) || (data.email is string && data.email.size() <= 256))
+        && (!('name' in data) || (data.name is string && data.name.size() <= 128));
+    }
+
+    match /workspaces/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserWorkspace(incoming());
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserWorkspace(incoming())
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'name', 'updatedAt', 'workspace']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+  }
+}

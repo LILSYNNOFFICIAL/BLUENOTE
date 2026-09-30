@@ -1,0 +1,5 @@
+Initial v1.0.0 release of BlueNote for Android (F-Droid & Google Play Store):
+- 100% local-first Second Brain & Personal Organizer with zero external API keys required
+- 7-day weekly Habit Checkmark Grid + 30-day Recharts Streak & Completion Analytics
+- 5-step interactive first-time user onboarding wizard & startup splash screen
+- AI Brain Dump, OCR Scanner, Smart Notes, Kanban Tasks, Calendar, CRM Contacts & Knowledge Graph

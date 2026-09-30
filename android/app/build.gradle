@@ -1,0 +1,79 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "io.github.lilsynnofficial.bluenote"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        applicationId "io.github.lilsynnofficial.bluenote"
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    // MANDATORY FOR F-DROID: Disable Google's encrypted dependency metadata block
+    // so F-Droid verification servers can validate reproducible open-source APKs.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    signingConfigs {
+        release {
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    flavorDimensions = ["distribution"]
+    productFlavors {
+        // 1. F-Droid Flavor: 100% FOSS, zero proprietary blobs, reproducible APK
+        fdroid {
+            dimension "distribution"
+            versionNameSuffix "-fdroid"
+            buildConfigField "String", "DISTRIBUTION_CHANNEL", '"fdroid"'
+        }
+        // 2. Google Play Store Flavor: API 35 compliant for Android App Bundle (.aab)
+        playstore {
+            dimension "distribution"
+            buildConfigField "String", "DISTRIBUTION_CHANNEL", '"playstore"'
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            debuggable true
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+}

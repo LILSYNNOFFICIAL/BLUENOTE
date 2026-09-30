@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ (API 33-35) Material You Themed Monochrome Icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:scaleX="0.62"
+        android:scaleY="0.62"
+        android:translateX="102"
+        android:translateY="97">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M110,72 C110,54 124,44 144,44 L256,44 C332,44 382,86 382,148 C382,192 354,226 312,240 C366,254 400,294 400,348 C400,416 344,456 260,456 L144,456 C124,456 110,442 110,422 Z M240,116 C258,126 274,138 274,156 L274,342 C274,388 236,424 192,424 C156,424 132,398 132,364 C132,324 168,292 212,292 C223,292 232,294 240,298 Z" />
+    </group>
+</vector>

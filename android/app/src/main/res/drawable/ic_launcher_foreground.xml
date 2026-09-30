@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android Adaptive Icon Foreground (108dp x 108dp viewport, safe zone centered at 54,54 with 66dp diameter).
+  Renders the official BlueNote 3D-shaded "B" with diagonal page-fold crease, white eighth-note cutout,
+  and magic pen sparkle accents.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <group
+        android:scaleX="0.64"
+        android:scaleY="0.64"
+        android:translateX="98"
+        android:translateY="92">
+
+        <!-- Base "B" Silhouette -->
+        <path
+            android:pathData="M110,72 C110,54 124,44 144,44 L256,44 C332,44 382,86 382,148 C382,192 354,226 312,240 C366,254 400,294 400,348 C400,416 344,456 260,456 L144,456 C124,456 110,442 110,422 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="110"
+                    android:startY="44"
+                    android:endX="400"
+                    android:endY="456"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#4CC9F0" />
+                    <item android:offset="0.35" android:color="#0077FF" />
+                    <item android:offset="0.75" android:color="#0050D5" />
+                    <item android:offset="1.0" android:color="#003399" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Left Page-Fold Facet -->
+        <path
+            android:pathData="M110,72 C110,54 120,46 134,46 L254,126 L254,344 L124,446 C114,440 110,432 110,422 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="110"
+                    android:startY="46"
+                    android:endX="254"
+                    android:endY="446"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#38BDF8" />
+                    <item android:offset="0.5" android:color="#0062FF" />
+                    <item android:offset="1.0" android:color="#002984" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Upper Loop Page-Crease Wing -->
+        <path
+            android:pathData="M130,44 L256,44 C332,44 382,86 382,148 C382,192 354,226 312,240 L252,240 L252,124 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="130"
+                    android:startY="44"
+                    android:endX="382"
+                    android:endY="240"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#90E0EF" />
+                    <item android:offset="0.4" android:color="#38BDF8" />
+                    <item android:offset="1.0" android:color="#0066EB" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- White Musical Eighth-Note Cutout -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M240,116 C258,126 274,138 274,156 L274,342 C274,388 236,424 192,424 C156,424 132,398 132,364 C132,324 168,292 212,292 C223,292 232,294 240,298 Z" />
+
+        <!-- Magic Gold & Cyan Sparkle Stars near top-right -->
+        <path
+            android:fillColor="#FBBF24"
+            android:pathData="M402,52 L407,66 L421,71 L407,76 L402,90 L397,76 L383,71 L397,66 Z" />
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M86,102 L89,111 L98,114 L89,117 L86,126 L83,117 L74,114 L83,111 Z" />
+    </group>
+</vector>

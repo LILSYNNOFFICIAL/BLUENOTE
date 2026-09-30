@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "UserWorkspace": {
+      "title": "UserWorkspace",
+      "description": "Complete user profile, settings, and Second Brain workspace entities for BlueNote stored as native Firestore Maps and Lists",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth user ID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "name": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 128
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last sync",
+          "maxLength": 64
+        },
+        "workspace": {
+          "type": "object",
+          "description": "Native Map containing user tasks, notes, folders, projects, events, reminders, contacts, links, files, shoppingLists, habits, goals, inbox, knowledgeGraph, automations, conversations, activityLog, savedSearches, and settings"
+        }
+      },
+      "required": ["uid", "updatedAt", "workspace"]
+    }
+  },
+  "firestore": {
+    "/workspaces/{userId}": {
+      "schema": { "$ref": "#/entities/UserWorkspace" },
+      "description": "User-owned workspace document isolated strictly to the authenticated owner."
+    }
+  }
+}

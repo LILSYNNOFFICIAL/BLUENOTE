@@ -1,0 +1,6 @@
+{
+  "name": "BlueNote",
+  "description": "Remember everything. Organize anything. Focus on what matters. AI-powered Second Brain, notes, tasks, calendar, contacts, OCR, and personal productivity hub.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

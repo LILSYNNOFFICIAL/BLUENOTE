@@ -1,0 +1,70 @@
+name: Build Android APK (F-Droid) & Play Store AAB
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-build:
+    name: Build F-Droid APK & Google Play AAB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Java 17 (JDK for Android SDK 35)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install web dependencies & build static bundle
+        run: |
+          npm install
+          npm run build
+
+      - name: Sync web bundle into Android WebView assets
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          cp -r dist/* android/app/src/main/assets/public/
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build F-Droid Reproducible Release & Debug APKs
+        working-directory: ./android
+        run: |
+          gradle assembleFdroidDebug assembleFdroidRelease
+
+      - name: Build Google Play Store Release Bundle (.aab)
+        working-directory: ./android
+        run: |
+          gradle bundlePlaystoreRelease
+
+      - name: Upload F-Droid APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluenote-fdroid-apk
+          path: |
+            android/app/build/outputs/apk/fdroid/debug/*.apk
+            android/app/build/outputs/apk/fdroid/release/*.apk
+
+      - name: Upload Google Play Store AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluenote-playstore-aab
+          path: android/app/build/outputs/bundle/playstoreRelease/*.aab
