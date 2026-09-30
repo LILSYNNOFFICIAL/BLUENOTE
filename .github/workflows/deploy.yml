@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Install missing build dependency
+        run: npm install --no-save react-is --legacy-peer-deps
+
       - name: Build static production bundle (dist/)
         run: npm run build
 
