@@ -1,0 +1,62 @@
+{
+  "id": "./",
+  "name": "BlueNote — AI Personal Organizer & Second Brain",
+  "short_name": "BlueNote",
+  "description": "Remember everything. Organize anything. Focus on what matters. 100% on-device AI personal organizer, habit tracker, notes, CRM, OCR & Second Brain.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "./pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "AI Brain Dump",
+      "short_name": "Brain Dump",
+      "description": "Capture thoughts, tasks, and voice notes instantly",
+      "url": "./?action=brain-dump",
+      "icons": [{ "src": "./pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Scan Receipt / OCR",
+      "short_name": "OCR Scan",
+      "description": "Scan receipts, business cards, or handwritten notes",
+      "url": "./?action=ocr-scanner",
+      "icons": [{ "src": "./pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Today's Habits & Tasks",
+      "short_name": "Today",
+      "description": "Check off daily habits and view priority tasks",
+      "url": "./?section=dashboard",
+      "icons": [{ "src": "./pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

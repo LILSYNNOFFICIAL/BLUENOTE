@@ -1,8 +1,5 @@
 name: Deploy BlueNote to GitHub Pages
 
-# Scoped strictly to https://github.com/LILSYNNOFFICIAL/BLUENOTE
-# Deploys as an isolated Project Page at https://lilsynnofficial.github.io/BLUENOTE/
-# Does NOT touch or modify any other GitHub Pages repositories on your account.
 on:
   push:
     branches:
@@ -16,8 +13,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-bluenote"
-  cancel-in-progress: false
+  group: 'pages'
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,26 +23,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install --no-fund --no-audit
 
-      - name: Install missing build dependency
-        run: npm install --no-save react-is --legacy-peer-deps
-
-      - name: Build static production bundle (dist/)
-        run: npm run build
-
-      - name: Ensure .nojekyll and SPA fallback 404.html in dist
+      - name: Build production bundle
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          touch dist/.nojekyll
+          npm run build
           cp dist/index.html dist/404.html
+          touch dist/.nojekyll
 
-      - name: Configure GitHub Pages
+      - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact

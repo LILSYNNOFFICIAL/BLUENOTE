@@ -531,9 +531,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                You have <strong>2 high-priority items</strong> before 4:30 PM today, and{' '}
-                <strong>{pendingInboxCount} items</strong> waiting in your Universal Inbox. You
-                typically finish strategic work 28% faster in the morning window.
+                {displayedTasks.length === 0 && pendingInboxCount === 0 ? (
+                  <>
+                    Your daily slate is completely clear. Type any task, reminder, or idea into the Omnibox above—or launch <strong>AI Brain Dump</strong> to organize multiple items at once.
+                  </>
+                ) : (
+                  <>
+                    You have <strong>{displayedTasks.length} active priority {displayedTasks.length === 1 ? 'item' : 'items'}</strong> (~{totalEstimatedMins}m total) and{' '}
+                    <strong>{pendingInboxCount} {pendingInboxCount === 1 ? 'item' : 'items'}</strong> waiting in your Universal Inbox.
+                  </>
+                )}
               </p>
             </div>
           </div>

@@ -51,10 +51,13 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
   }, [initialTab]);
 
   const searchHits = useMemo(() => {
+    if (!query.trim()) {
+      return semanticWorkspaceSearch('a e i o u', workspace, filterType as EntityType | 'all', includeArchived);
+    }
     return semanticWorkspaceSearch(
-      query || 'insurance atlas receipt',
+      query,
       workspace,
-      filterType,
+      filterType as EntityType | 'all',
       includeArchived
     );
   }, [query, workspace, filterType, includeArchived]);

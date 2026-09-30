@@ -3,99 +3,217 @@
 
 @layer base {
   :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     --bn-accent: #2563eb;
     --bn-accent-hover: #1d4ed8;
+    --bn-safe-top: env(safe-area-inset-top, 0px);
+    --bn-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bn-safe-left: env(safe-area-inset-left, 0px);
+    --bn-safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   body {
     font-family: var(--font-sans);
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    transition: background-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.025em;
+    letter-spacing: -0.028em;
+    line-height: 1.18;
   }
 
-  code, pre, .font-mono {
+  code, pre, kbd, .font-mono {
     font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  button, a, select, input, textarea {
+    transition: all 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  button:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.992);
   }
 }
 
 /* ============================================================================
-   1. BLUE THEME ("Signature Blue" — Deep Midnight Navy & Sapphire Slate,
-      what Dark Mode used to be: rich #020617 / #0f172a navy & cobalt cards)
+   ANDROID WEBVIEW & MOBILE SAFE-AREA UTILITIES
+   ============================================================================ */
+.bn-safe-header {
+  padding-top: max(0.625rem, var(--bn-safe-top));
+}
+
+.bn-safe-bottom-nav {
+  padding-bottom: max(0.5rem, var(--bn-safe-bottom));
+}
+
+.bn-app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ============================================================================
+   1. ARCHITECTURAL WHITE THEME ("Executive Daylight" — DEFAULT)
+      Pure #FFFFFF elevated studio surfaces, #FAFAFC ambient canvas,
+      crisp 1px hairline borders, and multi-layered ambient shadows.
+   ============================================================================ */
+html.theme-light body,
+html.theme-light .bn-app-shell {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #f4f7fb 100%) !important;
+  color: #090d16 !important;
+}
+
+html.theme-light aside.bn-sidebar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-right: 1px solid rgba(15, 23, 42, 0.07) !important;
+  box-shadow: 4px 0 24px -12px rgba(15, 23, 42, 0.04) !important;
+  color: #090d16 !important;
+}
+
+html.theme-light header.bn-header {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.02) !important;
+}
+
+html.theme-light main .bg-white,
+html.theme-light .bn-card {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(15, 23, 42, 0.075) !important;
+  box-shadow:
+    0 1px 2px 0 rgba(15, 23, 42, 0.025),
+    0 8px 24px -6px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+html.theme-light main .bg-slate-50,
+html.theme-light main .bg-slate-50\/90,
+html.theme-light main .bg-slate-50\/80,
+html.theme-light main .bg-slate-50\/70,
+html.theme-light main .bg-slate-50\/50 {
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.07) !important;
+}
+
+html.theme-light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-light textarea,
+html.theme-light select {
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.11) !important;
+  color: #090d16 !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.025) !important;
+}
+
+html.theme-light input:focus,
+html.theme-light textarea:focus,
+html.theme-light select:focus {
+  background-color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* ============================================================================
+   2. SAPPHIRE EXECUTIVE THEME ("Signature Blue" — Deep Architectural Navy)
+      Rich #050C1A obsidian-navy canvas, #0A1529 elevated cards,
+      and subtle luminous cobalt specular borders.
    ============================================================================ */
 html.theme-blue body,
 html.theme-blue .bn-app-shell {
-  background: radial-gradient(circle at top right, #0f2347 0%, #09152b 45%, #020617 100%) !important;
-  color: #f1f5f9 !important;
+  background: radial-gradient(120% 90% at 85% 0%, #0d2147 0%, #071226 48%, #040914 100%) !important;
+  color: #f8fafc !important;
 }
 
 html.theme-blue aside.bn-sidebar {
-  background: linear-gradient(180deg, #061021 0%, #0a1832 60%, #0d1f40 100%) !important;
-  border-right-color: #1e3a8a !important;
-  color: #f1f5f9 !important;
+  background: rgba(6, 14, 30, 0.94) !important;
+  border-right: 1px solid rgba(59, 130, 246, 0.16) !important;
+  backdrop-filter: blur(20px) !important;
+  color: #f8fafc !important;
 }
 
 html.theme-blue header.bn-header {
-  background: rgba(10, 24, 50, 0.88) !important;
-  border-bottom-color: #1e3a8a !important;
-  backdrop-filter: blur(16px);
+  background: rgba(7, 16, 35, 0.84) !important;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.16) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
 }
 
 html.theme-blue main .bg-white,
 html.theme-blue main .dark\:bg-slate-900,
-html.theme-blue .bn-card {
-  background-color: #0d1b36 !important;
-  border-color: #1e3a8a !important;
-  box-shadow: 0 12px 32px -12px rgba(2, 6, 23, 0.75), inset 0 1px 0 0 rgba(59, 130, 246, 0.14) !important;
+html.theme-blue .bn-card,
+html.theme-blue .fixed .bg-white,
+html.theme-blue .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(13, 26, 52, 0.96) 0%, rgba(9, 19, 38, 0.98) 100%) !important;
+  border: 1px solid rgba(59, 130, 246, 0.18) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(2, 6, 23, 0.78),
+    inset 0 1px 0 0 rgba(147, 197, 253, 0.12) !important;
 }
 
 html.theme-blue main .bg-slate-50,
+html.theme-blue main .bg-slate-50\/90,
 html.theme-blue main .bg-slate-50\/80,
+html.theme-blue main .bg-slate-50\/70,
 html.theme-blue main .bg-slate-50\/50,
 html.theme-blue main .dark\:bg-slate-800,
+html.theme-blue main .dark\:bg-slate-800\/90,
+html.theme-blue main .dark\:bg-slate-800\/80,
 html.theme-blue main .dark\:bg-slate-800\/60,
 html.theme-blue main .dark\:bg-slate-800\/50,
 html.theme-blue main .dark\:bg-slate-800\/40 {
-  background-color: #132647 !important;
-  border-color: #1e40af !important;
+  background-color: rgba(17, 34, 68, 0.72) !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
 }
 
-html.theme-blue input,
+html.theme-blue input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.theme-blue textarea,
 html.theme-blue select {
-  background-color: #0a162c !important;
-  border-color: #1e3a8a !important;
+  background-color: rgba(6, 14, 30, 0.85) !important;
+  border-color: rgba(59, 130, 246, 0.24) !important;
   color: #f8fafc !important;
 }
 
 /* ============================================================================
-   2. TRUE DARK THEME ("True Black OLED" — Pitch Black #000000 Background
-      & Crisp Pure White #FFFFFF Text with high-contrast carbon surfaces)
+   3. OBSIDIAN CARBON THEME ("True Dark OLED" — #050507 Carbon & Pure White)
+      Linear / Raycast / Vercel inspired precision dark surfaces with 1px
+      top-edge specular highlights.
    ============================================================================ */
 html.theme-dark body,
 html.theme-dark .bn-app-shell {
-  background: #000000 !important;
-  color: #ffffff !important;
+  background: radial-gradient(120% 80% at 50% 0%, #0d0d12 0%, #050507 55%, #000000 100%) !important;
+  color: #fafafa !important;
 }
 
 html.theme-dark aside.bn-sidebar {
-  background: #000000 !important;
-  border-right-color: #27272a !important;
-  color: #ffffff !important;
+  background: #060609 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #fafafa !important;
 }
 
 html.theme-dark header.bn-header {
-  background: rgba(0, 0, 0, 0.94) !important;
-  border-bottom-color: #27272a !important;
-  backdrop-filter: blur(16px);
+  background: rgba(6, 6, 9, 0.86) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
 }
 
 html.theme-dark main .bg-white,
@@ -103,13 +221,16 @@ html.theme-dark main .dark\:bg-slate-900,
 html.theme-dark .bn-card,
 html.theme-dark .fixed .bg-white,
 html.theme-dark .fixed .dark\:bg-slate-900 {
-  background-color: #09090b !important;
-  border-color: #27272a !important;
-  color: #ffffff !important;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.98), inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+  background: linear-gradient(180deg, #101015 0%, #0a0a0e 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  color: #fafafa !important;
+  box-shadow:
+    0 12px 32px -10px rgba(0, 0, 0, 0.92),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07) !important;
 }
 
 html.theme-dark main .bg-slate-50,
+html.theme-dark main .bg-slate-50\/90,
 html.theme-dark main .bg-slate-50\/80,
 html.theme-dark main .bg-slate-50\/70,
 html.theme-dark main .bg-slate-50\/50,
@@ -119,9 +240,9 @@ html.theme-dark main .dark\:bg-slate-800\/80,
 html.theme-dark main .dark\:bg-slate-800\/60,
 html.theme-dark main .dark\:bg-slate-800\/50,
 html.theme-dark main .dark\:bg-slate-800\/40 {
-  background-color: #121215 !important;
-  border-color: #2e2e33 !important;
-  color: #ffffff !important;
+  background-color: #15151c !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  color: #fafafa !important;
 }
 
 html.theme-dark .text-slate-900,
@@ -134,7 +255,7 @@ html.theme-dark h1,
 html.theme-dark h2,
 html.theme-dark h3,
 html.theme-dark h4 {
-  color: #ffffff !important;
+  color: #fafafa !important;
 }
 
 html.theme-dark .text-slate-600,
@@ -142,102 +263,138 @@ html.theme-dark .text-slate-500,
 html.theme-dark .text-slate-400,
 html.theme-dark .dark\:text-slate-300,
 html.theme-dark .dark\:text-slate-400 {
-  color: #e4e4e7 !important;
+  color: #a1a1aa !important;
 }
 
-html.theme-dark input,
+html.theme-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.theme-dark textarea,
 html.theme-dark select {
-  background-color: #050507 !important;
-  border-color: #3f3f46 !important;
-  color: #ffffff !important;
+  background-color: #09090d !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+  color: #fafafa !important;
 }
 
 html.theme-dark input::placeholder,
 html.theme-dark textarea::placeholder {
-  color: #a1a1aa !important;
+  color: #71717a !important;
 }
 
 /* ============================================================================
-   3. DAYLIGHT MINIMAL THEME ("Executive Daylight" — Crisp Alabaster & Slate)
-   ============================================================================ */
-html.theme-light body,
-html.theme-light .bn-app-shell {
-  background: #f8fafc !important;
-  color: #0f172a !important;
-}
-
-html.theme-light aside.bn-sidebar {
-  background: #ffffff !important;
-  border-right-color: #e2e8f0 !important;
-  color: #0f172a !important;
-}
-
-html.theme-light header.bn-header {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border-bottom-color: #e2e8f0 !important;
-  backdrop-filter: blur(16px);
-}
-
-html.theme-light main .bg-white,
-html.theme-light .bn-card {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 2px 12px -4px rgba(15, 23, 42, 0.06) !important;
-}
-
-/* ============================================================================
-   4. EMERALD FOREST THEME (Deep Pine Dark Surface & Luminous Emerald)
+   4. NORDIC BOTANICAL THEME ("Emerald Forest" — Deep Pine & Luminous Sage)
    ============================================================================ */
 html.theme-emerald body,
 html.theme-emerald .bn-app-shell {
-  background: radial-gradient(circle at top right, #064e3b 0%, #022c22 65%, #011c16 100%) !important;
+  background: radial-gradient(120% 90% at 85% 0%, #063e2f 0%, #03221a 50%, #02130e 100%) !important;
   color: #ecfdf5 !important;
 }
 
 html.theme-emerald aside.bn-sidebar {
-  background: #022019 !important;
-  border-right-color: #065f46 !important;
+  background: rgba(3, 25, 19, 0.95) !important;
+  border-right: 1px solid rgba(52, 211, 153, 0.16) !important;
+  color: #ecfdf5 !important;
 }
 
 html.theme-emerald header.bn-header {
-  background: rgba(2, 32, 25, 0.9) !important;
-  border-bottom-color: #065f46 !important;
+  background: rgba(4, 31, 24, 0.86) !important;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.16) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
 }
 
 html.theme-emerald main .bg-white,
-html.theme-emerald main .dark\:bg-slate-900 {
-  background-color: #042f24 !important;
-  border-color: #047857 !important;
+html.theme-emerald main .dark\:bg-slate-900,
+html.theme-emerald .bn-card,
+html.theme-emerald .fixed .bg-white,
+html.theme-emerald .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(7, 46, 36, 0.95) 0%, rgba(4, 31, 24, 0.98) 100%) !important;
+  border: 1px solid rgba(52, 211, 153, 0.18) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(1, 15, 11, 0.82),
+    inset 0 1px 0 0 rgba(110, 231, 183, 0.1) !important;
+}
+
+html.theme-emerald main .bg-slate-50,
+html.theme-emerald main .bg-slate-50\/90,
+html.theme-emerald main .bg-slate-50\/80,
+html.theme-emerald main .bg-slate-50\/70,
+html.theme-emerald main .bg-slate-50\/50,
+html.theme-emerald main .dark\:bg-slate-800,
+html.theme-emerald main .dark\:bg-slate-800\/90,
+html.theme-emerald main .dark\:bg-slate-800\/80,
+html.theme-emerald main .dark\:bg-slate-800\/60,
+html.theme-emerald main .dark\:bg-slate-800\/50,
+html.theme-emerald main .dark\:bg-slate-800\/40 {
+  background-color: rgba(10, 61, 48, 0.65) !important;
+  border-color: rgba(52, 211, 153, 0.2) !important;
+}
+
+html.theme-emerald input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-emerald textarea,
+html.theme-emerald select {
+  background-color: rgba(3, 24, 18, 0.88) !important;
+  border-color: rgba(52, 211, 153, 0.24) !important;
+  color: #ecfdf5 !important;
 }
 
 /* ============================================================================
-   5. ROYAL AMETHYST THEME (Deep Cosmic Plum Surface & Violet Glow)
+   5. ATELIER AMETHYST THEME ("Royal Amethyst" — Deep Obsidian Plum & Violet)
    ============================================================================ */
 html.theme-violet body,
 html.theme-violet .bn-app-shell {
-  background: radial-gradient(circle at top right, #2e1065 0%, #170736 65%, #0b031c 100%) !important;
+  background: radial-gradient(120% 90% at 85% 0%, #271052 0%, #13072b 52%, #090316 100%) !important;
   color: #f5f3ff !important;
 }
 
 html.theme-violet aside.bn-sidebar {
-  background: #120529 !important;
-  border-right-color: #4c1d95 !important;
+  background: rgba(14, 5, 32, 0.95) !important;
+  border-right: 1px solid rgba(167, 139, 250, 0.16) !important;
+  color: #f5f3ff !important;
 }
 
 html.theme-violet header.bn-header {
-  background: rgba(18, 5, 41, 0.9) !important;
-  border-bottom-color: #4c1d95 !important;
+  background: rgba(17, 6, 38, 0.86) !important;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.16) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
 }
 
 html.theme-violet main .bg-white,
-html.theme-violet main .dark\:bg-slate-900 {
-  background-color: #1b093b !important;
-  border-color: #5b21b6 !important;
+html.theme-violet main .dark\:bg-slate-900,
+html.theme-violet .bn-card,
+html.theme-violet .fixed .bg-white,
+html.theme-violet .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(28, 12, 59, 0.95) 0%, rgba(18, 7, 40, 0.98) 100%) !important;
+  border: 1px solid rgba(167, 139, 250, 0.18) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(6, 2, 15, 0.85),
+    inset 0 1px 0 0 rgba(196, 181, 253, 0.11) !important;
+}
+
+html.theme-violet main .bg-slate-50,
+html.theme-violet main .bg-slate-50\/90,
+html.theme-violet main .bg-slate-50\/80,
+html.theme-violet main .bg-slate-50\/70,
+html.theme-violet main .bg-slate-50\/50,
+html.theme-violet main .dark\:bg-slate-800,
+html.theme-violet main .dark\:bg-slate-800\/90,
+html.theme-violet main .dark\:bg-slate-800\/80,
+html.theme-violet main .dark\:bg-slate-800\/60,
+html.theme-violet main .dark\:bg-slate-800\/50,
+html.theme-violet main .dark\:bg-slate-800\/40 {
+  background-color: rgba(38, 16, 79, 0.65) !important;
+  border-color: rgba(167, 139, 250, 0.2) !important;
+}
+
+html.theme-violet input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-violet textarea,
+html.theme-violet select {
+  background-color: rgba(12, 4, 28, 0.88) !important;
+  border-color: rgba(167, 139, 250, 0.24) !important;
+  color: #f5f3ff !important;
 }
 
 /* ============================================================================
-   ACCESSIBILITY MODIFIERS
+   ACCESSIBILITY MODIFIERS & SCROLLBARS
    ============================================================================ */
 html.bn-large-text {
   font-size: 112.5%;
@@ -253,10 +410,9 @@ html.bn-reduced-motion *::after {
 }
 
 html.bn-high-contrast {
-  filter: contrast(1.18);
+  filter: contrast(1.16);
 }
 
-/* Subtle custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -267,10 +423,10 @@ html.bn-high-contrast {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.32);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.65);
+  background: rgba(100, 116, 139, 0.55);
 }

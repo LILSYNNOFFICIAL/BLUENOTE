@@ -1,9 +1,9 @@
 export type PriorityLevel = 'Critical' | 'High' | 'Medium' | 'Low' | 'Someday';
 export type TaskStatus = 'Not Started' | 'In Progress' | 'Waiting' | 'Scheduled' | 'Completed' | 'Archived';
-export type EnergyMode = 'Focused' | 'Normal' | 'Busy' | 'Tired' | 'Sick' | 'Vacation';
+export type EnergyMode = 'Focused' | 'Normal' | 'Busy' | 'Tired' | 'Sick' | 'Vacation' | 'High Energy' | 'Low Energy';
 export type ThemeMode = 'blue' | 'light' | 'dark' | 'emerald' | 'violet' | 'system';
 export type AIPersonality = 'Personal Assistant' | 'Professional' | 'Friendly' | 'Minimal' | 'Motivational' | 'Executive Assistant' | 'Calm & Quiet';
-export type AIConfirmationMode = 'Always Ask' | 'Usually Ask' | 'Auto Save' | 'Never Ask';
+export type AIConfirmationMode = 'Always Ask' | 'Usually Ask' | 'Auto Save' | 'Never Ask' | 'Smart Mode';
 
 export type AIAgentType =
   | 'Auto'
@@ -156,6 +156,9 @@ export interface Reminder {
   triggerDate: string; // YYYY-MM-DD
   triggerTime: string; // HH:mm
   repeatRule: 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
+  recurrence?: 'Once' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
+  priority?: PriorityLevel;
+  category?: string;
   status: 'Active' | 'Snoozed' | 'Completed' | 'Dismissed';
   snoozeUntil?: string;
   smartSuggestionReason?: string;
@@ -244,7 +247,7 @@ export interface ShoppingItem {
   id: string;
   name: string;
   quantity: string;
-  category: 'Produce' | 'Dairy' | 'Pantry' | 'Household' | 'Pharmacy' | 'Hardware' | 'Other';
+  category: 'Produce' | 'Dairy' | 'Pantry' | 'Household' | 'Pharmacy' | 'Hardware' | 'Groceries' | 'Other';
   checked: boolean;
   priority: 'Essential' | 'Normal' | 'Optional';
   estimatedPrice?: number;
@@ -257,7 +260,7 @@ export interface ShoppingList {
   name: string;
   store: string;
   items: ShoppingItem[];
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Habit {
@@ -326,7 +329,7 @@ export interface AutomationRule {
   id: string;
   name: string;
   trigger: string;
-  condition: string;
+  condition?: string;
   action: string;
   enabled: boolean;
   runsCount: number;

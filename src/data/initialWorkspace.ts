@@ -1,102 +1,9 @@
 import { WorkspaceState } from '../types/bluenote';
 import {
-  DEFAULT_PATTERN_OBSERVATIONS,
   DEFAULT_PERSONAL_PATTERNS,
+  DEFAULT_PATTERN_OBSERVATIONS,
   DEFAULT_PREDICTION_SAFEGUARDS,
 } from '../services/patternEngine';
-
-const todayStr = new Date().toISOString().split('T')[0];
-
-export const PROJECT_TEMPLATES = [
-  {
-    id: 'tpl-software',
-    name: 'Software Product Launch',
-    category: 'Work',
-    icon: 'Code',
-    color: '#2563eb',
-    description: 'End-to-end architecture, beta testing, documentation, and go-to-market launch checklist.',
-    defaultTasks: [
-      { title: 'Finalize core API & database schema', priority: 'Critical' as const, est: 90 },
-      { title: 'Run accessibility & WCAG contrast audit', priority: 'High' as const, est: 45 },
-      { title: 'Prepare release notes and onboarding flow', priority: 'Medium' as const, est: 60 },
-    ],
-  },
-  {
-    id: 'tpl-home',
-    name: 'Home Renovation & Repair',
-    category: 'Home',
-    icon: 'Home',
-    color: '#0d9488',
-    description: 'Contractor quotes, permits, material receipts, inspection timeline, and budget tracking.',
-    defaultTasks: [
-      { title: 'Compare contractor bids and verify insurance', priority: 'High' as const, est: 45 },
-      { title: 'Upload material receipts for warranty', priority: 'Medium' as const, est: 20 },
-      { title: 'Schedule final inspection', priority: 'High' as const, est: 30 },
-    ],
-  },
-  {
-    id: 'tpl-vacation',
-    name: 'Vacation & Travel Planner',
-    category: 'Personal',
-    icon: 'Plane',
-    color: '#0284c7',
-    description: 'Flight reservations, packing checklists, hotel confirmations, and daily itinerary.',
-    defaultTasks: [
-      { title: 'Confirm flight check-in and seat selection', priority: 'High' as const, est: 15 },
-      { title: 'Complete packing checklist & travel documents', priority: 'Medium' as const, est: 40 },
-      { title: 'Set automatic out-of-office responder', priority: 'Low' as const, est: 10 },
-    ],
-  },
-  {
-    id: 'tpl-taxes',
-    name: 'Annual Tax & Financial Review',
-    category: 'Finance',
-    icon: 'FileText',
-    color: '#4f46e5',
-    description: 'Download 1099/W-2 forms, organize deductible receipts, and coordinate with accountant.',
-    defaultTasks: [
-      { title: 'Download annual bank & brokerage statements', priority: 'High' as const, est: 35 },
-      { title: 'Consolidate deductible receipts from OCR uploads', priority: 'High' as const, est: 45 },
-      { title: 'Send tax packet to CPA for final review', priority: 'Critical' as const, est: 30 },
-    ],
-  },
-  {
-    id: 'tpl-moving',
-    name: 'Moving & Relocation Checklist',
-    category: 'Home',
-    icon: 'Package',
-    color: '#d97706',
-    description: 'Utility transfers, address updates, moving company quotes, and room-by-room packing.',
-    defaultTasks: [
-      { title: 'Book moving company & confirm insurance certificate', priority: 'Critical' as const, est: 45 },
-      { title: 'Transfer electricity, fiber internet, and water utilities', priority: 'High' as const, est: 30 },
-      { title: 'Update mail forwarding and bank billing addresses', priority: 'Medium' as const, est: 25 },
-    ],
-  },
-];
-
-export const NOTE_TEMPLATES = [
-  {
-    name: 'Structured Meeting Notes',
-    category: 'Meetings',
-    content: `# Meeting Summary\n**Date:** ${todayStr}\n**Attendees:** \n\n## Agenda\n- \n\n## Key Decisions\n1. \n\n## Action Items\n- [ ] `,
-  },
-  {
-    name: 'Daily Focus & Reflection',
-    category: 'Personal',
-    content: `# Daily Plan — ${todayStr}\n\n## Top 3 Priorities Today\n1. [ ] \n2. [ ] \n3. [ ] \n\n## Brainstorms & Quick Captures\n- `,
-  },
-  {
-    name: 'Research & Second Brain Synthesis',
-    category: 'Research',
-    content: `# Research Topic Overview\n\n## Core Thesis & Takeaways\n- \n\n## Key Sources & Links\n- \n\n## Open Questions\n- `,
-  },
-  {
-    name: 'Medical & Insurance Log',
-    category: 'Medical',
-    content: `# Medical & Insurance Reference\n\n**Provider / Clinic:** \n**Policy / Group Number:** \n\n## Summary of Discussion\n- \n\n## Follow-up Instructions\n- [ ] `,
-  },
-];
 
 export const initialWorkspace: WorkspaceState = {
   settings: {
@@ -106,14 +13,14 @@ export const initialWorkspace: WorkspaceState = {
     language: 'English (US)',
     timeFormat: '12h',
     weekStart: 'Monday',
-    theme: 'blue',
+    theme: 'light',
     accentColor: '#2563eb',
-    energyMode: 'Focused',
+    energyMode: 'Normal',
     highContrast: false,
     largeText: false,
     reducedMotion: false,
-    aiPersonality: 'Personal Assistant',
-    aiConfirmationMode: 'Usually Ask',
+    aiPersonality: 'Professional',
+    aiConfirmationMode: 'Smart Mode',
     aiMemoryEnabled: true,
     knowledgeGraphEnabled: true,
     autoCategorize: true,
@@ -123,7 +30,7 @@ export const initialWorkspace: WorkspaceState = {
     dailyEmailEnabled: true,
     dailyEmailTime: '07:30',
     weeklyEmailEnabled: true,
-    monthlyEmailEnabled: true,
+    monthlyEmailEnabled: false,
     workHoursStart: '09:00',
     workHoursEnd: '17:30',
     adaptiveDashboard: true,
@@ -132,63 +39,176 @@ export const initialWorkspace: WorkspaceState = {
     onboardingCompleted: false,
     learnedMemoryFacts: [],
   },
-  projects: [],
-  goals: [],
-  habits: [],
-  folders: [
-    { id: 'fld-work', name: 'Work & Strategy', icon: 'Briefcase', color: '#2563eb' },
-    { id: 'fld-personal', name: 'Personal & Home', icon: 'Home', color: '#0d9488' },
-    { id: 'fld-finance', name: 'Finance & Receipts', icon: 'FileText', color: '#4f46e5' },
-    { id: 'fld-ideas', name: 'Second Brain Ideas', icon: 'Sparkles', color: '#d97706' },
-  ],
-  inbox: [],
+
+  // Clean, zero-demo state — ready for real user tasks, notes, projects, and captures
   tasks: [],
   notes: [],
+  projects: [],
   events: [],
   reminders: [],
   contacts: [],
   links: [],
   files: [],
-  shoppingLists: [
-    {
-      id: 'shop-default',
-      name: 'Shopping & Errands',
-      category: 'Groceries',
-      updatedAt: new Date().toISOString(),
-      items: [],
-    },
-  ],
+  habits: [],
+  goals: [],
+  inbox: [],
   knowledgeGraph: [],
   conversations: [],
-  automations: [
-    {
-      id: 'auto-1',
-      name: 'Receipt OCR → Finance Folder & Tax Tag',
-      description: 'Automatically tag scanned receipts with #Expense and link to Finance folder.',
-      trigger: 'When a Receipt image is scanned via OCR',
-      action: 'Create Expense Note + tag #Tax-Deductible',
-      enabled: true,
-    },
-    {
-      id: 'auto-2',
-      name: 'Business Card OCR → Personal CRM Contact',
-      description: 'Extract phone, email, and company from business cards into Contacts.',
-      trigger: 'When a Business Card photo is uploaded',
-      action: 'Create Contact in CRM + log initial interaction',
-      enabled: true,
-    },
-    {
-      id: 'auto-3',
-      name: 'Morning Energy Mode Schedule Adaptation',
-      description: 'Filter dashboard task load automatically when switching Energy Modes.',
-      trigger: 'When Energy Mode changes (Focused / Busy / Tired / Vacation)',
-      action: 'Re-rank daily priority list',
-      enabled: true,
-    },
-  ],
-  savedSearches: [],
   activityLog: [],
+  savedSearches: [],
   personalPatterns: DEFAULT_PERSONAL_PATTERNS,
   patternObservations: DEFAULT_PATTERN_OBSERVATIONS,
   predictionSafeguards: DEFAULT_PREDICTION_SAFEGUARDS,
+
+  folders: [
+    { id: 'fld-work', name: 'Work & Strategy', icon: 'Briefcase', color: '#2563eb' },
+    { id: 'fld-home', name: 'Home & Life', icon: 'Home', color: '#0d9488' },
+    { id: 'fld-finance', name: 'Finance & Tax', icon: 'DollarSign', color: '#d97706' },
+    { id: 'fld-ideas', name: 'Ideas & Brainstorms', icon: 'Sparkles', color: '#7c3aed' },
+  ],
+
+  shoppingLists: [
+    {
+      id: 'shop-1',
+      name: 'Shopping & Errands',
+      store: 'General',
+      items: [],
+    },
+  ],
+
+  automations: [
+    {
+      id: 'auto-1',
+      name: 'Auto-Tag Uploaded Receipts for Tax Time',
+      trigger: 'When a receipt image or PDF is uploaded',
+      action: 'Run OCR, tag #Tax-Deductible, and link to Finance folder',
+      enabled: true,
+      runsCount: 0,
+    },
+    {
+      id: 'auto-2',
+      name: 'Business Card → Contact CRM Auto-Builder',
+      trigger: 'When a business card photo is scanned',
+      action: 'Extract Name, Phone, Email & Company and create Contact Card',
+      enabled: true,
+      runsCount: 0,
+    },
+    {
+      id: 'auto-3',
+      name: 'Morning Briefing & Overdue Rollover',
+      trigger: 'Every morning at 7:30 AM',
+      action: 'Roll over unfinished tasks and generate Today Priority Brief',
+      enabled: true,
+      runsCount: 0,
+    },
+    {
+      id: 'auto-4',
+      name: 'Meeting Note → Action Item Extractor',
+      trigger: 'When a note is saved in Meeting Notes category',
+      action: 'Identify action verbs and propose Tasks with deadlines',
+      enabled: true,
+      runsCount: 0,
+    },
+  ],
 };
+
+export const NOTE_TEMPLATES = [
+  {
+    id: 'tpl-meeting',
+    name: 'Meeting Notes',
+    category: 'Meeting',
+    content: `# Meeting Title\n**Date:** ${new Date().toISOString().split('T')[0]}\n**Attendees:** \n\n## Agenda\n1. \n2. \n\n## Key Decisions\n- \n\n## Action Items\n- [ ] `,
+  },
+  {
+    id: 'tpl-daily',
+    name: 'Daily Journal & Reflection',
+    category: 'Journal',
+    content: `# Daily Reflection — ${new Date().toISOString().split('T')[0]}\n\n## Top 3 Wins Today\n1. \n2. \n3. \n\n## What’s On My Mind\n- \n\n## Tomorrow’s #1 Focus\n- [ ] `,
+  },
+  {
+    id: 'tpl-project',
+    name: 'Project Plan',
+    category: 'Project',
+    content: `# Project Name\n\n## Objective\nDescribe the core outcome and success criteria.\n\n## Milestones\n- [ ] Phase 1: Research & Architecture\n- [ ] Phase 2: Execution\n- [ ] Phase 3: Launch & Review\n\n## Risks & Dependencies\n- `,
+  },
+  {
+    id: 'tpl-decision',
+    name: 'Decision Log',
+    category: 'Strategy',
+    content: `# Decision Log\n**Status:** Proposed\n\n## Context & Problem\nWhat decision needs to be made?\n\n## Options Considered\n1. **Option A:** Pros / Cons\n2. **Option B:** Pros / Cons\n\n## Final Decision & Rationale\n`,
+  },
+  {
+    id: 'tpl-proscons',
+    name: 'Pros & Cons Matrix',
+    category: 'Decision',
+    content: `# Pros & Cons Evaluation\n\n## Pros (+)\n- \n- \n\n## Cons (-)\n- \n- \n\n## Verdict\n`,
+  },
+];
+
+export const PROJECT_TEMPLATES = [
+  {
+    id: 'pt-home',
+    name: 'Home Renovation',
+    category: 'Home',
+    color: '#0d9488',
+    icon: 'Home',
+    description: 'Contractor quotes, permits, material receipts, and inspection milestones.',
+    defaultTasks: [
+      { title: 'Collect 3 licensed contractor quotes', priority: 'High' as const, est: 45 },
+      { title: 'Verify insurance & building permits', priority: 'Critical' as const, est: 30 },
+      { title: 'Create materials & hardware shopping list', priority: 'Medium' as const, est: 25 },
+    ],
+  },
+  {
+    id: 'pt-trip',
+    name: 'Trip Planning',
+    category: 'Travel',
+    color: '#0284c7',
+    icon: 'Plane',
+    description: 'Flights, hotel bookings, packing checklist, and itinerary schedule.',
+    defaultTasks: [
+      { title: 'Book flights and save confirmation PDFs', priority: 'Critical' as const, est: 30 },
+      { title: 'Reserve hotel / lodging & add to Calendar', priority: 'High' as const, est: 25 },
+      { title: 'Complete travel packing checklist', priority: 'Medium' as const, est: 20 },
+    ],
+  },
+  {
+    id: 'pt-launch',
+    name: 'Business Launch',
+    category: 'Work',
+    color: '#2563eb',
+    icon: 'Rocket',
+    description: 'Product architecture, go-to-market checklist, legal setup, and launch timeline.',
+    defaultTasks: [
+      { title: 'Finalize MVP feature specification', priority: 'Critical' as const, est: 60 },
+      { title: 'Set up domain, analytics, and landing page', priority: 'High' as const, est: 45 },
+      { title: 'Prepare launch announcement & customer list', priority: 'Medium' as const, est: 30 },
+    ],
+  },
+  {
+    id: 'pt-move',
+    name: 'Moving Checklist',
+    category: 'Personal',
+    color: '#7c3aed',
+    icon: 'Truck',
+    description: 'Address changes, utility transfers, packing room-by-room, and movers.',
+    defaultTasks: [
+      { title: 'Book moving company & confirm insurance', priority: 'Critical' as const, est: 40 },
+      { title: 'Transfer electricity, internet, and water utilities', priority: 'High' as const, est: 30 },
+      { title: 'Label boxes by room and essentials first', priority: 'Medium' as const, est: 60 },
+    ],
+  },
+  {
+    id: 'pt-semester',
+    name: 'School Semester',
+    category: 'Education',
+    color: '#d97706',
+    icon: 'GraduationCap',
+    description: 'Course syllabi, exam dates, reading schedule, and research papers.',
+    defaultTasks: [
+      { title: 'Import all exam & assignment deadlines to Calendar', priority: 'Critical' as const, est: 35 },
+      { title: 'Organize digital folders for each course', priority: 'High' as const, est: 20 },
+      { title: 'Schedule weekly 2-hour review blocks', priority: 'Medium' as const, est: 15 },
+    ],
+  },
+];

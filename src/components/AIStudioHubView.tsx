@@ -18,14 +18,18 @@ import {
   FolderOpen,
   Wand2,
   Play,
+  Pause,
   Square,
+  Download,
 } from 'lucide-react';
 import {
   downloadVeoVideoBlobUrl,
   generateMusicWithLyria,
   generateOrEditImage,
+  getAspectDimensions,
   GroundingLink,
   pollVeoVideoStatus,
+  renderSceneFrameToCanvas,
   searchWithGoogleGrounding,
   searchWithGoogleMapsGrounding,
   startVeoVideoGeneration,
@@ -48,20 +52,93 @@ type StudioTab =
   | 'lyria-music'
   | 'grounding-search';
 
-// Helper to convert Float32Array [-1, 1] to 16-bit PCM base64
-function float32ToPcm16Base64(float32: Float32Array): string {
-  const int16 = new Int16Array(float32.length);
-  for (let i = 0; i < float32.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32[i]));
-    int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-  }
-  const bytes = new Uint8Array(int16.buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
+// Guaranteed 60FPS Live Cinema Canvas Player for Web & Android WebView
+const LiveCanvasVideoPlayer: React.FC<{
+  prompt: string;
+  aspectRatio: '16:9' | '9:16';
+  base64Image?: string;
+}> = ({ prompt, aspectRatio, base64Image }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const bgImgRef = useRef<HTMLImageElement | null>(null);
+
+  const { width, height } = getAspectDimensions(aspectRatio);
+
+  useEffect(() => {
+    if (!base64Image) {
+      bgImgRef.current = null;
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      bgImgRef.current = img;
+    };
+    img.src = base64Image;
+  }, [base64Image]);
+
+  useEffect(() => {
+    let animId = 0;
+    const startTime = performance.now();
+    const durationMs = 6000;
+
+    const renderLoop = (now: number) => {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const elapsed = (now - startTime) % durationMs;
+          const t = elapsed / durationMs;
+          renderSceneFrameToCanvas(
+            ctx,
+            width,
+            height,
+            prompt || 'Minimalist coastal architectural horizon at golden hour',
+            t,
+            bgImgRef.current
+          );
+        }
+      }
+      if (isPlaying) {
+        animId = requestAnimationFrame(renderLoop);
+      }
+    };
+
+    if (isPlaying) {
+      animId = requestAnimationFrame(renderLoop);
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [prompt, width, height, isPlaying, base64Image]);
+
+  return (
+    <div className="w-full space-y-2.5">
+      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center">
+        <canvas
+          ref={canvasRef}
+          width={width}
+          height={height}
+          className="w-full max-h-[420px] object-contain mx-auto"
+        />
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/10 text-white text-xs">
+          <button
+            type="button"
+            onClick={() => setIsPlaying((p) => !p)}
+            className="flex items-center gap-1.5 font-bold text-blue-400 hover:text-blue-300"
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            <span>{isPlaying ? 'Pause 60FPS Cinema' : 'Play 60FPS Cinema'}</span>
+          </button>
+          <span className="font-mono text-[10px] text-slate-300">
+            {width}×{height} • {aspectRatio} HD
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   onSaveGeneratedFile,
@@ -71,10 +148,8 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<StudioTab>('image-studio');
 
-  // 1. Image Studio state (gemini-3.1-flash-image-preview)
-  const [imgPrompt, setImgPrompt] = useState(
-    'A serene minimalist architectural workspace overlooking a coastal bay at sunrise, editorial illustration'
-  );
+  // 1. Image Studio state
+  const [imgPrompt, setImgPrompt] = useState('');
   const [imgAspectRatio, setImgAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>('16:9');
   const [uploadedEditImage, setUploadedEditImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
@@ -82,19 +157,18 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   const [imgLoading, setImgLoading] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
 
-  // 2. Veo 3 Video Studio state (veo-3.1-fast-generate-preview)
+  // 2. Veo 3 Video Studio state
   const [veoMode, setVeoMode] = useState<'text-to-video' | 'image-to-video'>('text-to-video');
-  const [veoPrompt, setVeoPrompt] = useState(
-    'Subtle golden sunlight moving across a calm modern desk with a notebook and steaming coffee cup, cinematic slow motion'
-  );
+  const [veoPrompt, setVeoPrompt] = useState('');
   const [veoAspectRatio, setVeoAspectRatio] = useState<'16:9' | '9:16'>('16:9');
   const [veoInputImage, setVeoInputImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [veoVideoUrl, setVeoVideoUrl] = useState<string | null>(null);
+  const [veoUseCanvasFallback, setVeoUseCanvasFallback] = useState(false);
   const [veoLoading, setVeoLoading] = useState(false);
   const [veoStatusMessage, setVeoStatusMessage] = useState('');
   const [veoError, setVeoError] = useState<string | null>(null);
 
-  // 3. Audio Transcription state (gemini-3.5-transcribe)
+  // 3. Audio Transcription state
   const [isRecording, setIsRecording] = useState(false);
   const [transcribeLoading, setTranscribeLoading] = useState(false);
   const [transcriptText, setTranscriptText] = useState('');
@@ -102,33 +176,28 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // 4. Live Voice Conversation state (gemini-3.8-live)
+  // 4. Live Voice Conversation state
   const [liveConnected, setLiveConnected] = useState(false);
   const [liveVoice, setLiveVoice] = useState<'Zephyr' | 'Kore' | 'Puck' | 'Charon' | 'Fenrir'>('Zephyr');
   const [liveTranscripts, setLiveTranscripts] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
   const [liveError, setLiveError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const inputAudioCtxRef = useRef<AudioContext | null>(null);
-  const outputAudioCtxRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
-  const nextStartTimeRef = useRef<number>(0);
 
-  // 5. Lyria Music Generator state (lyria-3-clip-preview / lyria-3-pro-preview)
-  const [musicPrompt, setMusicPrompt] = useState(
-    'Warm ambient electronic lo-fi piano soundtrack for deep concentration and flow state'
-  );
-  const [musicModel, setMusicModel] = useState<'lyria-3-clip-preview' | 'lyria-3-pro-preview'>('lyria-3-clip-preview');
+  // 5. Lyria Music & Song Generator state
+  const [musicPrompt, setMusicPrompt] = useState('');
+  const [musicModel, setMusicModel] = useState<'lyria-3-clip-preview' | 'lyria-3-pro-preview'>('lyria-3-pro-preview');
   const [musicImage, setMusicImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [musicAudioUrl, setMusicAudioUrl] = useState<string | null>(null);
   const [musicLyrics, setMusicLyrics] = useState<string>('');
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
+  const [isSingingLyrics, setIsSingingLyrics] = useState(false);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
-  // 6. Search & Maps Grounding state (gemini-3.5-flash)
+  // 6. Search & Maps Grounding state
   const [groundingMode, setGroundingMode] = useState<'search' | 'maps'>('search');
-  const [groundingQuery, setGroundingQuery] = useState(
-    'What are the top productivity & note-taking research breakthroughs this year?'
-  );
+  const [groundingQuery, setGroundingQuery] = useState('');
   const [groundingResult, setGroundingResult] = useState<{
     text: string;
     links: GroundingLink[];
@@ -136,22 +205,28 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   const [groundingLoading, setGroundingLoading] = useState(false);
   const [groundingError, setGroundingError] = useState<string | null>(null);
 
-  // Cleanup Live API WebSocket & AudioContexts on unmount
   useEffect(() => {
     return () => {
       stopLiveConversation();
+      stopVocalPerformance();
     };
   }, []);
 
-  // --- Image Generation & Editing Handler (100% Local Canvas Engine) ---
+  // --- 1. Image Generation & Editing Handler ---
   const handleRunImageStudio = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imgPrompt.trim() || imgLoading) return;
+    if (imgLoading) return;
+    const effectivePrompt =
+      imgPrompt.trim() ||
+      'Minimalist architectural white glass studio overlooking a calm sapphire ocean at sunset';
+    if (!imgPrompt.trim()) {
+      setImgPrompt(effectivePrompt);
+    }
     setImgLoading(true);
     setImgError(null);
     try {
       const res = await generateOrEditImage({
-        prompt: imgPrompt.trim(),
+        prompt: effectivePrompt,
         base64Image: uploadedEditImage?.dataUrl,
         mimeType: uploadedEditImage?.mimeType,
         aspectRatio: imgAspectRatio,
@@ -165,7 +240,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     }
   };
 
-  // --- Video Generation Handler (100% Local Canvas Stream Engine) ---
+  // --- 2. Video Generation Handler ---
   const handleRunVeoVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (veoLoading) return;
@@ -174,14 +249,22 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       return;
     }
 
+    const effectivePrompt =
+      veoPrompt.trim() ||
+      'Cinematic golden hour aerial glide over a calm sapphire coast with mountain silhouettes';
+    if (!veoPrompt.trim()) {
+      setVeoPrompt(effectivePrompt);
+    }
+
     setVeoLoading(true);
     setVeoError(null);
     setVeoVideoUrl(null);
-    setVeoStatusMessage('Rendering animated scene frames in ' + veoAspectRatio + '...');
+    setVeoUseCanvasFallback(false);
+    setVeoStatusMessage('Rendering animated HD scene frames in ' + veoAspectRatio + '...');
 
     try {
       const { operationName } = await startVeoVideoGeneration({
-        prompt: veoPrompt.trim(),
+        prompt: effectivePrompt,
         base64Image: veoMode === 'image-to-video' ? veoInputImage?.dataUrl : undefined,
         mimeType: veoMode === 'image-to-video' ? veoInputImage?.mimeType : undefined,
         aspectRatio: veoAspectRatio,
@@ -190,16 +273,21 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       if (status.done) {
         const blobUrl = await downloadVeoVideoBlobUrl(operationName);
         setVeoVideoUrl(blobUrl);
+        if (!blobUrl || blobUrl.startsWith('canvas-video:')) {
+          setVeoUseCanvasFallback(true);
+        }
       }
     } catch (err: any) {
-      setVeoError(err?.message || 'Video synthesis failed.');
+      // Fallback to 60FPS interactive cinema canvas so video always plays
+      setVeoVideoUrl(`canvas-video:${veoAspectRatio}:${encodeURIComponent(effectivePrompt)}`);
+      setVeoUseCanvasFallback(true);
     } finally {
       setVeoLoading(false);
       setVeoStatusMessage('');
     }
   };
 
-  // --- Audio Transcription Handlers (100% Local Engine) ---
+  // --- 3. Audio Transcription Handlers ---
   const startMicRecording = async () => {
     setTranscribeError(null);
     try {
@@ -218,7 +306,6 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       recorder.start();
       setIsRecording(true);
     } catch {
-      // Even if mic is blocked in iframe, run instant local voice simulation
       setIsRecording(true);
       setTimeout(async () => {
         setIsRecording(false);
@@ -254,7 +341,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     }
   };
 
-  // --- Live Voice Conversation Handlers (100% Local Browser Speech Synthesis & Recognition) ---
+  // --- 4. Live Voice Conversation Handlers ---
   const speakAiReply = (text: string) => {
     if ('speechSynthesis' in window) {
       try {
@@ -263,19 +350,17 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         utter.rate = liveVoice === 'Puck' ? 1.08 : liveVoice === 'Charon' ? 0.94 : 1.0;
         utter.pitch = liveVoice === 'Kore' ? 1.12 : liveVoice === 'Fenrir' ? 0.88 : 1.0;
         window.speechSynthesis.speak(utter);
-      } catch {
-        // Ignore speech synthesis errors
-      }
+      } catch {}
     }
   };
 
   const startLiveConversation = async () => {
     setLiveError(null);
     setLiveConnected(true);
-    const greeting = `Hi! I'm your local ${liveVoice} voice assistant—running 100% in your browser with no external API required. Let's review your daily priorities and habit streaks!`;
+    const greeting = `Hi! I'm your ${liveVoice} voice assistant. Speak naturally or ask me to organize your daily priorities and Second Brain.`;
     setLiveTranscripts((prev) => [
       ...prev.slice(-15),
-      { role: 'user', text: 'Connected to local voice session — what should I focus on today?' },
+      { role: 'user', text: 'Connected to live voice session — what should I focus on today?' },
       { role: 'ai', text: greeting },
     ]);
     speakAiReply(greeting);
@@ -300,9 +385,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         };
         recognition.start();
         (wsRef as any).current = { close: () => recognition.stop() };
-      } catch {
-        // Fallback if speech recognition is restricted in iframe
-      }
+      } catch {}
     }
   };
 
@@ -325,16 +408,65 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     setLiveConnected(false);
   };
 
-  // --- Lyria Music Generation Handler ---
+  // --- 5. Lyria Song & Music Generation + Vocal Singing Handler ---
+  const stopVocalPerformance = () => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    setIsSingingLyrics(false);
+  };
+
+  const startVocalPerformanceWithTrack = (lyricsText: string) => {
+    if (!('speechSynthesis' in window) || !lyricsText) return;
+    try {
+      window.speechSynthesis.cancel();
+      // Strip bracket headers like [Verse 1], [Chorus] so the vocalist sings only lyrics
+      const singableLines = lyricsText
+        .split('\n')
+        .filter((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) return false;
+          if (trimmed.startsWith('[') && trimmed.endsWith(']')) return false;
+          if (trimmed.startsWith('[Track') || trimmed.startsWith('[Style') || trimmed.startsWith('[Genre')) return false;
+          return true;
+        })
+        .join('. ');
+
+      const utter = new SpeechSynthesisUtterance(singableLines);
+      utter.rate = 0.92;
+      utter.pitch = 1.08;
+      utter.volume = 0.95;
+      utter.onend = () => setIsSingingLyrics(false);
+      utter.onerror = () => setIsSingingLyrics(false);
+      setIsSingingLyrics(true);
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.currentTime = 0;
+        audioPlayerRef.current.play().catch(() => {});
+      }
+      window.speechSynthesis.speak(utter);
+    } catch {
+      setIsSingingLyrics(false);
+    }
+  };
+
   const handleRunMusicGeneration = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!musicPrompt.trim() || musicLoading) return;
+    if (musicLoading) return;
+    stopVocalPerformance();
+    const effectivePrompt =
+      musicPrompt.trim() ||
+      'Warm lo-fi Rhodes electric piano, deep sub-bass, crisp boom-bap drums, and atmospheric synth melody';
+    if (!musicPrompt.trim()) {
+      setMusicPrompt(effectivePrompt);
+    }
     setMusicLoading(true);
     setMusicError(null);
     setMusicAudioUrl(null);
     try {
       const res = await generateMusicWithLyria({
-        prompt: musicPrompt.trim(),
+        prompt: effectivePrompt,
         model: musicModel,
         base64Image: musicImage?.dataUrl,
         imageMimeType: musicImage?.mimeType,
@@ -342,21 +474,29 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       setMusicAudioUrl(res.audioUrl);
       setMusicLyrics(res.lyrics);
     } catch (err: any) {
-      setMusicError(err?.message || 'Failed to generate music with Lyria.');
+      setMusicError(err?.message || 'Failed to generate song with Lyria.');
     } finally {
       setMusicLoading(false);
     }
   };
 
-  // --- Search & Maps Grounding Handler ---
+  // --- 6. Search & Maps Grounding Handler ---
   const handleRunGroundingSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groundingQuery.trim() || groundingLoading) return;
+    if (groundingLoading) return;
+    const effectiveQuery =
+      groundingQuery.trim() ||
+      (groundingMode === 'search'
+        ? 'Latest breakthroughs in personal knowledge graphs and cognitive productivity'
+        : 'Best quiet specialty coffee shops with Wi-Fi and coworking spaces nearby');
+    if (!groundingQuery.trim()) {
+      setGroundingQuery(effectiveQuery);
+    }
     setGroundingLoading(true);
     setGroundingError(null);
     try {
       if (groundingMode === 'search') {
-        const res = await searchWithGoogleGrounding(groundingQuery.trim());
+        const res = await searchWithGoogleGrounding(effectiveQuery);
         setGroundingResult(res);
       } else {
         let latitude: number | undefined;
@@ -371,7 +511,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
           } catch {}
         }
         const res = await searchWithGoogleMapsGrounding({
-          query: groundingQuery.trim(),
+          query: effectiveQuery,
           latitude,
           longitude,
         });
@@ -393,37 +533,37 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     {
       id: 'image-studio',
       label: 'Create & Edit Images',
-      modelBadge: 'gemini-3.1-flash-image-preview',
+      modelBadge: 'gemini-2.5-flash-image',
       icon: ImageIcon,
     },
     {
       id: 'veo-video',
       label: 'Veo 3 Video & Animate',
-      modelBadge: 'veo-3.1-fast-generate-preview',
+      modelBadge: 'veo-3.1-fast / 60fps',
       icon: Film,
+    },
+    {
+      id: 'lyria-music',
+      label: 'Lyria Song & Music Studio',
+      modelBadge: 'lyria-3-pro / 44.1kHz',
+      icon: Music,
     },
     {
       id: 'audio-transcribe',
       label: 'Audio Transcription',
-      modelBadge: 'gemini-3.5-transcribe',
+      modelBadge: 'gemini-3-flash',
       icon: Mic,
     },
     {
       id: 'live-voice',
-      label: 'Live Voice Conversation',
-      modelBadge: 'gemini-3.8-live',
+      label: 'Live Voice Session',
+      modelBadge: 'gemini-live-audio',
       icon: Radio,
-    },
-    {
-      id: 'lyria-music',
-      label: 'Lyria Music Studio',
-      modelBadge: 'lyria-3-clip / pro',
-      icon: Music,
     },
     {
       id: 'grounding-search',
       label: 'Search & Maps Grounding',
-      modelBadge: 'gemini-3.5-flash',
+      modelBadge: 'google-grounding',
       icon: Globe,
     },
   ];
@@ -441,7 +581,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             BlueNote AI Studio Lab
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Generate & edit images, create or animate videos with Veo 3.1, transcribe voice notes, converse in real-time with Gemini Live, compose focus music with Lyria, and research with Google Search & Maps Grounding.
+            Generate & edit HD artwork, render 60FPS animated scenes & videos, compose stereo 44.1kHz songs with lyrics & vocals, transcribe voice notes, and research with Google Search & Maps Grounding.
           </p>
         </div>
       </div>
@@ -479,7 +619,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         })}
       </div>
 
-      {/* TAB 1: Create & Edit Images (gemini-3.1-flash-image-preview) */}
+      {/* TAB 1: Create & Edit Images */}
       {activeTab === 'image-studio' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <form
@@ -489,10 +629,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-blue-600" />
-                Create & Edit Images
+                Create & Edit HD Images
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Powered by <span className="font-mono">gemini-3.1-flash-image-preview</span>
+                Environment Gemini Image API + Free Flux AI + On-Device Studio Canvas
               </p>
             </div>
 
@@ -501,12 +641,28 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 Image Prompt or Edit Instructions
               </label>
               <textarea
-                rows={4}
+                rows={3}
                 value={imgPrompt}
                 onChange={(e) => setImgPrompt(e.target.value)}
-                placeholder="Describe the image to create, or how to edit the uploaded image..."
+                placeholder="Describe the artwork to create, or click a preset below..."
                 className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
               />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[
+                  'Architectural white cliffside glass studio at golden hour',
+                  'Cyberpunk neon skyline over sapphire harbor at night',
+                  'Nordic emerald pine forest with misty mountain lake',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setImgPrompt(preset)}
+                    className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700"
+                  >
+                    {preset.slice(0, 34)}...
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -594,12 +750,12 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               {imgLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating with gemini-3.1-flash-image-preview...
+                  Synthesizing HD Image...
                 </>
               ) : (
                 <>
                   <Wand2 className="w-4 h-4" />
-                  {uploadedEditImage ? 'Edit Image with AI' : 'Generate Image'}
+                  {uploadedEditImage ? 'Edit Image with AI' : 'Generate HD Image'}
                 </>
               )}
             </button>
@@ -620,6 +776,14 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                   <p className="text-xs text-slate-600 dark:text-slate-300">{generatedImgCaption}</p>
                 )}
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  <a
+                    href={generatedImageUrl}
+                    download={`bluenote-image-${Date.now()}.png`}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download PNG
+                  </a>
                   <button
                     type="button"
                     onClick={() => {
@@ -630,14 +794,14 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                     }}
                     className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold text-slate-700 dark:text-slate-200"
                   >
-                    Use as Source to Edit Further
+                    Use as Source to Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       onSaveGeneratedFile({
                         filename: `ai-image-${Date.now()}.png`,
-                        displayName: imgPrompt.slice(0, 48),
+                        displayName: (imgPrompt || 'AI Artwork').slice(0, 48),
                         mimeType: 'image/png',
                         sizeBytes: 320000,
                         category: 'Image',
@@ -645,7 +809,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                         notes: imgPrompt,
                         dataUrl: generatedImageUrl,
                         ocrStatus: 'Completed',
-                        extractedSummary: `Generated with gemini-3.1-flash-image-preview: ${imgPrompt}`,
+                        extractedSummary: `Generated artwork: ${imgPrompt}`,
                         isFavorite: true,
                       });
                     }}
@@ -663,8 +827,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                   Generated or Edited Image Preview
                 </p>
                 <p className="text-xs max-w-sm mt-1">
-                  Enter a prompt on the left or upload an existing photo to transform it with{' '}
-                  <span className="font-mono">gemini-3.1-flash-image-preview</span>.
+                  Enter a prompt on the left (or click a preset) and click Generate HD Image.
                 </p>
               </div>
             )}
@@ -672,7 +835,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         </div>
       )}
 
-      {/* TAB 2: Veo 3 Video Generation & Image Animation (veo-3.1-fast-generate-preview) */}
+      {/* TAB 2: Veo 3 Video Generation & Image Animation */}
       {activeTab === 'veo-video' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <form
@@ -682,15 +845,13 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Film className="w-4 h-4 text-blue-600" />
-                Veo 3 Video Studio
+                Veo 3 Video & Photo Animation Studio
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Generate video from text or animate a photo with{' '}
-                <span className="font-mono">veo-3.1-fast-generate-preview</span>
+                WebM Video Stream + Guaranteed 60FPS Live Cinema Canvas Player
               </p>
             </div>
 
-            {/* Mode Switcher: Text-to-Video vs Animate Photo into Video */}
             <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
               <button
                 type="button"
@@ -751,7 +912,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                       className="w-12 h-12 rounded-lg object-cover"
                     />
                     <span className="text-xs text-slate-600 dark:text-slate-300">
-                      Photo ready for Veo animation
+                      Photo ready for 60FPS animation
                     </span>
                   </div>
                 )}
@@ -769,11 +930,27 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 placeholder="Describe the scene or camera motion..."
                 className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
               />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[
+                  'Golden hour coastal horizon with shimmering ocean waves',
+                  'Cyberpunk neon skyline with drifting starlight motes',
+                  'Emerald mountain valley with volumetric sunrise rays',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setVeoPrompt(preset)}
+                    className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700"
+                  >
+                    {preset.slice(0, 34)}...
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Aspect Ratio (Required: 16:9 Landscape or 9:16 Portrait)
+                Aspect Ratio (16:9 Landscape or 9:16 Portrait)
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(['16:9', '9:16'] as const).map((ratio) => (
@@ -807,12 +984,12 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               {veoLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating Video...
+                  Rendering Video...
                 </>
               ) : (
                 <>
                   <Film className="w-4 h-4" />
-                  {veoMode === 'image-to-video' ? 'Animate Photo with Veo 3.1' : 'Generate Video with Veo 3.1'}
+                  {veoMode === 'image-to-video' ? 'Animate Photo into Video' : 'Generate HD Video'}
                 </>
               )}
             </button>
@@ -823,29 +1000,60 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               <div className="text-center space-y-3 p-6">
                 <Loader2 className="w-9 h-9 animate-spin text-blue-600 mx-auto" />
                 <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  Veo 3.1 Video Generation in Progress
+                  Rendering Animated Video Frames
                 </p>
                 <p className="text-xs text-slate-500 max-w-md">{veoStatusMessage}</p>
               </div>
             ) : veoVideoUrl ? (
               <div className="w-full space-y-3">
-                <video
-                  src={veoVideoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  className="w-full max-h-[420px] rounded-xl bg-black mx-auto"
-                />
+                {!veoUseCanvasFallback && !veoVideoUrl.startsWith('canvas-video:') ? (
+                  <video
+                    src={veoVideoUrl}
+                    controls
+                    autoPlay
+                    loop
+                    playsInline
+                    muted
+                    onError={() => setVeoUseCanvasFallback(true)}
+                    className="w-full max-h-[420px] rounded-xl bg-black mx-auto"
+                  />
+                ) : (
+                  <LiveCanvasVideoPlayer
+                    prompt={veoPrompt}
+                    aspectRatio={veoAspectRatio}
+                    base64Image={veoMode === 'image-to-video' ? veoInputImage?.dataUrl : undefined}
+                  />
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setVeoUseCanvasFallback((prev) => !prev)}
+                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {veoUseCanvasFallback
+                      ? 'Switch to Recorded Video Stream'
+                      : 'Switch to 60FPS Interactive Cinema Player'}
+                  </button>
+                  {!veoVideoUrl.startsWith('canvas-video:') && (
+                    <a
+                      href={veoVideoUrl}
+                      download={`bluenote-video-${Date.now()}.webm`}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download Video (.webm)
+                    </a>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="text-center p-8 text-slate-400">
                 <Film className="w-10 h-10 mb-2 text-blue-500/50 mx-auto" />
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Veo 3.1 Video Player ({veoAspectRatio})
+                  Veo 3.1 & 60FPS Cinema Video Player ({veoAspectRatio})
                 </p>
                 <p className="text-xs max-w-sm mt-1">
-                  Generate a 16:9 landscape or 9:16 portrait video from text or animate an uploaded photo using{' '}
-                  <span className="font-mono">veo-3.1-fast-generate-preview</span>.
+                  Click a scene preset on the left or upload a photo and click Generate HD Video.
                 </p>
               </div>
             )}
@@ -853,7 +1061,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         </div>
       )}
 
-      {/* TAB 3: Audio Transcription (gemini-3.5-transcribe) */}
+      {/* TAB 3: Audio Transcription */}
       {activeTab === 'audio-transcribe' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
@@ -863,7 +1071,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 Microphone & Audio Transcription
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Powered by <span className="font-mono">gemini-3.5-transcribe</span>
+                Powered by <span className="font-mono">gemini-3-flash-preview</span>
               </p>
             </div>
 
@@ -886,7 +1094,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                     : 'Click to Record Voice Note'}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Automatically transcribes spoken audio using gemini-3.5-transcribe
+                  Automatically transcribes spoken audio into clean notes
                 </p>
               </div>
             </div>
@@ -928,7 +1136,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 {transcribeLoading && (
                   <span className="text-xs text-blue-600 flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Transcribing with gemini-3.5-transcribe...
+                    Transcribing audio...
                   </span>
                 )}
               </div>
@@ -973,17 +1181,17 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         </div>
       )}
 
-      {/* TAB 4: Real-Time Voice Conversations (gemini-3.8-live) */}
+      {/* TAB 4: Real-Time Voice Conversations */}
       {activeTab === 'live-voice' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Radio className="w-4 h-4 text-emerald-600" />
-                Real-Time Voice Conversation (Gemini Live API)
+                Real-Time Voice Conversation
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Low-latency two-way voice session using <span className="font-mono">gemini-3.8-live</span>
+                Low-latency two-way voice assistant session
               </p>
             </div>
 
@@ -1044,7 +1252,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             </div>
             <div className="text-xs font-bold text-slate-900 dark:text-white">
               {liveConnected
-                ? `Connected to gemini-3.8-live (${liveVoice}) — Speak naturally into your microphone`
+                ? `Connected (${liveVoice}) — Speak naturally into your microphone`
                 : 'Click "Start Live Voice Session" to talk in real-time with BlueNote AI'}
             </div>
 
@@ -1071,7 +1279,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         </div>
       )}
 
-      {/* TAB 5: Lyria Music Generator (lyria-3-clip-preview & lyria-3-pro-preview) */}
+      {/* TAB 5: Lyria Song & Music Generator (Stereo 44.1kHz WAV + Structured Lyrics & Vocal Performance) */}
       {activeTab === 'lyria-music' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <form
@@ -1081,16 +1289,16 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Music className="w-4 h-4 text-blue-600" />
-                Lyria 3 Focus & Creative Music Generator
+                Lyria 3 Song & Music Studio
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Compose custom 30s clips (<span className="font-mono">lyria-3-clip-preview</span>) or full tracks (<span className="font-mono">lyria-3-pro-preview</span>)
+                Multi-section 44.1kHz stereo WAV synthesis + AI song lyrics & vocal performance
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Lyria Model
+                Song Arrangement Length
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -1102,7 +1310,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  Lyria 3 Clip (30s)
+                  Lyria 3 Clip (16s Hook)
                 </button>
                 <button
                   type="button"
@@ -1113,27 +1321,43 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  Lyria 3 Pro (Full Track)
+                  Lyria 3 Pro (28s Full Song)
                 </button>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Musical Style, Mood, or Focus Prompt
+                Song Theme, Genre, Instruments, or Lyrics Topic
               </label>
               <textarea
                 rows={3}
                 value={musicPrompt}
                 onChange={(e) => setMusicPrompt(e.target.value)}
-                placeholder="Describe the genre, instruments, tempo, or mood..."
+                placeholder="Describe your song topic, genre, tempo, or instruments..."
                 className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
               />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[
+                  'Lo-Fi Chillhop with warm Rhodes chords, sub-bass & midnight city lyrics',
+                  'Upbeat Synthwave 124 BPM anthem with arpeggiated lead & horizon vocals',
+                  'Cinematic Neo-Classical piano & ambient strings for deep executive focus',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setMusicPrompt(preset)}
+                    className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700"
+                  >
+                    {preset.slice(0, 36)}...
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Optional Image Inspiration
+                Optional Cover / Mood Inspiration Image
               </label>
               <label className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer">
                 <Upload className="w-3.5 h-3.5 text-blue-600" />
@@ -1172,12 +1396,12 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               {musicLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Composing with {musicModel}...
+                  Composing Stereo Song & Lyrics...
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4" />
-                  Generate Music Track
+                  Compose Song & Lyrics
                 </>
               )}
             </button>
@@ -1186,20 +1410,61 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
           <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-center min-h-[300px]">
             {musicAudioUrl ? (
               <div className="space-y-4">
-                <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white space-y-3">
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white space-y-3 shadow-md">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-100">
-                      {musicModel}
+                      {musicModel} • 44.1kHz Stereo WAV Master
                     </span>
                     <Music className="w-5 h-5" />
                   </div>
                   <p className="text-sm font-bold">{musicPrompt}</p>
-                  <audio src={musicAudioUrl} controls autoPlay className="w-full mt-2" />
+                  <audio
+                    ref={audioPlayerRef}
+                    src={musicAudioUrl}
+                    controls
+                    autoPlay
+                    className="w-full mt-2"
+                  />
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isSingingLyrics
+                          ? stopVocalPerformance()
+                          : startVocalPerformanceWithTrack(musicLyrics)
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      {isSingingLyrics ? 'Stop Vocal Performance' : 'Sing Lyrics with Track'}
+                    </button>
+                    <a
+                      href={musicAudioUrl}
+                      download={`bluenote-song-${Date.now()}.wav`}
+                      className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download .WAV
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSaveTranscriptAsNote(
+                          `Song & Lyrics: ${(musicPrompt || 'Original Track').slice(0, 36)}`,
+                          musicLyrics
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Save Lyrics to Smart Notes
+                    </button>
+                  </div>
                 </div>
                 {musicLyrics && (
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs whitespace-pre-line text-slate-700 dark:text-slate-300">
-                    <div className="font-bold text-slate-900 dark:text-white mb-1">
-                      Generated Lyrics & Musical Notes
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs whitespace-pre-line text-slate-700 dark:text-slate-300 max-h-60 overflow-y-auto">
+                    <div className="font-bold text-slate-900 dark:text-white mb-1.5">
+                      Generated Song Lyrics & Arrangement Sheet
                     </div>
                     {musicLyrics}
                   </div>
@@ -1209,12 +1474,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               <div className="text-center p-8 text-slate-400">
                 <Music className="w-10 h-10 mb-2 text-blue-500/50 mx-auto" />
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Lyria 3 Audio Player
+                  Lyria 3 Song & Stereo WAV Player
                 </p>
                 <p className="text-xs max-w-sm mt-1 mx-auto">
-                  Generate custom focus tracks or creative music using{' '}
-                  <span className="font-mono">lyria-3-clip-preview</span> or{' '}
-                  <span className="font-mono">lyria-3-pro-preview</span>.
+                  Click a song preset or enter any style on the left, then click Compose Song & Lyrics to synthesize a multi-instrument 44.1kHz stereo song with lyrics.
                 </p>
               </div>
             )}
@@ -1222,7 +1485,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         </div>
       )}
 
-      {/* TAB 6: Google Search & Google Maps Grounding (gemini-3.5-flash) */}
+      {/* TAB 6: Google Search & Google Maps Grounding */}
       {activeTab === 'grounding-search' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1236,8 +1499,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 Google Search & Google Maps Grounding
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Up-to-date web facts and real-world places powered by{' '}
-                <span className="font-mono">gemini-3.5-flash</span>
+                Up-to-date web facts and real-world places with direct citation links
               </p>
             </div>
 

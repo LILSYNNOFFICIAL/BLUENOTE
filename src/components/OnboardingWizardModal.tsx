@@ -1,739 +1,871 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Sparkles,
-  User,
-  Zap,
-  Flame,
-  Wand2,
-  Network,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Sun,
-  Moon,
-  LayoutDashboard,
-  Check,
-  X,
+  Zap,
+  Mic,
+  Camera,
+  Flame,
+  Network,
+  Wand2,
+  Calendar,
   Palette,
+  User,
+  Check,
+  Rocket,
+  ShieldAlert,
+  Sliders,
+  Layers,
+  Plus,
 } from 'lucide-react';
-import { AIPersonality, EnergyMode, Habit, ThemeMode, UserSettings } from '../types/bluenote';
-import { parseQuickCaptureLocally } from '../services/aiService';
+import {
+  AIPersonality,
+  EnergyMode,
+  ThemeMode,
+  UserSettings,
+} from '../types/bluenote';
+import { BlueNoteLogo } from './BlueNoteLogo';
+
+interface StarterHabitOption {
+  id: string;
+  name: string;
+  schedule: 'Daily' | 'Weekdays';
+  targetPerWeek: number;
+  desc: string;
+}
+
+const STARTER_HABIT_OPTIONS: StarterHabitOption[] = [
+  {
+    id: 'sh-water',
+    name: 'Hydration (8 Glasses)',
+    schedule: 'Daily',
+    targetPerWeek: 7,
+    desc: 'Stay energized with daily hydration tracking',
+  },
+  {
+    id: 'sh-deepwork',
+    name: 'Deep Work Block (60m)',
+    schedule: 'Weekdays',
+    targetPerWeek: 5,
+    desc: 'One distraction-free focus session each weekday',
+  },
+  {
+    id: 'sh-reading',
+    name: 'Daily Reading (20 pages)',
+    schedule: 'Daily',
+    targetPerWeek: 7,
+    desc: 'Compound knowledge in your Second Brain',
+  },
+  {
+    id: 'sh-inbox',
+    name: 'Evening Inbox Zero Triage',
+    schedule: 'Weekdays',
+    targetPerWeek: 5,
+    desc: '5-minute end-of-day review of captured items',
+  },
+  {
+    id: 'sh-movement',
+    name: 'Morning Mobility & Walk (30m)',
+    schedule: 'Daily',
+    targetPerWeek: 6,
+    desc: 'Physical movement before screen time',
+  },
+];
 
 interface OnboardingWizardModalProps {
   isOpen: boolean;
   settings: UserSettings;
-  onClose: () => void;
-  onPreviewSettings?: (updates: Partial<UserSettings>) => void;
+  onChangeTheme?: (theme: ThemeMode) => void;
   onCompleteOnboarding: (payload: {
     name: string;
     theme: ThemeMode;
     energyMode: EnergyMode;
     aiPersonality: AIPersonality;
-    starterHabits: { name: string; schedule: Habit['schedule']; targetPerWeek: number }[];
-    firstCaptureText?: string;
+    starterHabits: StarterHabitOption[];
+    firstCaptureText: string;
+    predictionStage?: number;
+    suggestionBudgetMax?: number;
   }) => void;
+  onClose: () => void;
 }
-
-export const THEME_CATALOG: {
-  id: ThemeMode;
-  title: string;
-  desc: string;
-  swatchBg: string;
-  swatchSidebar: string;
-  swatchAccent: string;
-  headerGradient: string;
-  activeCardClass: string;
-  primaryBtnClass: string;
-  badgeClass: string;
-  icon: React.FC<{ className?: string }>;
-}[] = [
-  {
-    id: 'blue',
-    title: 'Signature Blue',
-    desc: 'Deep midnight navy & sapphire slate dark mode',
-    swatchBg: '#091326',
-    swatchSidebar: '#071124',
-    swatchAccent: '#3b82f6',
-    headerGradient: 'from-[#071124] via-blue-900 to-indigo-900 text-white border-b border-blue-800/60',
-    activeCardClass:
-      'border-blue-500 bg-blue-950/70 text-white ring-2 ring-blue-500/30 shadow-sm',
-    primaryBtnClass:
-      'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/25',
-    badgeClass: 'text-blue-400',
-    icon: Sparkles,
-  },
-  {
-    id: 'dark',
-    title: 'True Black Dark',
-    desc: 'Pure #000000 OLED black background with crisp #FFFFFF white text',
-    swatchBg: '#000000',
-    swatchSidebar: '#09090b',
-    swatchAccent: '#ffffff',
-    headerGradient: 'from-black via-zinc-950 to-neutral-900 text-white border-b border-zinc-800',
-    activeCardClass:
-      'border-white bg-black text-white ring-2 ring-white/25 shadow-sm',
-    primaryBtnClass:
-      'bg-white hover:bg-zinc-200 text-black font-extrabold shadow-white/10',
-    badgeClass: 'text-white',
-    icon: Moon,
-  },
-  {
-    id: 'light',
-    title: 'Daylight Minimal',
-    desc: 'Crisp executive alabaster canvas & slate ink typography',
-    swatchBg: '#f8fafc',
-    swatchSidebar: '#ffffff',
-    swatchAccent: '#2563eb',
-    headerGradient: 'from-slate-900 via-slate-800 to-blue-900 text-white',
-    activeCardClass:
-      'border-blue-600 bg-blue-50/90 text-slate-900 ring-2 ring-blue-600/20 shadow-sm',
-    primaryBtnClass:
-      'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20',
-    badgeClass: 'text-blue-600',
-    icon: Sun,
-  },
-  {
-    id: 'emerald',
-    title: 'Emerald Forest',
-    desc: 'Deep pine night canvas & luminous emerald accents',
-    swatchBg: '#022c22',
-    swatchSidebar: '#022019',
-    swatchAccent: '#10b981',
-    headerGradient: 'from-[#022c22] via-emerald-900 to-teal-900 text-white',
-    activeCardClass:
-      'border-emerald-500 bg-emerald-950/60 text-white ring-2 ring-emerald-500/25 shadow-sm',
-    primaryBtnClass:
-      'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/25',
-    badgeClass: 'text-emerald-400',
-    icon: Palette,
-  },
-  {
-    id: 'violet',
-    title: 'Royal Amethyst',
-    desc: 'Deep cosmic plum canvas & violet studio highlights',
-    swatchBg: '#170736',
-    swatchSidebar: '#120529',
-    swatchAccent: '#a855f7',
-    headerGradient: 'from-[#1e0938] via-violet-900 to-fuchsia-900 text-white',
-    activeCardClass:
-      'border-violet-500 bg-violet-950/60 text-white ring-2 ring-violet-500/25 shadow-sm',
-    primaryBtnClass:
-      'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-violet-600/25',
-    badgeClass: 'text-violet-400',
-    icon: Wand2,
-  },
-];
-
-const STARTER_HABIT_OPTIONS: {
-  name: string;
-  schedule: Habit['schedule'];
-  targetPerWeek: number;
-  desc: string;
-}[] = [
-  {
-    name: 'Morning Hydration & 15m Walk',
-    schedule: 'Daily',
-    targetPerWeek: 7,
-    desc: 'Start the morning energized before checking messages',
-  },
-  {
-    name: '45m Deep Work Focus Block',
-    schedule: 'Weekdays',
-    targetPerWeek: 5,
-    desc: 'Distraction-free progress on your top priority',
-  },
-  {
-    name: '25 Pages Daily Reading',
-    schedule: 'Daily',
-    targetPerWeek: 7,
-    desc: 'Build continuous Second Brain knowledge',
-  },
-  {
-    name: 'Evening Inbox Zero & Tomorrow Plan',
-    schedule: 'Weekdays',
-    targetPerWeek: 5,
-    desc: 'Review Universal Inbox and lock in top 3 tasks',
-  },
-];
 
 export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
   isOpen,
   settings,
-  onClose,
-  onPreviewSettings,
+  onChangeTheme,
   onCompleteOnboarding,
+  onClose,
 }) => {
-  const [step, setStep] = useState<number>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const [name, setName] = useState(settings.name || '');
-  const [theme, setTheme] = useState<ThemeMode>(settings.theme || 'blue');
-  const [energyMode, setEnergyMode] = useState<EnergyMode>(settings.energyMode || 'Focused');
+  const [theme, setTheme] = useState<ThemeMode>(settings.theme || 'light');
+  const [energyMode, setEnergyMode] = useState<EnergyMode>(settings.energyMode || 'Normal');
   const [aiPersonality, setAiPersonality] = useState<AIPersonality>(
-    settings.aiPersonality || 'Personal Assistant'
+    settings.aiPersonality || 'Professional'
   );
+  // Zero demo clutter: starter habits are UNCHECKED by default so workspace starts 100% clean unless chosen
   const [selectedHabits, setSelectedHabits] = useState<string[]>([]);
-  const [customHabit, setCustomHabit] = useState('');
+  const [customHabitName, setCustomHabitName] = useState('');
+  const [customHabits, setCustomHabits] = useState<StarterHabitOption[]>([]);
   const [firstCaptureText, setFirstCaptureText] = useState('');
+  const [activeTourCard, setActiveTourCard] = useState<number>(0);
 
-  // Keep local state synced if settings prop changes externally
-  useEffect(() => {
-    if (settings.theme) setTheme(settings.theme);
-  }, [settings.theme]);
+  // Personal Pattern Engine onboarding calibration
+  const [predictionStage, setPredictionStage] = useState<number>(7);
+  const [suggestionBudgetMax, setSuggestionBudgetMax] = useState<number>(6);
 
   if (!isOpen) return null;
 
-  const totalSteps = 5;
-  const activeThemeMeta =
-    THEME_CATALOG.find((t) => t.id === theme) || THEME_CATALOG[0];
+  const allHabitOptions = [...STARTER_HABIT_OPTIONS, ...customHabits];
 
-  const handleSelectTheme = (newTheme: ThemeMode) => {
-    setTheme(newTheme);
-    // Immediately apply to the live workspace so the entire UI transforms right now
-    onPreviewSettings?.({ theme: newTheme });
-  };
-
-  const handleSelectEnergy = (mode: EnergyMode) => {
-    setEnergyMode(mode);
-    onPreviewSettings?.({ energyMode: mode });
-  };
-
-  const handleSelectPersonality = (style: AIPersonality) => {
-    setAiPersonality(style);
-    onPreviewSettings?.({ aiPersonality: style });
-  };
-
-  const toggleHabitSelection = (habitName: string) => {
+  const toggleHabit = (habitName: string) => {
     setSelectedHabits((prev) =>
       prev.includes(habitName) ? prev.filter((h) => h !== habitName) : [...prev, habitName]
     );
   };
 
-  const addCustomHabitChip = (e: React.FormEvent) => {
+  const handleAddCustomHabit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = customHabit.trim();
+    const trimmed = customHabitName.trim();
     if (!trimmed) return;
-    if (!selectedHabits.includes(trimmed)) {
-      setSelectedHabits((prev) => [...prev, trimmed]);
-    }
-    setCustomHabit('');
+    const newOpt: StarterHabitOption = {
+      id: `sh-custom-${Date.now()}`,
+      name: trimmed,
+      schedule: 'Daily',
+      targetPerWeek: 7,
+      desc: 'Custom personal habit created during onboarding',
+    };
+    setCustomHabits((prev) => [...prev, newOpt]);
+    setSelectedHabits((prev) => [...prev, trimmed]);
+    setCustomHabitName('');
   };
 
-  const liveParsedPreview = firstCaptureText.trim()
-    ? parseQuickCaptureLocally(firstCaptureText.trim())[0]
-    : null;
-
   const handleFinish = () => {
-    const starterHabits = selectedHabits.map((hName) => {
-      const preset = STARTER_HABIT_OPTIONS.find((o) => o.name === hName);
-      return {
-        name: hName,
-        schedule: preset?.schedule || ('Daily' as const),
-        targetPerWeek: preset?.targetPerWeek || 7,
-      };
-    });
-
+    const chosenHabits = allHabitOptions.filter((h) =>
+      selectedHabits.includes(h.name)
+    );
     onCompleteOnboarding({
-      name: name.trim() || 'Explorer',
+      name: name.trim() || 'Workspace Owner',
       theme,
       energyMode,
       aiPersonality,
-      starterHabits,
-      firstCaptureText: firstCaptureText.trim() || undefined,
+      starterHabits: chosenHabits,
+      firstCaptureText: firstCaptureText.trim(),
+      predictionStage,
+      suggestionBudgetMax,
     });
   };
 
+  const TOUR_FEATURES = [
+    {
+      icon: Zap,
+      badge: 'Pillar 1 • Natural Language Capture',
+      title: 'Today Command Center & Omnibox Capture',
+      desc: 'Start from a clean, zero-clutter command center. Type naturally into the Omnibox at the top of your dashboard—BlueNote automatically classifies tasks, shopping items, reminders, contacts, calendar events, and notes.',
+      tip: 'Switch your Energy State (High Energy, Normal, Low Energy / Overwhelmed, Focus Mode) anytime to dynamically adapt the dashboard.',
+      color: 'from-blue-600 to-indigo-600',
+    },
+    {
+      icon: Camera,
+      badge: 'Pillar 2 • Voice & Visual Intelligence',
+      title: 'AI Brain Dump & Multimodal OCR Vault',
+      desc: 'Speak or paste an unstructured paragraph of thoughts, or upload a photo of a handwritten sticky note, business card, whiteboard, or receipt. BlueNote extracts every entity into an interactive AI Review Screen before saving.',
+      tip: 'Use keyboard shortcut ⇧⌘B (or Ctrl+Shift+B) from anywhere in the app to launch AI Brain Dump.',
+      color: 'from-indigo-600 to-violet-600',
+    },
+    {
+      icon: Sparkles,
+      badge: 'Pillar 3 • Quiet Predictive Architecture',
+      title: '🔮 Predictive Lists & Personal Pattern Engine',
+      desc: 'BlueNote observes → learns → predicts → explains → asks → learns from your answer. Every prediction is treated strictly as a hypothesis backed by your real recurrence intervals—never a fact or false inventory claim.',
+      tip: 'Predictions accumulate quietly in your Centralized Predictive Inbox with Approve, Edit, Snooze, Deny, and "Stop suggesting..." overrides.',
+      color: 'from-violet-600 to-fuchsia-600',
+    },
+    {
+      icon: Calendar,
+      badge: 'Pillar 4 • Deep Execution & Notes',
+      title: 'Tasks, Projects, Split-Screen Notes & Pomodoro',
+      desc: 'Manage multi-priority tasks with subtasks, launch distraction-free Pomodoro Focus timers, write in the Split-Screen Markdown Note Editor with version history, or spin up 1-Click Project Templates.',
+      tip: 'Click the Focus button on any active task to enter a distraction-free Pomodoro countdown session.',
+      color: 'from-sky-600 to-blue-600',
+    },
+    {
+      icon: Flame,
+      badge: 'Pillar 5 • Behavioral Consistency',
+      title: '30-Day Habit Streak Heatmaps & Time-Blocking',
+      desc: 'Track daily and weekday routines with interactive 30-day completion heatmaps right on your dashboard, and auto-schedule deep work blocks onto your daily timeline.',
+      tip: 'Click any cell in the 30-day habit heatmap to toggle completion for that specific date.',
+      color: 'from-emerald-600 to-teal-600',
+    },
+    {
+      icon: Network,
+      badge: 'Pillar 6 • Connected Memory & Studio',
+      title: 'Second Brain Graph, Semantic Search & AI Studio',
+      desc: 'Explore automatic relationships across your notes, projects, contacts, and files in the Second Brain Graph, search semantically with ⌘K, or synthesize visuals and ambient focus audio in the AI Studio Hub.',
+      tip: 'Press ⌘K (or Ctrl+K) anytime to jump to any tool, note, contact, or command.',
+      color: 'from-amber-500 to-orange-600',
+    },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 transition-colors duration-300">
-      <div
-        className={`border rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300 ${
-          theme === 'dark'
-            ? 'bg-black border-zinc-700 text-white'
-            : theme === 'blue'
-            ? 'bg-[#0b1528] border-blue-800 text-slate-100'
-            : theme === 'emerald'
-            ? 'bg-[#022019] border-emerald-800 text-emerald-50'
-            : theme === 'violet'
-            ? 'bg-[#120529] border-violet-800 text-violet-50'
-            : 'bg-white border-slate-200 text-slate-900'
-        }`}
-      >
-        {/* Top Progress Header — Dynamically adapts to the selected theme */}
-        <div
-          className={`px-6 py-5 bg-gradient-to-r transition-all duration-300 ${activeThemeMeta.headerGradient}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-                <Sparkles className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 overflow-y-auto">
+      <div className="bn-card bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden my-auto transition-all">
+        {/* Top Gradient Banner */}
+        <div className="relative bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 px-6 py-6 text-white border-b border-blue-500/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-blue-500/15 backdrop-blur-xs border border-blue-400/30 shadow-inner">
+                <BlueNoteLogo size={38} />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-85">
-                  First-Time Setup & Interactive Tutorial • Step {step} of {totalSteps} •{' '}
-                  {activeThemeMeta.title} Active
-                </span>
-                <h2 className="text-lg font-extrabold tracking-tight">
-                  Welcome to Your Clean BlueNote Workspace
+                <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-blue-300">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Interactive Onboarding Guide • Step {step + 1} of 4</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+                  Welcome to BlueNote
                 </h2>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  AI Second Brain, Executive Organizer & Personal Pattern Engine — Zero Demo Clutter
+                </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              title="Skip tutorial for now"
-              className="p-1.5 rounded-lg hover:bg-white/15 text-white/80 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
 
-          {/* Step Progress Bar */}
-          <div className="grid grid-cols-5 gap-2 mt-4">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStep(s)}
-                className={`h-1.5 rounded-full transition-all ${
-                  s <= step ? 'bg-white' : 'bg-white/25'
-                }`}
-                aria-label={`Go to step ${s}`}
-              />
-            ))}
+            {/* Step Progress Pills */}
+            <div className="flex items-center gap-2">
+              {[
+                { idx: 0, label: '1. Theme & Identity' },
+                { idx: 1, label: '2. 6 Core Pillars' },
+                { idx: 2, label: '3. Pattern Engine' },
+                { idx: 3, label: '4. Clean Launch' },
+              ].map((s) => (
+                <button
+                  key={s.idx}
+                  type="button"
+                  onClick={() => setStep(s.idx as 0 | 1 | 2 | 3)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    step === s.idx
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/40'
+                      : step > s.idx
+                      ? 'bg-white/15 text-white hover:bg-white/25'
+                      : 'bg-white/5 text-slate-300 hover:bg-white/15'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Step Body */}
-        <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {/* STEP 1: PROFILE & LIVE VISUAL THEME */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <div
-                  className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${activeThemeMeta.badgeClass}`}
-                >
-                  <User className="w-3.5 h-3.5" /> Step 1: Personalize Your Workspace
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  What should BlueNote call you?
+        {/* Body Content */}
+        <div className="p-6 sm:p-8 max-h-[72vh] overflow-y-auto space-y-6">
+          {/* =================================================================
+              STEP 0: PROFILE, UPDATED THEME ENGINE & ENERGY CALIBRATION
+              ================================================================= */}
+          {step === 0 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  Personalize Your Executive Workspace & Visual Theme
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Your workspace starts 100% clean with zero pre-filled demo clutter. Click any theme below to watch the entire interface transform immediately.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Your workspace starts 100% clean with zero pre-filled demo clutter. Choose your name, live visual theme, and default energy mode.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Your First Name or Display Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (e.target.value.trim()) {
-                      onPreviewSettings?.({ name: e.target.value.trim() });
-                    }
-                  }}
-                  placeholder="e.g. Alex, Jordan, Sam..."
-                  autoFocus
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Choose Your Workspace Interface Theme (Live Preview)
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* User Name */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                    What should BlueNote call you?
                   </label>
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Active: {activeThemeMeta.title}
-                  </span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name (e.g., Jordan)..."
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Used in your morning briefings and personalized workspace header.
+                  </p>
                 </div>
 
+                {/* AI Assistant Personality */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    AI Assistant Personality
+                  </label>
+                  <select
+                    value={aiPersonality}
+                    onChange={(e) => setAiPersonality(e.target.value as AIPersonality)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  >
+                    <option value="Professional">Professional — Clear, structured & analytical</option>
+                    <option value="Executive Assistant">Executive Assistant — Action-first & concise</option>
+                    <option value="Coach">Momentum Coach — Encouraging & streak-focused</option>
+                    <option value="Friendly">Friendly — Warm & conversational</option>
+                    <option value="Minimal">Minimal — Ultra-brief bullet points only</option>
+                  </select>
+                  <p className="text-[11px] text-slate-400">
+                    Shapes how BlueNote summarizes notes and synthesizes daily priorities.
+                  </p>
+                </div>
+              </div>
+
+              {/* Theme Picker (Live Preview — Updated Signature Blue vs True Dark OLED) */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-blue-600" />
+                  Choose Your Visual Theme (Click to Preview Live)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  {(
+                    [
+                      {
+                        id: 'light',
+                        label: 'Architectural White',
+                        desc: 'Default Studio White',
+                        swatch: 'bg-white border border-slate-300 shadow-2xs',
+                      },
+                      {
+                        id: 'dark',
+                        label: 'Obsidian Carbon',
+                        desc: 'OLED Black & White',
+                        swatch: 'bg-black border border-neutral-700',
+                      },
+                      {
+                        id: 'blue',
+                        label: 'Sapphire Executive',
+                        desc: 'Midnight Navy Slate',
+                        swatch: 'bg-[#0d1b36] border border-blue-500/50',
+                      },
+                      {
+                        id: 'emerald',
+                        label: 'Nordic Botanical',
+                        desc: 'Deep Pine & Sage',
+                        swatch: 'bg-emerald-950 border border-emerald-500/50',
+                      },
+                      {
+                        id: 'violet',
+                        label: 'Atelier Amethyst',
+                        desc: 'Cosmic Plum Studio',
+                        swatch: 'bg-violet-950 border border-violet-500/50',
+                      },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setTheme(t.id);
+                        onChangeTheme?.(t.id);
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all ${
+                        theme === t.id
+                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/50 ring-2 ring-blue-600/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`w-6 h-6 rounded-lg ${t.swatch} shadow-xs`} />
+                        {theme === t.id && (
+                          <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                        {t.label}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {t.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Energy Mode Picker */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  How is your energy level right now?
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {THEME_CATALOG.map((tOption) => {
-                    const Icon = tOption.icon;
-                    const active = theme === tOption.id;
+                  {(
+                    [
+                      {
+                        id: 'High Energy',
+                        title: '⚡ High Energy',
+                        desc: 'Surface critical deep-work tasks & ambitious milestones first.',
+                      },
+                      {
+                        id: 'Normal',
+                        title: '⚖️ Balanced Flow',
+                        desc: 'Standard daily mix of priorities, schedule, and habit streaks.',
+                      },
+                      {
+                        id: 'Low Energy',
+                        title: '🌿 Low Energy / Overwhelmed',
+                        desc: 'Hides heavy backlog and shows only quick, low-friction wins.',
+                      },
+                    ] as const
+                  ).map((em) => (
+                    <button
+                      key={em.id}
+                      type="button"
+                      onClick={() => setEnergyMode(em.id)}
+                      className={`p-3.5 rounded-2xl border text-left transition-all ${
+                        energyMode === em.id
+                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-600/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                        {em.title}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        {em.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              STEP 1: INTERACTIVE TOUR OF THE 6 CORE PILLARS
+              ================================================================= */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  How BlueNote Works: 6 Core Architectural Pillars
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Click any pillar below to explore how Capture, Predictive Intelligence, Tasks, Notes, and your Second Brain work together.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                {/* Left Pillar Selector */}
+                <div className="lg:col-span-5 space-y-2">
+                  {TOUR_FEATURES.map((feat, idx) => {
+                    const Icon = feat.icon;
+                    const active = activeTourCard === idx;
                     return (
                       <button
-                        key={tOption.id}
+                        key={feat.title}
                         type="button"
-                        onClick={() => handleSelectTheme(tOption.id)}
-                        className={`p-3.5 rounded-xl border text-left transition-all space-y-2 ${
+                        onClick={() => setActiveTourCard(idx)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center gap-3 ${
                           active
-                            ? tOption.activeCardClass
-                            : 'border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-800/40 hover:border-slate-400'
+                            ? 'border-blue-600 bg-blue-50/80 dark:bg-blue-950/50 shadow-xs'
+                            : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          {/* Mini UI Swatch Preview */}
-                          <div className="flex items-center gap-1">
-                            <span
-                              className="w-4 h-4 rounded-md border border-black/15 shadow-2xs"
-                              style={{ backgroundColor: tOption.swatchSidebar }}
-                              title="Sidebar color"
-                            />
-                            <span
-                              className="w-4 h-4 rounded-md border border-black/15 shadow-2xs"
-                              style={{ backgroundColor: tOption.swatchBg }}
-                              title="Canvas color"
-                            />
-                            <span
-                              className="w-4 h-4 rounded-md border border-black/15 shadow-2xs"
-                              style={{ backgroundColor: tOption.swatchAccent }}
-                              title="Accent color"
-                            />
+                        <div
+                          className={`p-2 rounded-xl bg-gradient-to-br ${feat.color} text-white shrink-0`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                            {feat.badge}
                           </div>
-                          {active ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          ) : (
-                            <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {feat.title}
+                          </div>
+                        </div>
+                        <ArrowRight
+                          className={`w-4 h-4 shrink-0 transition-transform ${
+                            active ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Right Detailed Preview Card */}
+                <div className="lg:col-span-7">
+                  {(() => {
+                    const feat = TOUR_FEATURES[activeTourCard];
+                    const Icon = feat.icon;
+                    return (
+                      <div className="h-full rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-6 flex flex-col justify-between space-y-5">
+                        <div className="space-y-4">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/80 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-bold">
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{feat.badge}</span>
+                          </div>
+
+                          <h4 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                            {feat.title}
+                          </h4>
+
+                          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {feat.desc}
+                          </p>
+
+                          {/* Interactive Visual Diagram inside Tour Card */}
+                          {activeTourCard === 0 && (
+                            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                Omnibox Natural Language Example
+                              </div>
+                              <div className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-slate-800 px-3 py-2 rounded-xl">
+                                "Remind me Friday at 2pm to review Q4 budget and buy coffee beans"
+                              </div>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold">
+                                  ✓ Reminder: Friday 2:00 PM
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-semibold">
+                                  ✓ Shopping List: Coffee beans
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          {activeTourCard === 1 && (
+                            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                Multimodal Input Channels
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 font-semibold">
+                                  🎙️ Voice Dictation
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 font-semibold">
+                                  📇 Business Card OCR
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 font-semibold">
+                                  🧾 Receipt & Note Scan
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {activeTourCard === 2 && (
+                            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-violet-500">
+                                Prediction Lifecycle & Hypothesis Distinction
+                              </div>
+                              <div className="font-mono text-[11px] text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded-xl">
+                                OBSERVED (1x) → CANDIDATE (2x) → EVALUATING (3x) → PREDICTED → PRESENTED
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-semibold">
+                                  ✓ Known Fact: What you explicitly added
+                                </div>
+                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-300 font-semibold">
+                                  🔮 Hypothesis: Inferred from cadence
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {activeTourCard >= 3 && (
+                            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                                Accessible anytime via left navigation or Command Palette
+                              </span>
+                              <kbd className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-mono font-bold text-slate-600 dark:text-slate-300">
+                                ⌘K
+                              </kbd>
+                            </div>
                           )}
                         </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900 dark:text-white">
-                            {tOption.title}
+
+                        <div className="p-3.5 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200">
+                          <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold">Pro Tip: </span>
+                            {feat.tip}
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-0.5">
-                            {tOption.desc}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              STEP 2: 🔮 PERSONAL PATTERN ENGINE & SAFEGUARDS CALIBRATION
+              ================================================================= */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/25 text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300 mb-2">
+                  <span>🔮 Predictive Intelligence Calibration</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  Configure Your Personal Pattern Engine & Anti-Nagging Safeguards
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  BlueNote starts with an empty Pattern Store and learns strictly from your real actions over time. Choose your preferred predictive scope and suggestion budget.
+                </p>
+              </div>
+
+              {/* Rollout Stage Selection */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  Select Active Predictive Architecture Stage
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    {
+                      stage: 3,
+                      title: 'Stage 3 • Shopping Lists MVP',
+                      desc: 'Low-risk household & grocery cycle predictions only.',
+                    },
+                    {
+                      stage: 5,
+                      title: 'Stage 5 • + Tasks & Reminders',
+                      desc: 'Adds recurring routine task & monthly reminder detection.',
+                    },
+                    {
+                      stage: 7,
+                      title: 'Stage 7 • Cross-System Prep (Recommended)',
+                      desc: 'Combines Calendar, Tasks, Notes & Shopping for contextual bundles.',
+                    },
+                  ].map((opt) => (
+                    <button
+                      key={opt.stage}
+                      type="button"
+                      onClick={() => setPredictionStage(opt.stage)}
+                      className={`p-4 rounded-2xl border text-left transition-all ${
+                        predictionStage === opt.stage
+                          ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-600/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                          {opt.title}
+                        </span>
+                        {predictionStage === opt.stage && (
+                          <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {opt.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Suggestion Budget Slider */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <span className="flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                    Centralized Predictive Inbox Suggestion Budget
+                  </span>
+                  <span className="font-mono text-blue-600 dark:text-blue-400">
+                    Max {suggestionBudgetMax} active suggestions
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={12}
+                  value={suggestionBudgetMax}
+                  onChange={(e) => setSuggestionBudgetMax(Number(e.target.value))}
+                  className="w-full accent-blue-600"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Predictions never interrupt you with pop-up spam. They wait quietly in your Predictive Inbox capped at your budget limit.
+                </p>
+              </div>
+
+              {/* 4 Non-Negotiable Safeguards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-emerald-500" />
+                    1. Hypothesis, Never a Fact
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    BlueNote clearly distinguishes what you explicitly recorded from what it inferred—and never makes false physical inventory claims.
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <ShieldAlert className="w-3.5 h-3.5 text-blue-500" />
+                    2. Explicit Instructions Always Win
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Single occurrences stay silent (`OBSERVED`). Denials trigger exponential cooldowns, and commands like “Stop suggesting coffee” permanently suppress a pattern.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              STEP 3: CLEAN ZERO-DEMO LAUNCH (OPTIONAL HABITS & FIRST CAPTURE)
+              ================================================================= */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <div className="font-extrabold text-slate-900 dark:text-white">
+                    100% Clean Zero-Demo Workspace Ready
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 mt-0.5">
+                    All demo tasks, notes, projects, contacts, and sample patterns have been removed. Leave the options below blank for a completely empty slate, or optionally pick habits and your first real item to start with.
+                  </p>
+                </div>
+              </div>
+
+              {/* Optional Starter Habits */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-orange-500" />
+                    Optional Daily Habits ({selectedHabits.length} selected — 0 by default)
+                  </label>
+                  {selectedHabits.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHabits([])}
+                      className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      Clear selection (Start with 0 habits)
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {allHabitOptions.map((h) => {
+                    const checked = selectedHabits.includes(h.name);
+                    return (
+                      <button
+                        key={h.id}
+                        type="button"
+                        onClick={() => toggleHabit(h.name)}
+                        className={`p-3.5 rounded-2xl border text-left transition-all flex items-start gap-3 ${
+                          checked
+                            ? 'border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/30'
+                            : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100'
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center shrink-0 ${
+                            checked
+                              ? 'bg-emerald-600 text-white'
+                              : 'border border-slate-300 dark:border-slate-700'
+                          }`}
+                        >
+                          {checked && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {h.name}
+                            </span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                              {h.schedule}
+                            </span>
                           </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            {h.desc}
+                          </p>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* STEP 2: ADAPTIVE ENERGY MODE & AI PERSONALITY */}
-          {step === 2 && (
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <div
-                  className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${activeThemeMeta.badgeClass}`}
-                >
-                  <Zap className="w-3.5 h-3.5" /> Step 2: Adaptive Energy & Assistant Style
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  How are you feeling today?
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  BlueNote adapts your Dashboard task list based on your real-time energy level so you never feel overwhelmed.
-                </p>
+                {/* Add Custom Habit inline */}
+                <form onSubmit={handleAddCustomHabit} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customHabitName}
+                    onChange={(e) => setCustomHabitName(e.target.value)}
+                    placeholder="Or type your own custom habit (e.g., 'Practice Spanish 15m')..."
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3.5 py-2 rounded-xl bg-slate-200/80 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Habit
+                  </button>
+                </form>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(
-                  [
-                    {
-                      mode: 'Focused' as EnergyMode,
-                      title: 'Focused Mode',
-                      desc: 'Surfaces deep work & high-impact project tasks',
-                    },
-                    {
-                      mode: 'Normal' as EnergyMode,
-                      title: 'Balanced Mode',
-                      desc: 'Standard mix of tasks, meetings, and errands',
-                    },
-                    {
-                      mode: 'Busy' as EnergyMode,
-                      title: 'Busy / Crunch Mode',
-                      desc: 'Hides low-priority items; shows only urgent tasks',
-                    },
-                    {
-                      mode: 'Tired' as EnergyMode,
-                      title: 'Low-Energy Mode',
-                      desc: 'Highlights quick <25m wins to keep momentum',
-                    },
-                  ] as const
-                ).map((item) => {
-                  const active = energyMode === item.mode;
-                  return (
-                    <button
-                      key={item.mode}
-                      type="button"
-                      onClick={() => handleSelectEnergy(item.mode)}
-                      className={`p-3.5 rounded-xl border text-left transition-all ${
-                        active
-                          ? activeThemeMeta.activeCardClass
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          {item.title}
-                        </span>
-                        {active && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="space-y-2 pt-1">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Local AI Assistant Coaching Style
+              {/* Optional First Capture */}
+              <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  Optional: Capture Your First Real Task, Reminder, or Note
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(
-                    [
-                      'Personal Assistant',
-                      'Executive Assistant',
-                      'Friendly',
-                      'Minimal',
-                      'Motivational',
-                      'Professional',
-                      'Calm & Quiet',
-                    ] as AIPersonality[]
-                  ).map((style) => (
-                    <button
-                      key={style}
-                      type="button"
-                      onClick={() => handleSelectPersonality(style)}
-                      className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
-                        aiPersonality === style
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      {style}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: OPTIONAL STARTER HABITS */}
-          {step === 3 && (
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                  <Flame className="w-3.5 h-3.5" /> Step 3: Weekly Habit Tracker & 30D Analytics
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Pick any daily habits you want to track (or skip for blank)
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Your Dashboard includes a 7-day interactive checkmark grid and a 30-day Recharts streak visualization. Select any habits below or add your own:
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {STARTER_HABIT_OPTIONS.map((hab) => {
-                  const selected = selectedHabits.includes(hab.name);
-                  return (
-                    <button
-                      key={hab.name}
-                      type="button"
-                      onClick={() => toggleHabitSelection(hab.name)}
-                      className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 ${
-                        selected
-                          ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/30 ring-2 ring-amber-500/20'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                      }`}
-                    >
-                      <div
-                        className={`w-5 h-5 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border ${
-                          selected
-                            ? 'bg-emerald-600 border-emerald-600 text-white'
-                            : 'border-slate-300 dark:border-slate-600'
-                        }`}
-                      >
-                        {selected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-white">
-                          {hab.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{hab.desc}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <form onSubmit={addCustomHabitChip} className="flex gap-2">
-                <input
-                  type="text"
-                  value={customHabit}
-                  onChange={(e) => setCustomHabit(e.target.value)}
-                  placeholder="Or type your own custom habit (e.g. 'Practice Spanish 15m')..."
-                  className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs text-slate-900 dark:text-white"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
-                >
-                  + Add Habit
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* STEP 4: INTERACTIVE QUICK CAPTURE & BRAIN DUMP TUTORIAL */}
-          {step === 4 && (
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <div
-                  className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${activeThemeMeta.badgeClass}`}
-                >
-                  <Wand2 className="w-3.5 h-3.5" /> Step 4: Try Natural Language Capture
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  How BlueNote’s Local AI Organizes Your Thoughts
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Type a real task, reminder, or appointment below to see how BlueNote automatically classifies it—or leave it blank to start completely empty.
-                </p>
-              </div>
-
-              <div className="space-y-2">
                 <input
                   type="text"
                   value={firstCaptureText}
                   onChange={(e) => setFirstCaptureText(e.target.value)}
-                  placeholder='Try typing: "Remind me tomorrow at 10am to call Alex" or "Finish project proposal"...'
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  placeholder="Leave blank for an empty workspace, or type your first task/reminder..."
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {[
-                    'Remind me tomorrow at 9am to review weekly goals',
-                    'Schedule dentist appointment Friday at 2pm',
-                    'Buy coffee beans and oat milk',
-                  ].map((sample) => (
-                    <button
-                      key={sample}
-                      type="button"
-                      onClick={() => setFirstCaptureText(sample)}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                    >
-                      Try: "{sample}"
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {liveParsedPreview && (
-                <div className="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-600 text-white">
-                      Auto-Detected: {liveParsedPreview.category}
-                    </span>
-                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                      {liveParsedPreview.confidence}% Confidence
-                    </span>
-                  </div>
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">
-                    {liveParsedPreview.title}
-                  </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {liveParsedPreview.aiReasoning}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 5: 4-PILLAR ARCHITECTURE TOUR & FINISH */}
-          {step === 5 && (
-            <div className="space-y-5">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                  <Network className="w-3.5 h-3.5" /> Step 5: Your Second Brain Tour
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  You’re all set, {name.trim() || 'Explorer'}!
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Here is a quick map of your BlueNote workspace ({activeThemeMeta.title} theme active):
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <LayoutDashboard className="w-4 h-4 text-blue-600" />
-                    1. Daily Focus & Habits
-                  </div>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    Adaptive Dashboard, 7-day Habit Checkmarks, 30-day Recharts Streak Analytics, and Pomodoro Focus Timer.
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    2. Brain Dump & OCR Scanner
-                  </div>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    Click <strong>AI Brain Dump</strong> in the sidebar or <strong>Scan OCR</strong> in the header to extract tasks, contacts, and receipts.
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Network className="w-4 h-4 text-emerald-600" />
-                    3. Knowledge Graph & Search
-                  </div>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    Press <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 border text-[10px] font-mono">⌘K</kbd> anytime to search across notes, tasks, contacts, and links.
-                  </p>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Wand2 className="w-4 h-4 text-amber-500" />
-                    4. Local Multimodal AI Studio
-                  </div>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    Generate custom illustrations, animated videos, ambient focus music, and voice notes 100% locally.
-                  </p>
-                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Bottom Navigation Bar */}
-        <div className="px-6 py-4 bg-slate-50/80 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        {/* Footer Navigation */}
+        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 dark:bg-slate-800/70 border-t border-slate-200 dark:border-slate-800">
           <div>
-            {step > 1 ? (
+            {step > 0 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => s - 1)}
-                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5"
+                onClick={() => setStep((prev) => (prev - 1) as 0 | 1 | 2 | 3)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors"
               >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back
+                <ArrowLeft className="w-4 h-4" />
+                Previous Step
               </button>
             ) : (
               <button
                 type="button"
                 onClick={onClose}
-                className="text-xs font-medium text-slate-400 hover:text-slate-600"
+                className="px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
               >
-                Skip setup
+                Skip Onboarding Guide
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {step < totalSteps ? (
+          <div className="flex items-center gap-2.5">
+            {step < 3 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => s + 1)}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all ${activeThemeMeta.primaryBtnClass}`}
+                onClick={() => setStep((prev) => (prev + 1) as 0 | 1 | 2 | 3)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors"
               >
-                Continue <ArrowRight className="w-3.5 h-3.5" />
+                <span>Continue</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleFinish}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all ${activeThemeMeta.primaryBtnClass}`}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md transition-all"
               >
-                <CheckCircle2 className="w-4 h-4" /> Launch My Workspace
+                <Rocket className="w-4 h-4" />
+                <span>Launch Clean BlueNote Workspace</span>
               </button>
             )}
           </div>

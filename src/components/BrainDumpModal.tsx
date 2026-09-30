@@ -116,20 +116,9 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
         setIsRecording(true);
         return;
       } catch {
-        // Fallback if microphone access is blocked
+        // Microphone access unavailable in preview environment
       }
     }
-
-    setIsRecording(true);
-    setTimeout(() => {
-      setRawInput((prev) =>
-        (
-          prev +
-          ' I need to buy oat milk and coffee beans, remind me tomorrow at 10 AM to call Mom, Mike’s new phone number is (555) 839-2011, and schedule dentist appointment Friday at 2 PM.'
-        ).trim()
-      );
-      setIsRecording(false);
-    }, 1200);
   };
 
   const handleAnalyzeBrainDump = async () => {
@@ -166,36 +155,6 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleRunSampleOCR = async (sampleType: 'handwritten' | 'business-card' | 'receipt') => {
-    setIsProcessing(true);
-    try {
-      let fileName = 'Handwritten_Notebook_Page.jpg';
-      let hint =
-        'Handwritten Sticky Note:\n- Call John Carter Friday at 11 AM about roof policy\n- Buy organic apples, sourdough bread, and espresso beans\n- Idea: Create automated client onboarding guide for Project Atlas';
-
-      if (sampleType === 'business-card') {
-        fileName = 'Business_Card_Scan.jpg';
-        hint =
-          'Marcus Vance — Managing Partner, Vance Legal & Tax Advisory | Phone: (555) 640-9921 | Email: mvance@vancelegal.example.com | 900 Market Street, Suite 400';
-      } else if (sampleType === 'receipt') {
-        fileName = 'Home_Depot_Lumber_Receipt.jpg';
-        hint =
-          'THE HOME DEPOT — Receipt #9821 — Date: Today — Cedar Patio Plank Set $240.00, Exterior Wood Stain $48.00 — TOTAL $288.00 VISA';
-      }
-
-      const res = await performOCRAndExtract(fileName, hint, undefined, workspace);
-      setOcrPreview({
-        filename: fileName,
-        category: res.documentCategory,
-        ocrText: res.ocrText,
-        summary: res.summary,
-      });
-      setExtractedItems(res.extractedItems);
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   const updateItemField = <K extends keyof BrainDumpExtractedItem>(
@@ -314,36 +273,9 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
                 rows={4}
-                placeholder='Example: "I need groceries (oat milk, apples), John’s phone number is (555) 443-9900, remind me Friday to pay rent, schedule dentist appointment Tuesday at 2 PM, and great startup idea for automated invoicing..."'
+                placeholder="Type or dictate tasks, shopping items, reminders, contacts, calendar events, or notes in one continuous paragraph..."
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4 text-sm text-slate-900 dark:text-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
-
-              {/* Quick sample prompts */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-slate-400">Try example:</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRawInput(
-                      "I need organic milk and coffee beans, remind me tomorrow at 3 PM to call Mom, Mike's number is (555) 221-9876, schedule meeting with Sarah Friday at 11 AM, and pay electricity bill today."
-                    )
-                  }
-                  className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                >
-                  Multi-item Brain Dump
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRawInput(
-                      'Find John Carter’s insurance note, remind me Friday to upload the roof inspection certificate, and buy exterior sealant at Home Depot.'
-                    )
-                  }
-                  className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                >
-                  Roof & Insurance Workflow
-                </button>
-              </div>
 
               {/* Password plain-text warning (Part 2 requirement) */}
               {passwordWarning && (
@@ -400,27 +332,6 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
                     className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors"
                   >
                     Choose Image or Document
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRunSampleOCR('handwritten')}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-medium"
-                  >
-                    Demo: Handwritten Sticky Note
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRunSampleOCR('business-card')}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-medium"
-                  >
-                    Demo: Business Card Scan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRunSampleOCR('receipt')}
-                    className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-medium"
-                  >
-                    Demo: Store Receipt OCR
                   </button>
                 </div>
               </div>

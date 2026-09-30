@@ -234,11 +234,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
 
   const samplePrompts = [
     'What should I work on today?',
-    'What did John tell me about insurance?',
-    'Find every receipt from Home Depot',
-    'Best coffee shops near me for deep work',
-    'Summarize Project Atlas',
-    'Remind me tomorrow at 3 PM to call Mom',
+    'Summarize my active tasks and priorities',
+    'Help me plan my schedule for this week',
+    'Organize my open notes into action items',
+    'Draft a new project milestone checklist',
+    'Best quiet workspaces near me',
   ];
 
   const containerClass = isFullPage
