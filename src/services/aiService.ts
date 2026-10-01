@@ -625,6 +625,34 @@ export async function performOCRAndExtract(
   const lowerName = filename.toLowerCase();
   const cfg = getAIConfig();
 
+  // Keyless local OCR fallback: Tesseract.js runs in the browser with no API key.
+  if (imageDataUrl && imageDataUrl.includes('base64,')) {
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const result = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+      const extractedText = String(result?.data?.text || '').trim();
+      if (extractedText) {
+        const items = await processBrainDumpInput(extractedText, workspace);
+        return {
+          ocrText: extractedText,
+          summary: `Keyless local OCR extracted ${items.length} actionable item(s) from "${filename}".`,
+          documentCategory: lowerName.includes('card')
+            ? 'Business Card'
+            : lowerName.includes('receipt') || lowerName.includes('invoice')
+            ? 'Receipt'
+            : lowerName.includes('whiteboard')
+            ? 'Whiteboard'
+            : 'Handwritten Note',
+          extractedItems: items,
+        };
+      }
+    } catch {
+      // Continue to the existing text-hint/local parser fallback.
+    }
+  }
+
   // If an image is uploaded and Gemini API key is configured, perform multimodal Vision OCR
   if (imageDataUrl && imageDataUrl.includes('base64,') && cfg.geminiApiKey.trim()) {
     try {
