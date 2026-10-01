@@ -55,8 +55,14 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            // Use the configured release keystore when supplied. For direct APK
+            // distribution, fall back to the standard Android debug keystore so
+            // the CI-produced APK is installable without Play/F-Droid signing.
             if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
                 signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
             }
         }
     }
