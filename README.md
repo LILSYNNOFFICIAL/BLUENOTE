@@ -7,7 +7,7 @@
 [![Android Direct APK](https://img.shields.io/badge/Android-Direct%20APK%20Download-059669?style=for-the-badge&logo=android)](#android-application--direct-apk-download)
 **BlueNote** is a comprehensive, local-first **Personal Organizer, AI-Powered Project Operating System (`PROJECTS`), Quiet Predictive Pattern Engine, Habit & Streak Analytics Tracker, Smart Note Editor, Personal CRM, Knowledge Graph, and Multimodal AI Studio**.
 
-Designed to start **100% clean with zero pre-loaded demo clutter**, BlueNote features an animated startup splash screen and a **5-Step Interactive Onboarding Wizard**, uses a local-first core with keyless free-cloud fallbacks and optional BYOK/Cloud AI providers (plus optional BYOK/Cloud AI providers), and supports real-time cloud synchronization via Firebase Authentication & Firestore.
+Designed to start **100% clean with zero pre-loaded demo clutter**, BlueNote features an animated startup splash screen and a **5-Step Interactive Onboarding Wizard**, uses a local-first core with keyless free-cloud fallbacks and optional BYOK/Cloud AI providers, and supports real-time cloud synchronization via Firebase Authentication & Firestore.
 
 ---
 
@@ -43,7 +43,7 @@ Accessible from the top-level **PROJECTS** item in the main sidebar, the Dashboa
   - Built-in project templates (*Blank Project*, *Writing Project*, *Music Project*, *Research Project*, *Photo Project*, *Business Project*, *Custom*) — each initialized as a clean, zero-demo container with a **project storage quota**.
 - **12 Integrated Workspace Modules per Project:**
   1. **Overview Dashboard:** Quick actions (`[ UPLOAD ]`, `[ NEW DOCUMENT ]`, `[ NEW NOTE ]`, `[ NEW TASK ]`, `[ ASK AI ]`, `[ MERGE DOCUMENTS ]`, `[ PHOTO ALBUM ]`), live project metrics, recent document versions, open tasks, and AI activity feed.
-  2. **Documents & 10 GB Chunked Upload Engine (`ProjectsOSDocumentsSubView.tsx`):**
+  2. **Documents & Large-File Chunked Upload Engine (`ProjectsOSDocumentsSubView.tsx`):**
      - Supports `.txt`, `.md`, `.doc`, `.docx`, and `.pdf` with **2 MB chunked streaming uploads** backed by IndexedDB (`bluenote_projects_os_chunks_v1`), live upload progress bar, transfer speed (`MB/s`), ETA, and **Pause / Resume / Cancel** controls without loading multi-GB files into browser RAM.
      - **True Binary `.DOCX` & Multi-Page `.PDF` Extraction:** Client-side binary parser extracts `word/document.xml` from `.docx` ZIP containers (via `DecompressionStream('deflate-raw')`) preserving headings (`H1`/`H2`/`H3`) and paragraphs, and parses `.pdf` text blocks (`BT...ET`, `Tj`/`TJ`) with automatic page markers.
      - **Split-Screen Live Markdown Preview & Clickable TOC Outline:** Switch between `Edit`, `Split Preview`, and `Reader` modes with a live Table of Contents sidebar that extracts `# Headings`, `[Verse]`/`[Chorus]` markers, and page numbers with section word counts and 1-click cursor jump.
