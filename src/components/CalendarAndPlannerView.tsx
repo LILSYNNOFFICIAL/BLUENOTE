@@ -101,6 +101,26 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
     );
   }, [workspace.tasks, selectedDate]);
 
+  // PROJECTS OS Tasks due on selectedDate
+  const dayOSProjectTasks = useMemo(() => {
+    const list: { id: string; projectName: string; title: string; priority: string; dueDate: string }[] = [];
+    (workspace.osProjects || []).forEach((proj) => {
+      if (proj.isArchived) return;
+      proj.tasks.forEach((t) => {
+        if (t.status !== 'Done' && t.dueDate === selectedDate) {
+          list.push({
+            id: t.id,
+            projectName: proj.name,
+            title: t.title,
+            priority: t.priority,
+            dueDate: t.dueDate,
+          });
+        }
+      });
+    });
+    return list;
+  }, [workspace.osProjects, selectedDate]);
+
   // 7-day week array around selectedDate
   const weekDays = useMemo(() => {
     const center = new Date(`${selectedDate}T12:00:00`);
@@ -466,6 +486,51 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleTimeBlockTask(t)}
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold shrink-0 flex items-center gap-1"
+                        >
+                          <Clock className="w-3 h-3" /> Time-Block
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* PROJECTS OS Deadlines Due on Selected Date */}
+                {dayOSProjectTasks.length > 0 && (
+                  <div className="pt-2 space-y-2">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                      PROJECTS Workspace Deadlines ({dayOSProjectTasks.length})
+                    </div>
+                    {dayOSProjectTasks.map((pt) => (
+                      <div
+                        key={pt.id}
+                        className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900/60 flex items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            [{pt.projectName}] {pt.title}
+                          </div>
+                          <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            PROJECTS Task • {pt.priority} Priority
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onAddEvent({
+                              title: `[${pt.projectName}] ${pt.title}`,
+                              description: `Time-blocked from PROJECTS ("${pt.projectName}")`,
+                              date: selectedDate,
+                              startTime: '14:00',
+                              endTime: '15:00',
+                              allDay: false,
+                              category: 'Focus Block',
+                              location: 'PROJECTS Workspace',
+                              tags: ['PROJECTS', 'Focus-Block'],
+                              linkedContactIds: [],
+                              color: '#4f46e5',
+                            })
+                          }
                           className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold shrink-0 flex items-center gap-1"
                         >
                           <Clock className="w-3 h-3" /> Time-Block

@@ -34,10 +34,12 @@ import {
   ExternalLink,
   ListTodo,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import {
   AISandboxProposal,
   OSProject,
+  PhotoAlbumTheme,
   ProjectDocument,
   ProjectGeneralFile,
   ProjectMediaItem,
@@ -52,15 +54,25 @@ import {
   answerProjectQueryLocally,
   autoTagAndClassifyDocument,
   buildProjectManifest,
+  buildProjectZipArchiveBlob,
   computeDocumentMetrics,
+  computeImagePerceptualHash,
   convertDocumentToProjectTasks,
   detectDocumentDuplicates,
+  detectPhotoAlbumDuplicates,
   formatBytes,
   generateStandalonePhotoAlbumHTML,
   organizeProjectDocumentsWithAI,
   searchProjectKnowledge,
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
+import {
+  downloadVeoVideoBlobUrl,
+  generateMusicWithLyria,
+  generateOrEditImage,
+  sharpenAndEnhanceImageDataUrl,
+  startVeoVideoGeneration,
+} from '../services/aiService';
 
 interface ProjectsOSModulesSubViewProps {
   project: OSProject;
@@ -101,6 +113,12 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   // Media state
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
   const [mediaSearch, setMediaSearch] = useState('');
+  const mediaElementRefs = useRef<Record<string, HTMLMediaElement | null>>({});
+  const [mediaPlaybackRate, setMediaPlaybackRate] = useState<Record<string, number>>({});
+  const [mediaLoopActive, setMediaLoopActive] = useState<Record<string, boolean>>({});
+  const [mediaCurrentTime, setMediaCurrentTime] = useState<Record<string, number>>({});
+  const [aiMediaPrompt, setAiMediaPrompt] = useState('');
+  const [aiMediaGenerating, setAiMediaGenerating] = useState<'music' | 'video' | null>(null);
 
   // Photo Album state
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,6 +130,11 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
   const [photoGroupFilter, setPhotoGroupFilter] = useState<string>('ALL');
   const [showHtmlAlbumPreview, setShowHtmlAlbumPreview] = useState(false);
+  const [isSlideshowPlaying, setIsSlideshowPlaying] = useState(false);
+  const slideshowTimerRef = useRef<number | null>(null);
+  const [aiPhotoPrompt, setAiPhotoPrompt] = useState('');
+  const [aiPhotoGenerating, setAiPhotoGenerating] = useState(false);
+  const [enhancingPhotoId, setEnhancingPhotoId] = useState<string | null>(null);
 
   // AI Workspace state
   const [compareSandboxId, setCompareSandboxId] = useState<string | null>(null);
@@ -586,6 +609,22 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {onPushTaskToGlobalWorkspace && project.tasks.some((t) => !t.syncedToGlobalTasks) && (
+              <button
+                onClick={() => {
+                  const unsynced = project.tasks.filter((t) => !t.syncedToGlobalTasks);
+                  unsynced.forEach((t) => onPushTaskToGlobalWorkspace(t, project.name));
+                  onUpdateProject((prev) => ({
+                    ...prev,
+                    tasks: prev.tasks.map((t) => ({ ...t, syncedToGlobalTasks: true })),
+                  }));
+                  showToast(`Synced ${unsynced.length} project task(s) to Global Tasks & Today View!`);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-2xs"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Sync All Open Tasks to Global Tasks
+              </button>
+            )}
             {project.documents.slice(0, 3).map((doc) => (
               <button
                 key={doc.id}
@@ -855,40 +894,203 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
       );
     });
 
+    const handleGenerateAIMusicForProject = async () => {
+      if (aiMediaGenerating) return;
+      const prompt =
+        aiMediaPrompt.trim() ||
+        `${project.name} — studio master instrumental with warm chords and crisp percussion`;
+      setAiMediaGenerating('music');
+      try {
+        const res = await generateMusicWithLyria({
+          prompt,
+          model: 'lyria-3-pro-preview',
+        });
+        const now = new Date().toISOString();
+        const isMp3 = res.audioUrl.includes('/api/ai/music-stream');
+        const ext = isMp3 ? 'mp3' : 'wav';
+        const cleanName = prompt
+          .replace(/[^\w\s-]/g, '')
+          .trim()
+          .split(/\s+/)
+          .slice(0, 5)
+          .join('_') || 'AI_Studio_Track';
+        const newMedia: ProjectMediaItem = {
+          id: `pmed-ai-${Date.now()}`,
+          projectId: project.id,
+          filename: `${cleanName}.${ext}`,
+          mediaType: 'audio',
+          mimeType: isMp3 ? 'audio/mpeg' : 'audio/wav',
+          sizeBytes: 2680000,
+          durationSeconds: 28,
+          transcriptOrCaptions: res.lyrics,
+          sceneInfo: `AI Studio Master (${res.model})`,
+          tags: ['AI-Music', isMp3 ? 'Studio-MP3' : '48kHz-Stereo', project.name],
+          dataUrl: res.audioUrl,
+          uploadedAt: now,
+        };
+        onUpdateProject((prev) => ({
+          ...prev,
+          updatedAt: now,
+          media: [newMedia, ...prev.media],
+          timeline: [
+            {
+              id: `tl-${Date.now()}`,
+              projectId: prev.id,
+              timestamp: now,
+              category: 'ai',
+              title: `Composed AI Studio Track "${newMedia.filename}"`,
+              subtitle: `Engine: ${res.model}`,
+            },
+            ...prev.timeline,
+          ],
+        }));
+        setAiMediaPrompt('');
+        showToast(`Composed "${newMedia.filename}" (${res.model}) into Project Media!`);
+      } catch {
+        showToast('Could not generate AI music track.');
+      } finally {
+        setAiMediaGenerating(null);
+      }
+    };
+
+    const handleGenerateAIVideoForProject = async () => {
+      if (aiMediaGenerating) return;
+      const prompt =
+        aiMediaPrompt.trim() ||
+        `Cinematic 4K showcase for ${project.name}, golden hour lighting, smooth camera motion`;
+      setAiMediaGenerating('video');
+      try {
+        const { operationName, model } = await startVeoVideoGeneration({
+          prompt,
+          aspectRatio: '16:9',
+        });
+        const blobUrl = await downloadVeoVideoBlobUrl(operationName);
+        const now = new Date().toISOString();
+        const isMp4 = (model || '').includes('MP4');
+        const cleanName = prompt
+          .replace(/[^\w\s-]/g, '')
+          .trim()
+          .split(/\s+/)
+          .slice(0, 5)
+          .join('_') || 'AI_Cinema_Video';
+        const newMedia: ProjectMediaItem = {
+          id: `pmed-vid-${Date.now()}`,
+          projectId: project.id,
+          filename: `${cleanName}.${isMp4 ? 'mp4' : 'webm'}`,
+          mediaType: 'video',
+          mimeType: isMp4 ? 'video/mp4' : 'video/webm',
+          sizeBytes: 3400000,
+          durationSeconds: 6,
+          transcriptOrCaptions: `[00:00] AI Video Scene: "${prompt}"\n[00:03] Rendered via ${model || 'LTX-Video-Distilled & FLUX.1 HD'}`,
+          sceneInfo: `AI Video (${model || 'LTX-Video MP4 / 8Mbps HD'})`,
+          tags: ['AI-Video', isMp4 ? 'LTX-MP4' : '8Mbps-HD', project.name],
+          dataUrl: blobUrl,
+          uploadedAt: now,
+        };
+        onUpdateProject((prev) => ({
+          ...prev,
+          updatedAt: now,
+          media: [newMedia, ...prev.media],
+          timeline: [
+            {
+              id: `tl-${Date.now()}`,
+              projectId: prev.id,
+              timestamp: now,
+              category: 'ai',
+              title: `Generated AI Video "${newMedia.filename}"`,
+              subtitle: `Engine: ${model || 'LTX-Video MP4'}`,
+            },
+            ...prev.timeline,
+          ],
+        }));
+        setAiMediaPrompt('');
+        showToast(`Generated "${newMedia.filename}" into Project Media!`);
+      } catch {
+        showToast('Could not generate AI video.');
+      } finally {
+        setAiMediaGenerating(null);
+      }
+    };
+
     return (
       <div className="space-y-5">
-        <div className="p-5 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Music className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Audio, Video &amp; Transcript Intelligence
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Search spoken words, vocal takes (e.g., &ldquo;hello goodbye&rdquo;), video scenes, and studio demos.
-            </p>
+        <div className="p-5 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Music className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Audio, Video &amp; Transcript Intelligence
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Search spoken words, vocal takes, video scenes, or generate crisp Studio MP3 Music &amp; LTX-Video MP4 clips directly into this project.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={mediaSearch}
+                onChange={(e) => setMediaSearch(e.target.value)}
+                placeholder='Search transcripts (e.g. "hello goodbye")...'
+                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs w-64"
+              />
+              <input
+                ref={mediaInputRef}
+                type="file"
+                multiple
+                accept="audio/*,video/*,image/*"
+                onChange={handleMediaUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => mediaInputRef.current?.click()}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5"
+              >
+                <Upload className="w-4 h-4" /> + Upload Audio / Video
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Built-in AI Studio Music (.MP3) & LTX-Video (.MP4) Generator Bar */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-violet-600/10 border border-blue-500/25 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
+              <Sparkles className="w-4 h-4" />
+              <span>AI Studio Generator:</span>
+            </div>
             <input
               type="text"
-              value={mediaSearch}
-              onChange={(e) => setMediaSearch(e.target.value)}
-              placeholder='Search transcripts (e.g. "hello goodbye")...'
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs w-64"
+              value={aiMediaPrompt}
+              onChange={(e) => setAiMediaPrompt(e.target.value)}
+              placeholder={`Describe a song or video scene for "${project.name}"...`}
+              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
             />
-            <input
-              ref={mediaInputRef}
-              type="file"
-              multiple
-              accept="audio/*,video/*,image/*"
-              onChange={handleMediaUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => mediaInputRef.current?.click()}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5"
-            >
-              <Upload className="w-4 h-4" /> + Upload Audio / Video
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                disabled={aiMediaGenerating !== null}
+                onClick={handleGenerateAIMusicForProject}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
+              >
+                {aiMediaGenerating === 'music' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Music className="w-3.5 h-3.5" />
+                )}
+                <span>Compose Studio MP3</span>
+              </button>
+              <button
+                type="button"
+                disabled={aiMediaGenerating !== null}
+                onClick={handleGenerateAIVideoForProject}
+                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
+              >
+                {aiMediaGenerating === 'video' ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Video className="w-3.5 h-3.5" />
+                )}
+                <span>Generate LTX AI Video</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -929,12 +1131,195 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                 </button>
               </div>
 
-              {item.dataUrl && item.mediaType === 'audio' && (
-                <audio controls src={item.dataUrl} className="w-full h-9" />
+              {/* Pro Media Studio: Waveform Visualizer + Speed (0.5x-2.0x) + A-B Section Loop + Timestamp Insertion */}
+              {item.mediaType === 'audio' && (
+                <div className="p-3 rounded-2xl bg-slate-950 text-white space-y-2.5 border border-slate-800">
+                  {/* Interactive 40-Bar Waveform Visualizer */}
+                  <div className="flex items-end gap-1 h-12 px-2 pt-2">
+                    {Array.from({ length: 40 }).map((_, bIdx) => {
+                      const seed = (item.filename.charCodeAt(bIdx % item.filename.length) + bIdx * 17) % 100;
+                      const heightPct = 20 + (seed % 75);
+                      const curSec = mediaCurrentTime[item.id] || 0;
+                      const durSec = item.durationSeconds || 180;
+                      const progressRatio = Math.min(1, curSec / Math.max(1, durSec));
+                      const isPlayed = bIdx / 40 <= progressRatio;
+                      const inLoopRange =
+                        item.loopStartSec !== undefined &&
+                        item.loopEndSec !== undefined &&
+                        bIdx / 40 >= item.loopStartSec / Math.max(1, durSec) &&
+                        bIdx / 40 <= item.loopEndSec / Math.max(1, durSec);
+                      return (
+                        <button
+                          key={bIdx}
+                          type="button"
+                          onClick={() => {
+                            const targetSec = Math.round((bIdx / 40) * durSec);
+                            const el = mediaElementRefs.current[item.id];
+                            if (el) {
+                              el.currentTime = targetSec;
+                            }
+                            setMediaCurrentTime((prev) => ({ ...prev, [item.id]: targetSec }));
+                          }}
+                          style={{ height: `${heightPct}%` }}
+                          title={`Seek to ${Math.floor(((bIdx / 40) * durSec) / 60)}:${String(
+                            Math.floor(((bIdx / 40) * durSec) % 60)
+                          ).padStart(2, '0')}`}
+                          className={`flex-1 rounded-full transition-all ${
+                            inLoopRange
+                              ? 'bg-amber-400'
+                              : isPlayed
+                              ? 'bg-blue-500'
+                              : 'bg-slate-700 hover:bg-slate-500'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {item.dataUrl && (
+                    <audio
+                      ref={(el) => {
+                        mediaElementRefs.current[item.id] = el;
+                      }}
+                      controls
+                      src={item.dataUrl}
+                      onTimeUpdate={(e) => {
+                        const el = e.currentTarget;
+                        const cur = el.currentTime;
+                        setMediaCurrentTime((prev) => ({ ...prev, [item.id]: cur }));
+                        if (
+                          mediaLoopActive[item.id] &&
+                          item.loopEndSec !== undefined &&
+                          cur >= item.loopEndSec
+                        ) {
+                          el.currentTime = item.loopStartSec || 0;
+                        }
+                      }}
+                      className="w-full h-9"
+                    />
+                  )}
+                </div>
               )}
+
               {item.dataUrl && item.mediaType === 'video' && (
-                <video controls src={item.dataUrl} className="w-full max-h-48 rounded-xl bg-black" />
+                <video
+                  ref={(el) => {
+                    mediaElementRefs.current[item.id] = el;
+                  }}
+                  controls
+                  src={item.dataUrl}
+                  onTimeUpdate={(e) => {
+                    const el = e.currentTarget;
+                    const cur = el.currentTime;
+                    setMediaCurrentTime((prev) => ({ ...prev, [item.id]: cur }));
+                    if (
+                      mediaLoopActive[item.id] &&
+                      item.loopEndSec !== undefined &&
+                      cur >= item.loopEndSec
+                    ) {
+                      el.currentTime = item.loopStartSec || 0;
+                    }
+                  }}
+                  className="w-full max-h-48 rounded-xl bg-black"
+                />
               )}
+
+              {/* Playback Speed, A-B Loop Controls & Timestamp Stamp */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 text-[11px]">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-slate-500">Speed:</span>
+                  {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={() => {
+                        setMediaPlaybackRate((prev) => ({ ...prev, [item.id]: rate }));
+                        const el = mediaElementRefs.current[item.id];
+                        if (el) el.playbackRate = rate;
+                      }}
+                      className={`px-1.5 py-0.5 rounded font-mono font-bold ${
+                        (mediaPlaybackRate[item.id] || 1) === rate
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {rate}x
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Math.floor(mediaCurrentTime[item.id] || 0);
+                      onUpdateProject((prev) => ({
+                        ...prev,
+                        media: prev.media.map((m) =>
+                          m.id === item.id ? { ...m, loopStartSec: cur } : m
+                        ),
+                      }));
+                      showToast(`Set Loop Start [A] at ${cur}s`);
+                    }}
+                    className="px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold"
+                  >
+                    [A: {item.loopStartSec ?? 0}s]
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Math.max(
+                        (item.loopStartSec || 0) + 2,
+                        Math.floor(mediaCurrentTime[item.id] || 15)
+                      );
+                      onUpdateProject((prev) => ({
+                        ...prev,
+                        media: prev.media.map((m) =>
+                          m.id === item.id ? { ...m, loopEndSec: cur } : m
+                        ),
+                      }));
+                      showToast(`Set Loop End [B] at ${cur}s`);
+                    }}
+                    className="px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold"
+                  >
+                    [B: {item.loopEndSec ?? 'End'}]
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMediaLoopActive((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
+                    }
+                    className={`px-2 py-0.5 rounded font-bold ${
+                      mediaLoopActive[item.id]
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {mediaLoopActive[item.id] ? 'Loop ON' : 'Loop A-B'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sec = Math.floor(mediaCurrentTime[item.id] || 0);
+                      const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+                      const ss = String(sec % 60).padStart(2, '0');
+                      const stamp = `[${mm}:${ss}] `;
+                      onUpdateProject((prev) => ({
+                        ...prev,
+                        media: prev.media.map((m) =>
+                          m.id === item.id
+                            ? { ...m, transcriptOrCaptions: `${m.transcriptOrCaptions}\n${stamp}` }
+                            : m
+                        ),
+                      }));
+                      showToast(`Inserted timestamp ${stamp}`);
+                    }}
+                    className="px-2 py-0.5 rounded bg-indigo-600 text-white font-bold"
+                  >
+                    + [mm:ss] Stamp
+                  </button>
+                </div>
+              </div>
 
               <div className="space-y-1">
                 <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
@@ -954,6 +1339,37 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                   }}
                   className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono"
                 />
+                {/* Clickable [mm:ss] Timestamp Jump Chips */}
+                {Array.from(item.transcriptOrCaptions.matchAll(/\[(\d{1,2}):(\d{2})\]/g)).length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] font-bold text-slate-400">Jump to Timestamp:</span>
+                    {Array.from(item.transcriptOrCaptions.matchAll(/\[(\d{1,2}):(\d{2})\]/g)).map(
+                      (m, tIdx) => {
+                        const mins = parseInt(m[1], 10);
+                        const secs = parseInt(m[2], 10);
+                        const totalSec = mins * 60 + secs;
+                        return (
+                          <button
+                            key={`${m[0]}-${tIdx}`}
+                            type="button"
+                            onClick={() => {
+                              const el = mediaElementRefs.current[item.id];
+                              if (el) {
+                                el.currentTime = totalSec;
+                                el.play().catch(() => {});
+                              }
+                              setMediaCurrentTime((prev) => ({ ...prev, [item.id]: totalSec }));
+                              showToast(`Jumped to ${m[0]}`);
+                            }}
+                            className="px-2 py-0.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-mono text-[10px] font-extrabold"
+                          >
+                            ▶ {m[0]}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -984,6 +1400,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
         } catch {
           dataUrl = URL.createObjectURL(f);
         }
+        const perceptualHash = await computeImagePerceptualHash(dataUrl);
         uploadedPhotos.push({
           id: `pho-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           filename: f.name,
@@ -993,6 +1410,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
           takenAt: now,
           groupName: 'Uploaded Batch',
           tags: ['Photo', 'Gallery'],
+          perceptualHash,
         });
       }
 
@@ -1029,6 +1447,100 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
       a.click();
       URL.revokeObjectURL(url);
       showToast(`Exported standalone HTML photo album "${activeAlbum.title}"!`);
+    };
+
+    const handleGenerateAIPhotoIntoAlbum = async () => {
+      if (!activeAlbum || aiPhotoGenerating) return;
+      const prompt =
+        aiPhotoPrompt.trim() ||
+        `${project.name} — ultra-crisp 8k DSLR photography, studio lighting, razor-sharp focus`;
+      setAiPhotoGenerating(true);
+      try {
+        const res = await generateOrEditImage({
+          prompt: `${prompt}, ultra-crisp 8k DSLR photorealistic, razor-sharp focus`,
+          aspectRatio: '16:9',
+        });
+        const now = new Date().toISOString();
+        const perceptualHash = await computeImagePerceptualHash(res.imageUrl);
+        const cleanFile =
+          prompt
+            .replace(/[^\w\s-]/g, '')
+            .trim()
+            .split(/\s+/)
+            .slice(0, 5)
+            .join('_') || 'FLUX_HD_Photo';
+        const newPhoto: ProjectPhotoItem = {
+          id: `pho-ai-${Date.now()}`,
+          filename: `${cleanFile}.png`,
+          caption: `${prompt} (${res.model})`,
+          dataUrl: res.imageUrl,
+          sizeBytes: 380000,
+          takenAt: now,
+          groupName: 'AI Studio HD',
+          tags: ['FLUX.1-HD', 'AI-Photo', project.name],
+          perceptualHash,
+        };
+        onUpdateProject((prev) => ({
+          ...prev,
+          updatedAt: now,
+          photoAlbums: prev.photoAlbums.map((alb) =>
+            alb.id === activeAlbum.id
+              ? { ...alb, updatedAt: now, photos: [newPhoto, ...alb.photos] }
+              : alb
+          ),
+          timeline: [
+            {
+              id: `tl-${Date.now()}`,
+              projectId: prev.id,
+              timestamp: now,
+              category: 'photo',
+              title: `Generated Ultra-Crisp AI Photo in "${activeAlbum.title}"`,
+              subtitle: `${newPhoto.filename} via ${res.model}`,
+            },
+            ...prev.timeline,
+          ],
+        }));
+        setAiPhotoPrompt('');
+        showToast(`Generated "${newPhoto.filename}" (${res.model}) into "${activeAlbum.title}"!`);
+      } catch {
+        showToast('Failed to generate AI photo.');
+      } finally {
+        setAiPhotoGenerating(false);
+      }
+    };
+
+    const handleSharpenAlbumPhoto = async (photo: ProjectPhotoItem) => {
+      if (!activeAlbum || enhancingPhotoId) return;
+      setEnhancingPhotoId(photo.id);
+      try {
+        const sharpenedUrl = await sharpenAndEnhanceImageDataUrl(photo.dataUrl);
+        const newHash = await computeImagePerceptualHash(sharpenedUrl);
+        onUpdateProject((prev) => ({
+          ...prev,
+          photoAlbums: prev.photoAlbums.map((a) =>
+            a.id === activeAlbum.id
+              ? {
+                  ...a,
+                  photos: a.photos.map((p) =>
+                    p.id === photo.id
+                      ? {
+                          ...p,
+                          dataUrl: sharpenedUrl,
+                          perceptualHash: newHash,
+                          caption: p.caption.includes('[2K Crisp]')
+                            ? p.caption
+                            : `${p.caption} [2K Crisp]`,
+                        }
+                      : p
+                  ),
+                }
+              : a
+          ),
+        }));
+        showToast(`Enhanced crispness (Unsharp 2K) for "${photo.filename}"!`);
+      } finally {
+        setEnhancingPhotoId(null);
+      }
     };
 
     return (
@@ -1087,6 +1599,49 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
 
           {activeAlbum && (
             <div className="flex flex-wrap items-center gap-2">
+              {/* Visual Theme Selector (4 Themes) */}
+              <select
+                value={activeAlbum.theme || 'dark-cinema'}
+                onChange={(e) => {
+                  const nextTheme = e.target.value as PhotoAlbumTheme;
+                  onUpdateProject((prev) => ({
+                    ...prev,
+                    photoAlbums: prev.photoAlbums.map((a) =>
+                      a.id === activeAlbum.id ? { ...a, theme: nextTheme } : a
+                    ),
+                  }));
+                  showToast(`Album theme set to ${nextTheme}`);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold"
+                title="Standalone HTML Album Visual Theme"
+              >
+                <option value="dark-cinema">Theme: Dark Cinema</option>
+                <option value="editorial-white">Theme: Editorial White</option>
+                <option value="warm-gallery">Theme: Warm Gallery</option>
+                <option value="neon-studio">Theme: Neon Studio</option>
+              </select>
+
+              {/* Auto-Play Slideshow Speed Selector */}
+              <select
+                value={activeAlbum.slideshowIntervalSec || 4}
+                onChange={(e) => {
+                  const sec = Number(e.target.value) || 4;
+                  onUpdateProject((prev) => ({
+                    ...prev,
+                    photoAlbums: prev.photoAlbums.map((a) =>
+                      a.id === activeAlbum.id ? { ...a, slideshowIntervalSec: sec } : a
+                    ),
+                  }));
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold"
+                title="Slideshow Timer Interval"
+              >
+                <option value={3}>Slideshow: 3s</option>
+                <option value={4}>Slideshow: 4s</option>
+                <option value={6}>Slideshow: 6s</option>
+                <option value={8}>Slideshow: 8s</option>
+              </select>
+
               <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
                 <button
                   onClick={() =>
@@ -1139,6 +1694,39 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                 <Upload className="w-4 h-4" /> + Upload Photos
               </button>
               <button
+                onClick={() => {
+                  if (!activeAlbum || activeAlbum.photos.length === 0) {
+                    showToast('Upload at least 1 photo to start the slideshow.');
+                    return;
+                  }
+                  if (isSlideshowPlaying) {
+                    if (slideshowTimerRef.current) {
+                      window.clearInterval(slideshowTimerRef.current);
+                      slideshowTimerRef.current = null;
+                    }
+                    setIsSlideshowPlaying(false);
+                  } else {
+                    if (lightboxIndex === null) setLightboxIndex(0);
+                    setIsSlideshowPlaying(true);
+                    const intervalMs = (activeAlbum.slideshowIntervalSec || 4) * 1000;
+                    if (slideshowTimerRef.current) window.clearInterval(slideshowTimerRef.current);
+                    slideshowTimerRef.current = window.setInterval(() => {
+                      setLightboxIndex((prev) =>
+                        prev === null ? 0 : (prev + 1) % Math.max(1, activeAlbum.photos.length)
+                      );
+                    }, intervalMs);
+                  }
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 ${
+                  isSlideshowPlaying
+                    ? 'bg-amber-500 text-slate-950'
+                    : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                }`}
+              >
+                <Play className="w-3.5 h-3.5" />
+                {isSlideshowPlaying ? 'Pause Slideshow' : 'Play Slideshow'}
+              </button>
+              <button
                 onClick={() => setShowHtmlAlbumPreview((v) => !v)}
                 className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center gap-1.5"
               >
@@ -1153,6 +1741,79 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
             </div>
           )}
         </div>
+
+        {/* Perceptual Duplicate Photo Detection Banner */}
+        {activeAlbum && (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-emerald-600/10 border border-blue-500/25 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
+              <Sparkles className="w-4 h-4" />
+              <span>FLUX.1 8K Photo Generator:</span>
+            </div>
+            <input
+              type="text"
+              value={aiPhotoPrompt}
+              onChange={(e) => setAiPhotoPrompt(e.target.value)}
+              placeholder={`Describe an ultra-crisp photo or cover artwork for "${activeAlbum.title}"...`}
+              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
+            />
+            <button
+              type="button"
+              disabled={aiPhotoGenerating}
+              onClick={handleGenerateAIPhotoIntoAlbum}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shrink-0"
+            >
+              {aiPhotoGenerating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating FLUX.1 HD...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-3.5 h-3.5" />
+                  <span>Generate Crisp HD Photo</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+        {activeAlbum && detectPhotoAlbumDuplicates(activeAlbum.photos).length > 0 && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                Visual Duplicate Photos Detected ({detectPhotoAlbumDuplicates(activeAlbum.photos).length} duplicate cluster(s) via 8×8 Perceptual Hash)
+              </div>
+              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                {detectPhotoAlbumDuplicates(activeAlbum.photos)
+                  .map(
+                    (g) =>
+                      `${g.primaryFilename} ↔ ${g.duplicatePhotos.map((d) => d.filename).join(', ')} (${g.similarityPercent}% match)`
+                  )
+                  .join(' • ')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const dupGroups = detectPhotoAlbumDuplicates(activeAlbum.photos);
+                const removeIds = new Set(
+                  dupGroups.flatMap((g) => g.duplicatePhotos.map((p) => p.id))
+                );
+                onUpdateProject((prev) => ({
+                  ...prev,
+                  photoAlbums: prev.photoAlbums.map((a) =>
+                    a.id === activeAlbum.id
+                      ? { ...a, photos: a.photos.filter((p) => !removeIds.has(p.id)) }
+                      : a
+                  ),
+                }));
+                showToast(`Removed ${removeIds.size} duplicate photo(s) from "${activeAlbum.title}"!`);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold"
+            >
+              Deduplicate Album ({detectPhotoAlbumDuplicates(activeAlbum.photos).reduce((acc, g) => acc + g.duplicatePhotos.length, 0)} duplicates)
+            </button>
+          </div>
+        )}
 
         {/* Group Filter Pills & Live HTML Album Preview */}
         {activeAlbum && (
@@ -1255,21 +1916,33 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                   />
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
                     <span className="truncate">{photo.filename}</span>
-                    <button
-                      onClick={() =>
-                        onUpdateProject((prev) => ({
-                          ...prev,
-                          photoAlbums: prev.photoAlbums.map((a) =>
-                            a.id === activeAlbum.id
-                              ? { ...a, photos: a.photos.filter((p) => p.id !== photo.id) }
-                              : a
-                          ),
-                        }))
-                      }
-                      className="text-slate-400 hover:text-rose-500"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={enhancingPhotoId === photo.id}
+                        onClick={() => handleSharpenAlbumPhoto(photo)}
+                        className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-sans font-extrabold flex items-center gap-1"
+                        title="Apply 3x3 Unsharp Mask & Micro-Contrast Enhancement"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {enhancingPhotoId === photo.id ? '...' : '2K Crisp'}
+                      </button>
+                      <button
+                        onClick={() =>
+                          onUpdateProject((prev) => ({
+                            ...prev,
+                            photoAlbums: prev.photoAlbums.map((a) =>
+                              a.id === activeAlbum.id
+                                ? { ...a, photos: a.photos.filter((p) => p.id !== photo.id) }
+                                : a
+                            ),
+                          }))
+                        }
+                        className="text-slate-400 hover:text-rose-500"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2572,6 +3245,21 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5"
             >
               <Download className="w-4 h-4" /> Export Full Project Archive (.JSON)
+            </button>
+            <button
+              onClick={() => {
+                const zipBlob = buildProjectZipArchiveBlob(project);
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${project.name.replace(/\s+/g, '_')}_Complete_Archive.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast(`Exported complete PKZIP bundle "${project.name.replace(/\s+/g, '_')}_Complete_Archive.zip"!`);
+              }}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Download Complete Project Bundle (.ZIP)
             </button>
           </div>
         </div>

@@ -136,8 +136,16 @@ export interface ProjectMediaItem {
   sceneInfo: string;
   tags: string[];
   dataUrl?: string;
+  loopStartSec?: number;
+  loopEndSec?: number;
   uploadedAt: string;
 }
+
+export type PhotoAlbumTheme =
+  | 'dark-cinema'
+  | 'editorial-white'
+  | 'warm-gallery'
+  | 'neon-studio';
 
 export interface ProjectPhotoItem {
   id: string;
@@ -150,6 +158,7 @@ export interface ProjectPhotoItem {
   takenAt: string;
   groupName?: string;
   tags: string[];
+  perceptualHash?: string;
   isDuplicateCandidate?: boolean;
 }
 
@@ -159,6 +168,8 @@ export interface ProjectPhotoAlbum {
   title: string;
   subtitle: string;
   layout: 'grid' | 'masonry';
+  theme?: PhotoAlbumTheme;
+  slideshowIntervalSec?: number;
   photos: ProjectPhotoItem[];
   createdAt: string;
   updatedAt: string;

@@ -1,9 +1,11 @@
 import {
   DocumentVersion,
   OSProject,
+  PhotoAlbumTheme,
   ProjectDocument,
   ProjectOSTask,
   ProjectPhotoAlbum,
+  ProjectPhotoItem,
   ProjectTemplateType,
   SmartCollection,
 } from '../types/projectsOS';
@@ -95,9 +97,30 @@ export async function streamUploadFileInChunks(params: {
     // Extract readable text from initial chunk(s) without loading multi-GB blobs into RAM
     if (offset < maxTextExtractBytes) {
       const textSlice = file.slice(offset, Math.min(end, maxTextExtractBytes));
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
       try {
-        const rawChunkText = await textSlice.text();
-        extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
+        if (i === 0 && ext === 'docx') {
+          const buf = await textSlice.arrayBuffer();
+          const docxText = await extractDocxBinaryText(buf, file.name);
+          if (docxText) {
+            extractedText += docxText;
+          } else {
+            const rawChunkText = await textSlice.text();
+            extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
+          }
+        } else if (i === 0 && ext === 'pdf') {
+          const buf = await textSlice.arrayBuffer();
+          const pdfText = extractPdfBinaryText(buf, file.name);
+          if (pdfText) {
+            extractedText += pdfText;
+          } else {
+            const rawChunkText = await textSlice.text();
+            extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
+          }
+        } else {
+          const rawChunkText = await textSlice.text();
+          extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
+        }
       } catch {
         // Binary slice fallback
       }
@@ -125,6 +148,157 @@ export async function streamUploadFileInChunks(params: {
       extractedText.trim() ||
       `# ${file.name}\n\nUploaded (${formatBytes(file.size)}) and indexed in chunked storage.`,
   };
+}
+
+/**
+ * Client-side binary .docx parser: locates word/document.xml inside the ZIP container,
+ * decompresses via DecompressionStream('deflate-raw') if compressed, and parses <w:p>, <w:t>, headings, and tables.
+ */
+export async function extractDocxBinaryText(
+  buffer: ArrayBuffer,
+  filename: string
+): Promise<string | null> {
+  try {
+    const bytes = new Uint8Array(buffer);
+    const view = new DataView(buffer);
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+
+    // Walk PKZIP Local File Headers (0x04034b50) to find word/document.xml
+    let offset = 0;
+    while (offset + 30 < bytes.length) {
+      const sig = view.getUint32(offset, true);
+      if (sig !== 0x04034b50) {
+        offset++;
+        continue;
+      }
+      const compressionMethod = view.getUint16(offset + 8, true);
+      const compressedSize = view.getUint32(offset + 18, true);
+      const fileNameLen = view.getUint16(offset + 26, true);
+      const extraLen = view.getUint16(offset + 28, true);
+      const nameStart = offset + 30;
+      const entryName = decoder.decode(bytes.subarray(nameStart, nameStart + fileNameLen));
+      const dataStart = nameStart + fileNameLen + extraLen;
+
+      if (entryName === 'word/document.xml' && compressedSize > 0 && dataStart + compressedSize <= bytes.length) {
+        const rawSlice = bytes.subarray(dataStart, dataStart + compressedSize);
+        let xmlString = '';
+        if (compressionMethod === 0) {
+          xmlString = decoder.decode(rawSlice);
+        } else if (compressionMethod === 8 && typeof DecompressionStream !== 'undefined') {
+          const ds = new DecompressionStream('deflate-raw');
+          const writer = ds.writable.getWriter();
+          writer.write(rawSlice);
+          writer.close();
+          const decompressedBuf = await new Response(ds.readable).arrayBuffer();
+          xmlString = decoder.decode(new Uint8Array(decompressedBuf));
+        }
+        if (xmlString && xmlString.includes('<w:')) {
+          return parseWordXmlToMarkdown(xmlString, filename);
+        }
+      }
+      offset = dataStart + Math.max(1, compressedSize);
+    }
+  } catch {
+    // Fallback to heuristic extraction
+  }
+  return null;
+}
+
+function parseWordXmlToMarkdown(xml: string, filename: string): string {
+  const paragraphs = xml.split(/<\/w:p>/i);
+  const lines: string[] = [];
+
+  for (const p of paragraphs) {
+    const isHeading1 = /w:val="Heading1"|w:val="1"/i.test(p);
+    const isHeading2 = /w:val="Heading2"|w:val="2"/i.test(p);
+    const isHeading3 = /w:val="Heading3"|w:val="3"/i.test(p);
+    const textMatches = Array.from(p.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi));
+    if (textMatches.length === 0) continue;
+    const text = textMatches
+      .map((m) =>
+        m[1]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+      )
+      .join('')
+      .trim();
+    if (!text) continue;
+    if (isHeading1) lines.push(`# ${text}`);
+    else if (isHeading2) lines.push(`## ${text}`);
+    else if (isHeading3) lines.push(`### ${text}`);
+    else lines.push(text);
+  }
+
+  if (lines.length > 0) {
+    return `# ${filename}\n\n${lines.join('\n\n')}`;
+  }
+  return `# ${filename}\n\nDocument extracted from DOCX XML container.`;
+}
+
+/**
+ * Client-side multi-page PDF text parser: extracts literal strings from PDF text blocks (BT ... ET, Tj, TJ)
+ * and formats them with page markers.
+ */
+export function extractPdfBinaryText(buffer: ArrayBuffer, filename: string): string | null {
+  try {
+    const decoder = new TextDecoder('latin1');
+    const raw = decoder.decode(new Uint8Array(buffer));
+    if (!raw.startsWith('%PDF')) return null;
+
+    const pages: string[] = [];
+    const blocks = raw.split(/\bBT\b/);
+    let currentPageLines: string[] = [];
+    let pageNumber = 1;
+
+    for (let i = 1; i < blocks.length; i++) {
+      const etIndex = blocks[i].indexOf('ET');
+      const block = etIndex !== -1 ? blocks[i].slice(0, etIndex) : blocks[i].slice(0, 2000);
+
+      // Extract parenthesized PDF text strings: (Hello World) Tj or [(Hello) -10 (World)] TJ
+      const strMatches = Array.from(block.matchAll(/\(([^()\\]*(?:\\.[^()\\]*)*)\)/g));
+      const lineParts: string[] = [];
+      for (const m of strMatches) {
+        const cleaned = m[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '')
+          .replace(/\\t/g, ' ')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\')
+          .replace(/[^\x20-\x7E\n]/g, '')
+          .trim();
+        if (cleaned.length > 0) {
+          lineParts.push(cleaned);
+        }
+      }
+      if (lineParts.length > 0) {
+        const joined = lineParts.join(' ').replace(/\s+/g, ' ').trim();
+        if (joined.length >= 2) {
+          currentPageLines.push(joined);
+        }
+      }
+
+      if (currentPageLines.length >= 24) {
+        pages.push(`## Page ${pageNumber}\n\n${currentPageLines.join('\n')}`);
+        currentPageLines = [];
+        pageNumber++;
+      }
+    }
+
+    if (currentPageLines.length > 0) {
+      pages.push(`## Page ${pageNumber}\n\n${currentPageLines.join('\n')}`);
+    }
+
+    if (pages.length > 0) {
+      return `# ${filename}\n\n${pages.join('\n\n---\n\n')}`;
+    }
+  } catch {
+    // Fallback
+  }
+  return null;
 }
 
 export function sanitizeExtractedDocumentText(raw: string, filename: string): string {
@@ -323,6 +497,128 @@ export function computeSideBySideLineDiff(leftContent: string, rightContent: str
     modifiedCount,
     combinedContent: combinedLines.join('\n'),
   };
+}
+
+export interface WordDiffToken {
+  text: string;
+  type: 'same' | 'added' | 'deleted';
+}
+
+/**
+ * Computes word-level inline diff tokens between two modified lines (e.g. `I never [-wanted-] {+needed+} you`)
+ */
+export function computeWordLevelInlineDiff(
+  leftLine: string,
+  rightLine: string
+): WordDiffToken[] {
+  const leftWords = leftLine.split(/(\s+)/).filter((w) => w.length > 0);
+  const rightWords = rightLine.split(/(\s+)/).filter((w) => w.length > 0);
+
+  // LCS matrix on words (capped for super long lines)
+  const m = Math.min(leftWords.length, 120);
+  const n = Math.min(rightWords.length, 120);
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      if (leftWords[i] === rightWords[j]) {
+        dp[i][j] = 1 + dp[i + 1][j + 1];
+      } else {
+        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
+
+  const tokens: WordDiffToken[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < m && j < n) {
+    if (leftWords[i] === rightWords[j]) {
+      tokens.push({ text: leftWords[i], type: 'same' });
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      tokens.push({ text: leftWords[i], type: 'deleted' });
+      i++;
+    } else {
+      tokens.push({ text: rightWords[j], type: 'added' });
+      j++;
+    }
+  }
+  while (i < leftWords.length) {
+    tokens.push({ text: leftWords[i++], type: 'deleted' });
+  }
+  while (j < rightWords.length) {
+    tokens.push({ text: rightWords[j++], type: 'added' });
+  }
+
+  return tokens;
+}
+
+export interface DocumentOutlineItem {
+  id: string;
+  title: string;
+  level: 1 | 2 | 3;
+  lineNumber: number;
+  wordCount: number;
+  kind: 'heading' | 'lyric-section' | 'page';
+}
+
+/**
+ * Extracts a clickable Table of Contents / Section Outline from a document (H1/H2/H3, [Verse], [Chorus], Page markers)
+ */
+export function extractDocumentOutline(content: string): DocumentOutlineItem[] {
+  const lines = content.split('\n');
+  const outline: DocumentOutlineItem[] = [];
+
+  for (let idx = 0; idx < lines.length; idx++) {
+    const trimmed = lines[idx].trim();
+    if (!trimmed) continue;
+
+    const mdMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    const bracketMatch = trimmed.match(/^\[(Verse|Chorus|Pre-Chorus|Bridge|Intro|Outro|Hook|Solo|Section|Part)[^\]]*\]$/i);
+    const chapterMatch = trimmed.match(/^(Chapter|Page|Act|Scene)\s+\d+.*$/i);
+
+    if (mdMatch) {
+      const level = Math.min(3, mdMatch[1].length) as 1 | 2 | 3;
+      outline.push({
+        id: `toc-${idx}`,
+        title: mdMatch[2].trim(),
+        level,
+        lineNumber: idx + 1,
+        wordCount: 0,
+        kind: /^page\s+\d+/i.test(mdMatch[2].trim()) ? 'page' : 'heading',
+      });
+    } else if (bracketMatch) {
+      outline.push({
+        id: `toc-${idx}`,
+        title: trimmed,
+        level: 2,
+        lineNumber: idx + 1,
+        wordCount: 0,
+        kind: 'lyric-section',
+      });
+    } else if (chapterMatch && trimmed.length < 60) {
+      outline.push({
+        id: `toc-${idx}`,
+        title: trimmed,
+        level: 2,
+        lineNumber: idx + 1,
+        wordCount: 0,
+        kind: 'heading',
+      });
+    }
+  }
+
+  // Compute section word counts between headings
+  for (let i = 0; i < outline.length; i++) {
+    const startLine = outline[i].lineNumber;
+    const endLine = i + 1 < outline.length ? outline[i + 1].lineNumber - 1 : lines.length;
+    const sectionText = lines.slice(startLine, endLine).join(' ').trim();
+    outline[i].wordCount = sectionText ? sectionText.split(/\s+/).filter(Boolean).length : 0;
+  }
+
+  return outline;
 }
 
 export interface DuplicateCluster {
@@ -843,12 +1139,119 @@ export function convertDocumentToProjectTasks(
 }
 
 /**
+ * Computes an 8x8 perceptual luminance hash (aHash) from an image Data URL using an offscreen HTML5 Canvas
+ * so visually duplicate or near-duplicate photos can be detected automatically.
+ */
+export async function computeImagePerceptualHash(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 8;
+          canvas.height = 8;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve('');
+            return;
+          }
+          ctx.drawImage(img, 0, 0, 8, 8);
+          const data = ctx.getImageData(0, 0, 8, 8).data;
+          const grays: number[] = [];
+          let sum = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+            grays.push(lum);
+            sum += lum;
+          }
+          const avg = sum / 64;
+          const bits = grays.map((g) => (g >= avg ? '1' : '0')).join('');
+          resolve(bits);
+        } catch {
+          resolve('');
+        }
+      };
+      img.onerror = () => resolve('');
+      img.src = dataUrl;
+    } catch {
+      resolve('');
+    }
+  });
+}
+
+export function computeHammingDistance(hashA: string, hashB: string): number {
+  if (!hashA || !hashB || hashA.length !== hashB.length) return 64;
+  let dist = 0;
+  for (let i = 0; i < hashA.length; i++) {
+    if (hashA[i] !== hashB[i]) dist++;
+  }
+  return dist;
+}
+
+export interface PhotoDuplicateGroup {
+  primaryPhotoId: string;
+  primaryFilename: string;
+  duplicatePhotos: ProjectPhotoItem[];
+  similarityPercent: number;
+}
+
+export function detectPhotoAlbumDuplicates(photos: ProjectPhotoItem[]): PhotoDuplicateGroup[] {
+  const groups: PhotoDuplicateGroup[] = [];
+  const visited = new Set<string>();
+
+  for (let i = 0; i < photos.length; i++) {
+    const a = photos[i];
+    if (visited.has(a.id)) continue;
+    const dups: ProjectPhotoItem[] = [];
+    let bestSim = 0;
+
+    for (let j = i + 1; j < photos.length; j++) {
+      const b = photos[j];
+      if (visited.has(b.id)) continue;
+
+      const exactDataMatch = a.dataUrl === b.dataUrl;
+      const hashDist =
+        a.perceptualHash && b.perceptualHash
+          ? computeHammingDistance(a.perceptualHash, b.perceptualHash)
+          : 64;
+      const sameSizeAndStem =
+        Math.abs(a.sizeBytes - b.sizeBytes) < 256 &&
+        a.filename.replace(/[-_ ]?\d+\./, '.') === b.filename.replace(/[-_ ]?\d+\./, '.');
+
+      if (exactDataMatch || hashDist <= 6 || sameSizeAndStem) {
+        dups.push(b);
+        visited.add(b.id);
+        const sim = exactDataMatch ? 100 : hashDist <= 6 ? Math.round(((64 - hashDist) / 64) * 100) : 95;
+        bestSim = Math.max(bestSim, sim);
+      }
+    }
+
+    if (dups.length > 0) {
+      visited.add(a.id);
+      groups.push({
+        primaryPhotoId: a.id,
+        primaryFilename: a.filename,
+        duplicatePhotos: dups,
+        similarityPercent: bestSim,
+      });
+    }
+  }
+
+  return groups;
+}
+
+/**
  * Generates a standalone, downloadable HTML Photo Album (Section 22)
- * Includes responsive Grid + Masonry toggle, Lightbox, Fullscreen, Prev/Next navigation, captions & filenames.
+ * Includes 4 Visual Themes (Dark Cinema, Editorial White, Warm Gallery, Neon Studio),
+ * Auto-Play Slideshow with configurable interval, responsive Grid + Masonry toggle, Lightbox, Fullscreen, Prev/Next navigation, captions & filenames.
  */
 export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): string {
   const safeTitle = album.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const safeSub = album.subtitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const initialTheme: PhotoAlbumTheme = album.theme || 'dark-cinema';
+  const initialInterval = album.slideshowIntervalSec || 4;
 
   const photosJson = JSON.stringify(
     album.photos.map((p) => ({
@@ -861,27 +1264,52 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
   );
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="${initialTheme}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${safeTitle} — Photo Album</title>
   <style>
-    :root {
-      --bg: #090d16;
+    :root, [data-theme="dark-cinema"] {
+      --bg: radial-gradient(circle at top right, #1e293b 0%, #090d16 65%);
       --card: #111827;
       --border: rgba(255,255,255,0.1);
       --text: #f8fafc;
       --muted: #94a3b8;
       --accent: #3b82f6;
     }
+    [data-theme="editorial-white"] {
+      --bg: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      --card: #ffffff;
+      --border: rgba(15,23,42,0.1);
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0f172a;
+    }
+    [data-theme="warm-gallery"] {
+      --bg: radial-gradient(circle at top left, #292524 0%, #1c1917 70%);
+      --card: #292524;
+      --border: rgba(245,158,11,0.18);
+      --text: #fef3c7;
+      --muted: #d6d3d1;
+      --accent: #d97706;
+    }
+    [data-theme="neon-studio"] {
+      --bg: radial-gradient(circle at top right, #2e1065 0%, #090514 70%);
+      --card: #170d2b;
+      --border: rgba(236,72,153,0.22);
+      --text: #fdf4ff;
+      --muted: #c084fc;
+      --accent: #ec4899;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
-      background: radial-gradient(circle at top right, #1e293b 0%, #090d16 60%);
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       padding: 32px 20px 64px;
+      transition: background 0.3s, color 0.3s;
     }
     .container { max-width: 1280px; margin: 0 auto; }
     header {
@@ -890,13 +1318,13 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     }
     h1 { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.02em; }
     .subtitle { color: var(--muted); font-size: 0.95rem; margin-top: 4px; }
-    .controls { display: flex; align-items: center; gap: 10px; }
-    .btn {
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .btn, select.btn {
       background: var(--card); color: var(--text); border: 1px solid var(--border);
-      padding: 8px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 600;
+      padding: 8px 13px; border-radius: 10px; font-size: 0.8rem; font-weight: 600;
       cursor: pointer; transition: all 0.2s;
     }
-    .btn.active, .btn:hover { background: var(--accent); border-color: var(--accent); }
+    .btn.active, .btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
     .gallery-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px;
     }
@@ -911,7 +1339,7 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
       break-inside: avoid; margin-bottom: 18px;
     }
     .gallery-grid .card { margin-bottom: 0; display: flex; flex-direction: column; }
-    .card:hover { transform: translateY(-4px); box-shadow: 0 18px 36px -12px rgba(0,0,0,0.6); }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 18px 36px -12px rgba(0,0,0,0.45); }
     .card img { width: 100%; display: block; object-fit: cover; }
     .gallery-grid .card img { height: 220px; }
     .meta { padding: 12px 14px; }
@@ -921,6 +1349,7 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     .lightbox {
       position: fixed; inset: 0; background: rgba(5, 8, 15, 0.94); backdrop-filter: blur(12px);
       display: none; flex-direction: column; justify-content: space-between; z-index: 1000; padding: 20px;
+      color: #f8fafc;
     }
     .lightbox.open { display: flex; }
     .lb-top { display: flex; justify-content: space-between; align-items: center; }
@@ -944,8 +1373,15 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
         <p class="subtitle">${safeSub} • <span id="count-badge">${album.photos.length} Photos</span></p>
       </div>
       <div class="controls">
+        <select class="btn" id="theme-select" onchange="setTheme(this.value)">
+          <option value="dark-cinema" ${initialTheme === 'dark-cinema' ? 'selected' : ''}>Theme: Dark Cinema</option>
+          <option value="editorial-white" ${initialTheme === 'editorial-white' ? 'selected' : ''}>Theme: Editorial White</option>
+          <option value="warm-gallery" ${initialTheme === 'warm-gallery' ? 'selected' : ''}>Theme: Warm Gallery</option>
+          <option value="neon-studio" ${initialTheme === 'neon-studio' ? 'selected' : ''}>Theme: Neon Studio</option>
+        </select>
         <button class="btn ${album.layout === 'grid' ? 'active' : ''}" id="btn-grid" onclick="setLayout('grid')">Modern Grid</button>
         <button class="btn ${album.layout === 'masonry' ? 'active' : ''}" id="btn-masonry" onclick="setLayout('masonry')">Masonry Layout</button>
+        <button class="btn" id="btn-slideshow" onclick="toggleSlideshow()">&#9654; Auto-Slideshow (${initialInterval}s)</button>
       </div>
     </header>
     <div id="gallery" class="${album.layout === 'masonry' ? 'gallery-masonry' : 'gallery-grid'}"></div>
@@ -955,6 +1391,7 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     <div class="lb-top">
       <span id="lb-counter" style="font-family:monospace;font-size:0.85rem;color:#94a3b8;">1 / 1</span>
       <div style="display:flex;gap:8px;">
+        <button class="btn" id="lb-slideshow-btn" onclick="toggleSlideshow()">&#9654; Slideshow</button>
         <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
         <button class="btn" onclick="closeLightbox()">Close (Esc)</button>
       </div>
@@ -972,7 +1409,9 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
 
   <script>
     const PHOTOS = ${photosJson};
+    const INTERVAL_MS = ${initialInterval * 1000};
     let currentIndex = 0;
+    let slideshowTimer = null;
     const gallery = document.getElementById('gallery');
 
     function renderGallery() {
@@ -985,6 +1424,10 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
           </div>
         </div>
       \`).join('');
+    }
+
+    function setTheme(themeName) {
+      document.documentElement.setAttribute('data-theme', themeName);
     }
 
     function setLayout(mode) {
@@ -1000,12 +1443,36 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     }
 
     function closeLightbox() {
+      stopSlideshow();
       document.getElementById('lightbox').classList.remove('open');
     }
 
     function stepPhoto(delta) {
+      if (PHOTOS.length === 0) return;
       currentIndex = (currentIndex + delta + PHOTOS.length) % PHOTOS.length;
       updateLightbox();
+    }
+
+    function toggleSlideshow() {
+      if (slideshowTimer) {
+        stopSlideshow();
+      } else {
+        if (!document.getElementById('lightbox').classList.contains('open')) {
+          openLightbox(currentIndex);
+        }
+        slideshowTimer = setInterval(() => stepPhoto(1), INTERVAL_MS);
+        document.getElementById('btn-slideshow').classList.add('active');
+        document.getElementById('lb-slideshow-btn').textContent = '⏸ Pause Slideshow';
+      }
+    }
+
+    function stopSlideshow() {
+      if (slideshowTimer) {
+        clearInterval(slideshowTimer);
+        slideshowTimer = null;
+      }
+      document.getElementById('btn-slideshow').classList.remove('active');
+      document.getElementById('lb-slideshow-btn').textContent = '▶ Slideshow';
     }
 
     function updateLightbox() {
@@ -1030,12 +1497,180 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
       if (e.key === 'Escape') closeLightbox();
       if (e.key === 'ArrowLeft') stepPhoto(-1);
       if (e.key === 'ArrowRight') stepPhoto(1);
+      if (e.key === ' ') { e.preventDefault(); toggleSlideshow(); }
     });
 
     renderGallery();
   </script>
 </body>
 </html>`;
+}
+
+/**
+ * Pure TypeScript Standard PKZIP (.zip) Binary Archive Builder
+ * Packages Project_Manifest.json, all Documents (.md/.txt), Notes, Tasks Checklist, and Standalone HTML Photo Albums
+ * into a single downloadable .zip file with CRC32 integrity checksums.
+ */
+export function buildProjectZipArchiveBlob(project: OSProject): Blob {
+  const encoder = new TextEncoder();
+  const entries: { path: string; data: Uint8Array }[] = [];
+
+  const safeSlug = (s: string) =>
+    s.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '') || 'untitled';
+
+  // 1. Project_Manifest.json
+  entries.push({
+    path: 'Project_Manifest.json',
+    data: encoder.encode(JSON.stringify(buildProjectManifest(project), null, 2)),
+  });
+
+  // 2. README_SUMMARY.md
+  const summaryLines = [
+    `# ${project.name}`,
+    `> ${project.description}`,
+    '',
+    `- **Template**: ${project.template}`,
+    `- **Documents**: ${project.documents.length}`,
+    `- **Scratchpad Notes**: ${project.notes.length}`,
+    `- **Tasks**: ${project.tasks.length}`,
+    `- **Photo Albums**: ${project.photoAlbums.length}`,
+    `- **Exported**: ${new Date().toISOString()}`,
+  ];
+  entries.push({
+    path: 'README_SUMMARY.md',
+    data: encoder.encode(summaryLines.join('\n')),
+  });
+
+  // 3. All Documents (Final + Original versions)
+  project.documents.forEach((doc) => {
+    const ext = doc.filename.endsWith('.md') || doc.filename.endsWith('.txt') ? '' : '.md';
+    entries.push({
+      path: `documents/${safeSlug(doc.filename)}${ext}`,
+      data: encoder.encode(doc.finalContent),
+    });
+  });
+
+  // 4. All Scratchpad Notes
+  project.notes.forEach((note) => {
+    entries.push({
+      path: `notes/${safeSlug(note.title)}.md`,
+      data: encoder.encode(`# ${note.title}\n\n${note.content}`),
+    });
+  });
+
+  // 5. Tasks Checklist
+  if (project.tasks.length > 0) {
+    const tasksMd = [
+      `# ${project.name} — Tasks & Action Checklists`,
+      '',
+      ...project.tasks.map((t) =>
+        [
+          `## [${t.status === 'Done' ? 'x' : ' '}] ${t.title} (${t.priority} • Due ${t.dueDate})`,
+          t.description ? `${t.description}\n` : '',
+          ...t.checklist.map((c) => `- [${c.completed ? 'x' : ' '}] ${c.text}`),
+          '',
+        ].join('\n')
+      ),
+    ].join('\n');
+    entries.push({
+      path: 'tasks/Project_Tasks_Checklist.md',
+      data: encoder.encode(tasksMd),
+    });
+  }
+
+  // 6. Standalone HTML Photo Albums
+  project.photoAlbums.forEach((album) => {
+    entries.push({
+      path: `albums/${safeSlug(album.title)}.html`,
+      data: encoder.encode(generateStandalonePhotoAlbumHTML(album)),
+    });
+  });
+
+  // Build standard PKZIP binary format (Store method 0 with CRC32)
+  const crcTable = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    crcTable[n] = c >>> 0;
+  }
+  const crc32 = (buf: Uint8Array): number => {
+    let crc = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) {
+      crc = crcTable[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBytes = encoder.encode(entry.path);
+    const data = entry.data;
+    const crc = crc32(data);
+
+    // Local File Header (30 + nameBytes.length)
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(localHeader.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true); // UTF-8 flag
+    lv.setUint16(8, 0, true); // Store (0)
+    lv.setUint16(10, 0, true);
+    lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, data.length, true);
+    lv.setUint32(22, data.length, true);
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    localHeader.set(nameBytes, 30);
+
+    localParts.push(localHeader, data);
+
+    // Central Directory Header (46 + nameBytes.length)
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(centralHeader.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true);
+    cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, data.length, true);
+    cv.setUint32(24, data.length, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+
+    centralParts.push(centralHeader);
+    offset += localHeader.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((acc, b) => acc + b.length, 0);
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, offset, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...localParts, ...centralParts, eocd] as unknown as BlobPart[], {
+    type: 'application/zip',
+  });
 }
 
 export function buildProjectManifest(project: OSProject) {

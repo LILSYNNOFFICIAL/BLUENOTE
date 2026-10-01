@@ -37,6 +37,7 @@ interface NotesEditorViewProps {
   onDeleteNote: (noteId: string) => void;
   onCreateFolder?: (folderName: string) => void;
   onExtractTasksFromNote?: (content: string) => void;
+  onSendNoteToProjectsOS?: (note: Note) => void;
 }
 
 const COLOR_STYLES: Record<Note['color'], string> = {
@@ -56,6 +57,7 @@ export const NotesEditorView: React.FC<NotesEditorViewProps> = ({
   onDeleteNote,
   onCreateFolder,
   onExtractTasksFromNote,
+  onSendNoteToProjectsOS,
 }) => {
   const activeNotes = workspace.notes.filter((n) => !n.deletedAt && !n.isArchived);
   const [activeFolderId, setActiveFolderId] = useState<string>('ALL');
@@ -573,6 +575,17 @@ export const NotesEditorView: React.FC<NotesEditorViewProps> = ({
 
               {/* AI Summarizer & Extract Tasks Controls */}
               <div className="flex flex-wrap items-center gap-1.5">
+                {onSendNoteToProjectsOS && (
+                  <button
+                    type="button"
+                    onClick={() => onSendNoteToProjectsOS(currentNote)}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1"
+                    title="Send this Second Brain note into PROJECTS as a 4-stage versioned document"
+                  >
+                    <FolderPlus className="w-3.5 h-3.5" />
+                    Send to PROJECTS
+                  </button>
+                )}
                 {onExtractTasksFromNote && (
                   <button
                     type="button"

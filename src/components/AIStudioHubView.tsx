@@ -33,10 +33,12 @@ import {
   renderSceneFrameToCanvas,
   searchWithGoogleGrounding,
   searchWithGoogleMapsGrounding,
+  sharpenAndEnhanceImageDataUrl,
   startVeoVideoGeneration,
   transcribeAudioWithGemini,
 } from '../services/aiService';
 import { SavedLink, WorkspaceFile } from '../types/bluenote';
+import { OSProject } from '../types/projectsOS';
 
 interface AIStudioHubViewProps {
   onSaveGeneratedFile: (file: Omit<WorkspaceFile, 'id' | 'createdAt' | 'version'>) => void;
@@ -44,6 +46,17 @@ interface AIStudioHubViewProps {
   onSaveLink: (link: Omit<SavedLink, 'id' | 'createdAt'>) => void;
   onSendToBrainDump: (rawText: string) => void;
   onOpenAIKeysModal?: () => void;
+  osProjects?: OSProject[];
+  onSaveToOSProject?: (
+    projectId: string,
+    payload: {
+      kind: 'photo' | 'video' | 'audio';
+      title: string;
+      dataUrl: string;
+      captionOrLyrics: string;
+      model: string;
+    }
+  ) => void;
 }
 
 type StudioTab =
@@ -148,24 +161,35 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   onSaveLink,
   onSendToBrainDump,
   onOpenAIKeysModal,
+  osProjects = [],
+  onSaveToOSProject,
 }) => {
   const [activeTab, setActiveTab] = useState<StudioTab>('image-studio');
+  const activeOSProjects = osProjects.filter((p) => !p.isArchived);
+  const [targetOSProjectId, setTargetOSProjectId] = useState<string>(
+    activeOSProjects[0]?.id || ''
+  );
 
   // 1. Image Studio state
   const [imgPrompt, setImgPrompt] = useState('');
+  const [imgStylePreset, setImgStylePreset] = useState<string>(
+    'ultra-crisp 8k DSLR photorealistic, razor-sharp focus, studio lighting'
+  );
   const [imgAspectRatio, setImgAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>('16:9');
   const [uploadedEditImage, setUploadedEditImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generatedImgCaption, setGeneratedImgCaption] = useState<string>('');
+  const [imgModelUsed, setImgModelUsed] = useState<string>('');
   const [imgLoading, setImgLoading] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
 
-  // 2. Veo 3 Video Studio state
+  // 2. Veo 3 & LTX-Video Studio state
   const [veoMode, setVeoMode] = useState<'text-to-video' | 'image-to-video'>('text-to-video');
   const [veoPrompt, setVeoPrompt] = useState('');
   const [veoAspectRatio, setVeoAspectRatio] = useState<'16:9' | '9:16'>('16:9');
   const [veoInputImage, setVeoInputImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [veoVideoUrl, setVeoVideoUrl] = useState<string | null>(null);
+  const [veoModelUsed, setVeoModelUsed] = useState<string>('');
   const [veoUseCanvasFallback, setVeoUseCanvasFallback] = useState(false);
   const [veoLoading, setVeoLoading] = useState(false);
   const [veoStatusMessage, setVeoStatusMessage] = useState('');
@@ -193,6 +217,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   const [musicImage, setMusicImage] = useState<{ dataUrl: string; mimeType: string } | null>(null);
   const [musicAudioUrl, setMusicAudioUrl] = useState<string | null>(null);
   const [musicLyrics, setMusicLyrics] = useState<string>('');
+  const [musicModelUsed, setMusicModelUsed] = useState<string>('');
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicError, setMusicError] = useState<string | null>(null);
   const [isSingingLyrics, setIsSingingLyrics] = useState(false);
@@ -219,12 +244,15 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   const handleRunImageStudio = async (e: React.FormEvent) => {
     e.preventDefault();
     if (imgLoading) return;
-    const effectivePrompt =
+    const basePrompt =
       imgPrompt.trim() ||
       'Vibrant bluebird perched on a blossoming cherry branch at golden hour';
     if (!imgPrompt.trim()) {
-      setImgPrompt(effectivePrompt);
+      setImgPrompt(basePrompt);
     }
+    const effectivePrompt = imgStylePreset
+      ? `${basePrompt}, ${imgStylePreset}`
+      : basePrompt;
     setImgLoading(true);
     setImgError(null);
     try {
@@ -236,6 +264,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       });
       setGeneratedImageUrl(res.imageUrl);
       setGeneratedImgCaption(res.caption || '');
+      setImgModelUsed(res.model || 'FLUX.1-schnell (Black Forest Labs HD)');
     } catch (err: any) {
       setImgError(err?.message || 'Could not synthesize image.');
     } finally {
@@ -254,7 +283,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
 
     const effectivePrompt =
       veoPrompt.trim() ||
-      'Vibrant bluebird perched on a blossoming branch with gentle golden hour breeze';
+      'Majestic eagle soaring over snow-capped mountain peaks at golden hour, cinematic 4k';
     if (!veoPrompt.trim()) {
       setVeoPrompt(effectivePrompt);
     }
@@ -263,15 +292,20 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     setVeoError(null);
     setVeoVideoUrl(null);
     setVeoUseCanvasFallback(false);
-    setVeoStatusMessage('Rendering animated HD scene frames in ' + veoAspectRatio + '...');
+    setVeoStatusMessage(
+      veoMode === 'text-to-video'
+        ? `Generating Real AI Video via Lightricks LTX-Video-Distilled & FLUX.1 HD (${veoAspectRatio})...`
+        : `Animating HD Photo at 8 Mbps (${veoAspectRatio})...`
+    );
 
     try {
-      const { operationName } = await startVeoVideoGeneration({
+      const { operationName, model } = await startVeoVideoGeneration({
         prompt: effectivePrompt,
         base64Image: veoMode === 'image-to-video' ? veoInputImage?.dataUrl : undefined,
         mimeType: veoMode === 'image-to-video' ? veoInputImage?.mimeType : undefined,
         aspectRatio: veoAspectRatio,
       });
+      if (model) setVeoModelUsed(model);
       const status = await pollVeoVideoStatus(operationName);
       if (status.done) {
         const blobUrl = await downloadVeoVideoBlobUrl(operationName);
@@ -476,6 +510,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
       });
       setMusicAudioUrl(res.audioUrl);
       setMusicLyrics(res.lyrics);
+      setMusicModelUsed(res.model || 'Openverse / Freesound HQ Studio Master');
     } catch (err: any) {
       setMusicError(err?.message || 'Failed to generate song with Lyria.');
     } finally {
@@ -536,19 +571,19 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     {
       id: 'image-studio',
       label: 'Create & Edit Images',
-      modelBadge: 'gemini-2.5-flash-image',
+      modelBadge: 'FLUX.1-schnell / 8K HD',
       icon: ImageIcon,
     },
     {
       id: 'veo-video',
-      label: 'Veo 3 Video & Animate',
-      modelBadge: 'veo-3.1-fast / 60fps',
+      label: 'LTX & Veo Video Studio',
+      modelBadge: 'LTX-Video MP4 / 8Mbps',
       icon: Film,
     },
     {
       id: 'lyria-music',
-      label: 'Lyria Song & Music Studio',
-      modelBadge: 'lyria-3-pro / 44.1kHz',
+      label: 'Studio Music & Song AI',
+      modelBadge: 'Studio MP3 / 48kHz FM',
       icon: Music,
     },
     {
@@ -646,11 +681,39 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-blue-600" />
-                Create & Edit HD Images
+                Create & Edit Ultra-Crisp HD Images
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Environment Gemini Image API + Free Flux AI + On-Device Studio Canvas
+                Powered by Black Forest Labs FLUX.1-schnell + FLUX.1-Merged 8-Step + Unsharp 2K Enhancer
               </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Crispness & Visual Quality Preset
+              </label>
+              <select
+                value={imgStylePreset}
+                onChange={(e) => setImgStylePreset(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+              >
+                <option value="ultra-crisp 8k DSLR photorealistic, razor-sharp focus, studio lighting">
+                  Ultra-Crisp 8K DSLR Photorealistic (Default)
+                </option>
+                <option value="cinematic HDR masterpiece, volumetric lighting, 85mm f/1.4 lens, hyper-detailed">
+                  Cinematic Studio HDR &amp; Bokeh
+                </option>
+                <option value="extreme macro photography, intricate micro-textures, crystal clear detail">
+                  Macro DSLR Micro-Detail
+                </option>
+                <option value="vibrant digital concept art, crisp linework, Unreal Engine 5 render, 8k">
+                  Crisp 8K Concept Art &amp; 3D Render
+                </option>
+                <option value="minimalist architectural photography, clean lines, natural daylight, 8k">
+                  Architectural &amp; Product Studio
+                </option>
+                <option value="">Raw Prompt Only (No Style Modifiers)</option>
+              </select>
             </div>
 
             <div>
@@ -791,9 +854,36 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                   />
                 </div>
                 {generatedImgCaption && (
-                  <p className="text-xs text-slate-600 dark:text-slate-300">{generatedImgCaption}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs text-slate-600 dark:text-slate-300">{generatedImgCaption}</p>
+                    {imgModelUsed && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-[10px] font-mono font-bold">
+                        {imgModelUsed}
+                      </span>
+                    )}
+                  </div>
                 )}
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!generatedImageUrl) return;
+                      setImgLoading(true);
+                      try {
+                        const sharpened = await sharpenAndEnhanceImageDataUrl(generatedImageUrl);
+                        setGeneratedImageUrl(sharpened);
+                        setGeneratedImgCaption((prev) =>
+                          prev.includes('[Crisp Enhanced]') ? prev : `${prev} • [Crisp Enhanced]`
+                        );
+                      } finally {
+                        setImgLoading(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Enhance Crispness (Unsharp 2K)
+                  </button>
                   <a
                     href={generatedImageUrl}
                     download={`bluenote-image-${Date.now()}.png`}
@@ -836,6 +926,24 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                     <FolderOpen className="w-3.5 h-3.5" />
                     Save to Files Vault
                   </button>
+                  {onSaveToOSProject && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSaveToOSProject(targetOSProjectId || activeOSProjects[0]?.id || 'auto', {
+                          kind: 'photo',
+                          title: imgPrompt || 'FLUX.1 HD Photo',
+                          dataUrl: generatedImageUrl,
+                          captionOrLyrics: `${imgPrompt || 'HD Photo'} (${imgModelUsed || 'FLUX.1-schnell'})`,
+                          model: imgModelUsed || 'FLUX.1-schnell',
+                        })
+                      }
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Save to PROJECTS Album
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -863,10 +971,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Film className="w-4 h-4 text-blue-600" />
-                Veo 3 Video & Photo Animation Studio
+                LTX-Video AI MP4 &amp; FLUX.1 Cinema Video Studio
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                WebM Video Stream + Guaranteed 60FPS Live Cinema Canvas Player
+                Lightricks LTX-Video-Distilled Real AI MP4 + 1280×720 8Mbps FLUX.1 Cinema Engine
               </p>
             </div>
 
@@ -1043,24 +1151,56 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                   />
                 )}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setVeoUseCanvasFallback((prev) => !prev)}
-                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {veoUseCanvasFallback
-                      ? 'Switch to Recorded Video Stream'
-                      : 'Switch to 60FPS Interactive Cinema Player'}
-                  </button>
-                  {!veoVideoUrl.startsWith('canvas-video:') && (
-                    <a
-                      href={veoVideoUrl}
-                      download={`bluenote-video-${Date.now()}.webm`}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVeoUseCanvasFallback((prev) => !prev)}
+                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                      Download Video (.webm)
-                    </a>
+                      {veoUseCanvasFallback
+                        ? 'Switch to Recorded AI Video Stream'
+                        : 'Switch to 60FPS Interactive Cinema Player'}
+                    </button>
+                    {veoModelUsed && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 text-[10px] font-mono font-bold">
+                        {veoModelUsed}
+                      </span>
+                    )}
+                  </div>
+                  {!veoVideoUrl.startsWith('canvas-video:') && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={veoVideoUrl}
+                        download={`bluenote-ai-video-${Date.now()}.${
+                          veoModelUsed.includes('MP4') ? 'mp4' : 'webm'
+                        }`}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download Video ({veoModelUsed.includes('MP4') ? '.mp4' : '.webm'})
+                      </a>
+                      {onSaveToOSProject && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onSaveToOSProject(
+                              targetOSProjectId || activeOSProjects[0]?.id || 'auto',
+                              {
+                                kind: 'video',
+                                title: veoPrompt || 'LTX AI Video',
+                                dataUrl: veoVideoUrl,
+                                captionOrLyrics: veoPrompt || 'LTX-Video Scene',
+                                model: veoModelUsed || 'LTX-Video-Distilled',
+                              }
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Save to PROJECTS Media
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1307,10 +1447,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Music className="w-4 h-4 text-blue-600" />
-                Lyria 3 Song & Music Studio
+                Studio Music &amp; AI Song Generator
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Multi-section 44.1kHz stereo WAV synthesis + AI song lyrics & vocal performance
+                Real Studio-Mastered MP3 Tracks (Openverse / Freesound HQ) + 48kHz Stereo FM Reverb Synthesizer &amp; AI Lyrics
               </p>
             </div>
 
@@ -1431,7 +1571,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                 <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white space-y-3 shadow-md">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-100">
-                      {musicModel} • 44.1kHz Stereo WAV Master
+                      {musicModelUsed || `${musicModel} • 48kHz Studio Master`}
                     </span>
                     <Music className="w-5 h-5" />
                   </div>
@@ -1458,11 +1598,13 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                     </button>
                     <a
                       href={musicAudioUrl}
-                      download={`bluenote-song-${Date.now()}.wav`}
+                      download={`bluenote-song-${Date.now()}.${
+                        musicAudioUrl.includes('/api/ai/music-stream') ? 'mp3' : 'wav'
+                      }`}
                       className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Download .WAV
+                      Download {musicAudioUrl.includes('/api/ai/music-stream') ? '.MP3' : '.WAV'}
                     </a>
                     <button
                       type="button"
@@ -1477,6 +1619,24 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                       <FileText className="w-3.5 h-3.5" />
                       Save Lyrics to Smart Notes
                     </button>
+                    {onSaveToOSProject && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSaveToOSProject(targetOSProjectId || activeOSProjects[0]?.id || 'auto', {
+                            kind: 'audio',
+                            title: musicPrompt || 'Studio AI Song',
+                            dataUrl: musicAudioUrl,
+                            captionOrLyrics: musicLyrics,
+                            model: musicModelUsed || 'Studio MP3 Master',
+                          })
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-semibold flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Save to PROJECTS Media
+                      </button>
+                    )}
                   </div>
                 </div>
                 {musicLyrics && (

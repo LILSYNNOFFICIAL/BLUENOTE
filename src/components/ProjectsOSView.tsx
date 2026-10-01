@@ -34,6 +34,7 @@ import {
   ProjectTemplateType,
 } from '../types/projectsOS';
 import {
+  buildProjectZipArchiveBlob,
   convertDocumentToProjectTasks,
   createProjectFromTemplate,
   createStarterOSProjects,
@@ -298,6 +299,22 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  const zipBlob = buildProjectZipArchiveBlob(activeProject);
+                  const url = URL.createObjectURL(zipBlob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${activeProject.name.replace(/\s+/g, '_')}_Complete_Archive.zip`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  showToast(`Downloaded "${activeProject.name.replace(/\s+/g, '_')}_Complete_Archive.zip"!`);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm"
+                title="Download complete PKZIP bundle of all project documents, notes, tasks, and HTML photo albums"
+              >
+                <Download className="w-4 h-4" /> Export .ZIP Bundle
+              </button>
               <button
                 onClick={() => setActiveTab('ai-workspace')}
                 className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm"
@@ -791,6 +808,22 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
                       title="Rename project"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const zipBlob = buildProjectZipArchiveBlob(proj);
+                        const url = URL.createObjectURL(zipBlob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${proj.name.replace(/[^a-zA-Z0-9._-]/g, '_')}_Project_Bundle.zip`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        showToast(`Downloaded "${proj.name}" complete .ZIP archive!`);
+                      }}
+                      className="p-1.5 rounded-lg bg-black/30 hover:bg-emerald-600 text-white"
+                      title="Download complete .ZIP Project Bundle"
+                    >
+                      <Download className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDuplicateProject(proj)}

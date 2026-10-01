@@ -183,6 +183,63 @@ export const ProjectsAndGoalsView: React.FC<ProjectsAndGoalsViewProps> = ({
         </div>
       </div>
 
+      {/* Active PROJECTS OS Containers Showcase */}
+      {(workspace.osProjects || []).filter((p) => !p.isArchived).length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 p-5 shadow-2xs space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                PROJECTS — AI Operating System Workspaces ({(workspace.osProjects || []).filter((p) => !p.isArchived).length})
+              </h2>
+            </div>
+            {onOpenProjectsOS && (
+              <button
+                type="button"
+                onClick={onOpenProjectsOS}
+                className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                Manage All in PROJECTS →
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {(workspace.osProjects || [])
+              .filter((p) => !p.isArchived)
+              .map((osp) => {
+                const openTasks = osp.tasks.filter((t) => t.status !== 'Done').length;
+                const photoCount = osp.photoAlbums.reduce((acc, a) => acc + a.photos.length, 0);
+                return (
+                  <div
+                    key={osp.id}
+                    onClick={() => onOpenProjectsOS && onOpenProjectsOS()}
+                    className="p-4 rounded-xl bg-indigo-50/40 hover:bg-indigo-50/80 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-800/60 cursor-pointer transition-all space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                        {osp.name}
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-600 text-white shrink-0">
+                        {osp.template}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                      {osp.description}
+                    </p>
+                    <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300 pt-1">
+                      <span>{osp.documents.length} Docs</span>
+                      <span>•</span>
+                      <span>{openTasks} Open Tasks</span>
+                      <span>•</span>
+                      <span>{photoCount} Photos</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {/* Active Projects Grid + Detailed Project View */}
       {workspace.projects.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">

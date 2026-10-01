@@ -39,7 +39,48 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   const searchHits = useMemo(() => {
     if (!query.trim()) return [];
-    return semanticWorkspaceSearch(query, workspace, 'all', true).slice(0, 8);
+    const baseHits = semanticWorkspaceSearch(query, workspace, 'all', true);
+    const q = query.trim().toLowerCase();
+    const osHits: typeof baseHits = [];
+
+    (workspace.osProjects || []).forEach((proj) => {
+      if (
+        proj.name.toLowerCase().includes(q) ||
+        proj.description.toLowerCase().includes(q) ||
+        proj.tags.some((t) => t.toLowerCase().includes(q))
+      ) {
+        osHits.push({
+          id: proj.id,
+          type: 'project',
+          title: `PROJECTS: ${proj.name}`,
+          subtitle: `${proj.documents.length} docs • ${proj.tasks.length} tasks • ${proj.template}`,
+          snippet: proj.description,
+          tags: proj.tags,
+          score: 98,
+          matchedVia: 'PROJECTS Workspace',
+        });
+      }
+      proj.documents.forEach((doc) => {
+        if (
+          doc.filename.toLowerCase().includes(q) ||
+          doc.finalContent.toLowerCase().includes(q) ||
+          doc.tags.some((t) => t.toLowerCase().includes(q))
+        ) {
+          osHits.push({
+            id: proj.id,
+            type: 'project',
+            title: `DOC: ${doc.filename} (${proj.name})`,
+            subtitle: `${doc.wordCount} words • v${doc.versions.length} • ${doc.aiSummary}`,
+            snippet: doc.aiSummary,
+            tags: doc.tags,
+            score: 94,
+            matchedVia: 'PROJECTS Document',
+          });
+        }
+      });
+    });
+
+    return [...osHits, ...baseHits].slice(0, 10);
   }, [query, workspace]);
 
   if (!isOpen) return null;
@@ -205,9 +246,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               {searchHits.length > 0 ? (
                 searchHits.map((hit) => (
                   <button
-                    key={`${hit.type}-${hit.id}`}
+                    key={`${hit.type}-${hit.id}-${hit.title}`}
                     onClick={() => {
-                      onNavigate(mapTypeToSection(hit.type), hit.id);
+                      onNavigate(
+                        hit.matchedVia?.startsWith('PROJECTS')
+                          ? 'projects-os'
+                          : mapTypeToSection(hit.type),
+                        hit.id
+                      );
                       onClose();
                     }}
                     className="w-full text-left flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors group"

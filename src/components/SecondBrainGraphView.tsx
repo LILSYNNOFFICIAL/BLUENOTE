@@ -58,15 +58,57 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
   }, [initialTab]);
 
   const searchHits = useMemo(() => {
-    if (!query.trim()) {
-      return semanticWorkspaceSearch('a e i o u', workspace, filterType as EntityType | 'all', includeArchived);
+    const baseHits = !query.trim()
+      ? semanticWorkspaceSearch('a e i o u', workspace, filterType as EntityType | 'all', includeArchived)
+      : semanticWorkspaceSearch(query, workspace, filterType as EntityType | 'all', includeArchived);
+
+    if (filterType !== 'all' && filterType !== 'project' && filterType !== 'file') {
+      return baseHits;
     }
-    return semanticWorkspaceSearch(
-      query,
-      workspace,
-      filterType as EntityType | 'all',
-      includeArchived
-    );
+
+    const q = query.trim().toLowerCase();
+    const osHits: typeof baseHits = [];
+    (workspace.osProjects || []).forEach((proj) => {
+      if (!includeArchived && proj.isArchived) return;
+      if (
+        !q ||
+        proj.name.toLowerCase().includes(q) ||
+        proj.description.toLowerCase().includes(q) ||
+        proj.tags.some((t) => t.toLowerCase().includes(q))
+      ) {
+        osHits.push({
+          id: proj.id,
+          type: 'project',
+          title: `PROJECTS: ${proj.name}`,
+          subtitle: `${proj.documents.length} docs • ${proj.tasks.length} tasks • ${proj.template}`,
+          snippet: proj.description,
+          tags: proj.tags,
+          score: 97,
+          matchedVia: 'PROJECTS Workspace',
+        });
+      }
+      proj.documents.forEach((doc) => {
+        if (
+          !q ||
+          doc.filename.toLowerCase().includes(q) ||
+          doc.finalContent.toLowerCase().includes(q) ||
+          doc.tags.some((t) => t.toLowerCase().includes(q))
+        ) {
+          osHits.push({
+            id: proj.id,
+            type: 'file',
+            title: `DOC: ${doc.filename} (${proj.name})`,
+            subtitle: `${doc.wordCount} words • v${doc.versions.length} • ${doc.currentStage}`,
+            snippet: doc.aiSummary,
+            tags: doc.tags,
+            score: 93,
+            matchedVia: 'PROJECTS Document',
+          });
+        }
+      });
+    });
+
+    return [...osHits, ...baseHits];
   }, [query, workspace, filterType, includeArchived]);
 
   // Dynamically compute real Second Brain insights from user's actual workspace items
@@ -85,7 +127,14 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
       });
     }
 
-    if (workspace.projects.length > 0) {
+    if ((workspace.osProjects || []).length > 0) {
+      const topOS = workspace.osProjects![0];
+      insights.push({
+        title: 'PROJECTS OS Workspace',
+        body: `"${topOS.name}" (${topOS.template}) contains ${topOS.documents.length} versioned document(s) and ${topOS.tasks.length} project task(s).`,
+        tone: 'indigo',
+      });
+    } else if (workspace.projects.length > 0) {
       const topProj = workspace.projects[0];
       const linkedTasksCount = activeTasks.filter((t) => t.projectId === topProj.id).length;
       insights.push({
@@ -608,8 +657,15 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
             <div className="space-y-2.5">
               {searchHits.map((hit) => (
                 <button
-                  key={`${hit.type}-${hit.id}`}
-                  onClick={() => onNavigate(mapTypeToSection(hit.type), hit.id)}
+                  key={`${hit.type}-${hit.id}-${hit.title}`}
+                  onClick={() =>
+                    onNavigate(
+                      hit.matchedVia?.startsWith('PROJECTS')
+                        ? 'projects-os'
+                        : mapTypeToSection(hit.type),
+                      hit.id
+                    )
+                  }
                   className="w-full text-left p-4 rounded-xl bg-slate-50 hover:bg-blue-50/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 transition-colors"
                 >
                   <div className="space-y-1 min-w-0">

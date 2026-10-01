@@ -83,6 +83,8 @@ import { NotesEditorView } from './components/NotesEditorView';
 import { ProjectsAndGoalsView } from './components/ProjectsAndGoalsView';
 import { ProjectsOSView } from './components/ProjectsOSView';
 import {
+  autoTagAndClassifyDocument,
+  computeDocumentMetrics,
   createProjectFromTemplate,
   stripLegacyDemoOSProjects,
 } from './services/projectsOSService';
@@ -2330,6 +2332,88 @@ export default function App() {
                 onExtractTasksFromNote={(content) => {
                   handleQuickCapture(content);
                 }}
+                onSendNoteToProjectsOS={(note) => {
+                  const now = new Date().toISOString();
+                  const verId = `ver-note-${Date.now()}`;
+                  const mdContent = `# ${note.title}\n\n${note.content}`;
+                  const metrics = computeDocumentMetrics(mdContent);
+                  const classified = autoTagAndClassifyDocument(`${note.title}.md`, mdContent);
+                  const currentList = stripLegacyDemoOSProjects(workspace.osProjects);
+                  const targetProj =
+                    currentList[0] ||
+                    createProjectFromTemplate({
+                      name: 'Second Brain Workspace',
+                      description: 'Synced notes & documents from Second Brain',
+                      template: 'Writing Project',
+                      color: '#2563eb',
+                      icon: 'FolderKanban',
+                      tags: ['Second Brain', 'Notes'],
+                    });
+
+                  const newDoc = {
+                    id: `pdoc-note-${Date.now()}`,
+                    projectId: targetProj.id,
+                    filename: `${note.title.replace(/[^a-zA-Z0-9._ -]/g, '').trim() || 'Note'}.md`,
+                    fileType: 'md' as const,
+                    sizeBytes: mdContent.length * 2,
+                    uploadedAt: now,
+                    modifiedAt: now,
+                    processingStatus: 'Ready' as const,
+                    pageCount: metrics.pageCount,
+                    wordCount: metrics.wordCount,
+                    charCount: metrics.charCount,
+                    tags: Array.from(new Set([...note.tags, ...classified.tags, 'From Notes'])),
+                    aiSummary: note.summary || classified.aiSummary,
+                    contentType: classified.contentType,
+                    completionState: classified.completionState,
+                    originalContent: mdContent,
+                    workingContent: mdContent,
+                    editedContent: mdContent,
+                    finalContent: mdContent,
+                    currentStage: 'Original' as const,
+                    currentVersionId: verId,
+                    versions: [
+                      {
+                        id: verId,
+                        versionNumber: 1,
+                        label: 'v1 — Imported from Second Brain Notes',
+                        stage: 'Original' as const,
+                        content: mdContent,
+                        createdAt: now,
+                        author: 'User' as const,
+                        wordCount: metrics.wordCount,
+                        charCount: metrics.charCount,
+                      },
+                    ],
+                  };
+
+                  const updatedProj = {
+                    ...targetProj,
+                    updatedAt: now,
+                    documents: [newDoc, ...targetProj.documents],
+                  };
+                  const nextList =
+                    currentList.length > 0
+                      ? [updatedProj, ...currentList.slice(1)]
+                      : [updatedProj];
+
+                  try {
+                    localStorage.setItem(
+                      'bluenote_ai_projects_os_clean_v2',
+                      JSON.stringify(nextList)
+                    );
+                  } catch {
+                    // Ignore storage quota
+                  }
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    osProjects: nextList,
+                  }));
+                  setActiveSection('projects-os');
+                  showToast(
+                    `Sent "${note.title}" to PROJECTS ("${targetProj.name}") as a versioned document!`
+                  );
+                }}
               />
             )}
 
@@ -2820,6 +2904,42 @@ export default function App() {
                       });
                     });
 
+                  // Also auto-discover links from PROJECTS OS containers, documents, tasks & relationships
+                  (workspace.osProjects || []).forEach((osp) => {
+                    osp.documents.forEach((doc) => {
+                      discovered.push({
+                        id: `edge-osdoc-${doc.id}-${osp.id}`,
+                        sourceType: 'file',
+                        sourceId: osp.id,
+                        sourceTitle: doc.filename,
+                        targetType: 'project',
+                        targetId: osp.id,
+                        targetTitle: `PROJECTS: ${osp.name}`,
+                        relationshipType: 'Versioned Document In',
+                        confidenceScore: 99,
+                        createdByAi: true,
+                        approvedByUser: true,
+                        createdAt: now,
+                      });
+                    });
+                    osp.tasks.forEach((pt) => {
+                      discovered.push({
+                        id: `edge-ostask-${pt.id}-${osp.id}`,
+                        sourceType: 'task',
+                        sourceId: osp.id,
+                        sourceTitle: pt.title,
+                        targetType: 'project',
+                        targetId: osp.id,
+                        targetTitle: `PROJECTS: ${osp.name}`,
+                        relationshipType: 'Project Deliverable',
+                        confidenceScore: 97,
+                        createdByAi: true,
+                        approvedByUser: true,
+                        createdAt: now,
+                      });
+                    });
+                  });
+
                   setWorkspace((prev) => {
                     const existingIds = new Set(prev.knowledgeGraph.map((e) => e.id));
                     const fresh = discovered.filter((d) => !existingIds.has(d.id));
@@ -2959,6 +3079,121 @@ export default function App() {
                   handleQuickCapture(rawText);
                 }}
                 onOpenAIKeysModal={() => setAiKeysModalOpen(true)}
+                osProjects={workspace.osProjects || []}
+                onSaveToOSProject={(targetId, payload) => {
+                  const now = new Date().toISOString();
+                  let targetProjectName = '';
+                  setWorkspace((prev) => {
+                    let list = [...(prev.osProjects || [])];
+                    let target =
+                      list.find((p) => p.id === targetId && !p.isArchived) ||
+                      list.find((p) => !p.isArchived);
+                    if (!target) {
+                      target = createProjectFromTemplate({
+                        name: 'AI Studio Creative Workspace',
+                        description:
+                          'Dedicated 10 GB container for FLUX.1 8K Photos, LTX AI Videos, and Studio MP3 Songs',
+                        template: 'Custom',
+                        color: '#2563eb',
+                        icon: 'Sparkles',
+                        tags: ['AI-Studio', 'FLUX-8K', 'LTX-Video', 'Studio-MP3'],
+                      });
+                      list = [target, ...list];
+                    }
+                    targetProjectName = target.name;
+                    const cleanSlug =
+                      payload.title
+                        .replace(/[^\w\s-]/g, '')
+                        .trim()
+                        .split(/\s+/)
+                        .slice(0, 5)
+                        .join('_') || 'AI_Studio_Asset';
+
+                    const updatedList = list.map((p) => {
+                      if (p.id !== target!.id) return p;
+                      if (payload.kind === 'photo') {
+                        const firstAlbum = p.photoAlbums[0] || {
+                          id: `palb-${Date.now()}`,
+                          projectId: p.id,
+                          title: `${p.name} — Visual Showcase`,
+                          subtitle: 'AI Studio HD Gallery',
+                          layout: 'grid' as const,
+                          photos: [],
+                          createdAt: now,
+                          updatedAt: now,
+                        };
+                        const newPhoto = {
+                          id: `pho-studio-${Date.now()}`,
+                          filename: `${cleanSlug}.png`,
+                          caption: payload.captionOrLyrics,
+                          dataUrl: payload.dataUrl,
+                          sizeBytes: 380000,
+                          takenAt: now,
+                          groupName: 'AI Studio Lab',
+                          tags: ['FLUX.1-HD', payload.model],
+                        };
+                        const nextAlbums =
+                          p.photoAlbums.length > 0
+                            ? p.photoAlbums.map((alb, idx) =>
+                                idx === 0
+                                  ? { ...alb, updatedAt: now, photos: [newPhoto, ...alb.photos] }
+                                  : alb
+                              )
+                            : [{ ...firstAlbum, photos: [newPhoto] }];
+                        return {
+                          ...p,
+                          updatedAt: now,
+                          photoAlbums: nextAlbums,
+                        };
+                      } else {
+                        const isAudio = payload.kind === 'audio';
+                        const isMp3 = payload.dataUrl.includes('/api/ai/music-stream');
+                        const isMp4 = payload.model.includes('MP4');
+                        const ext = isAudio ? (isMp3 ? 'mp3' : 'wav') : isMp4 ? 'mp4' : 'webm';
+                        const newMedia = {
+                          id: `pmed-studio-${Date.now()}`,
+                          projectId: p.id,
+                          filename: `${cleanSlug}.${ext}`,
+                          mediaType: (isAudio ? 'audio' : 'video') as 'audio' | 'video',
+                          mimeType: isAudio
+                            ? isMp3
+                              ? 'audio/mpeg'
+                              : 'audio/wav'
+                            : isMp4
+                            ? 'video/mp4'
+                            : 'video/webm',
+                          sizeBytes: isAudio ? 2680000 : 3400000,
+                          durationSeconds: isAudio ? 28 : 6,
+                          transcriptOrCaptions: payload.captionOrLyrics,
+                          sceneInfo: `AI Studio (${payload.model})`,
+                          tags: ['AI-Studio', payload.model],
+                          dataUrl: payload.dataUrl,
+                          uploadedAt: now,
+                        };
+                        return {
+                          ...p,
+                          updatedAt: now,
+                          media: [newMedia, ...p.media],
+                        };
+                      }
+                    });
+                    try {
+                      localStorage.setItem(
+                        'bluenote_ai_projects_os_clean_v2',
+                        JSON.stringify(updatedList)
+                      );
+                    } catch {}
+                    return {
+                      ...prev,
+                      osProjects: updatedList,
+                    };
+                  });
+                  showToast(
+                    `Saved ${payload.kind.toUpperCase()} directly to PROJECTS container "${
+                      targetProjectName || 'AI Studio Creative Workspace'
+                    }"!`
+                  );
+                }}
               />
             )}
 

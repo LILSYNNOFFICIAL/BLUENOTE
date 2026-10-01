@@ -35,7 +35,9 @@ import {
   autoTagAndClassifyDocument,
   computeDocumentMetrics,
   computeSideBySideLineDiff,
+  computeWordLevelInlineDiff,
   detectDocumentDuplicates,
+  extractDocumentOutline,
   formatBytes,
   organizeProjectDocumentsWithAI,
   streamUploadFileInChunks,
@@ -87,6 +89,10 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
   const [showSectionReorder, setShowSectionReorder] = useState(false);
   const [renamingDocId, setRenamingDocId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [editorViewMode, setEditorViewMode] = useState<'edit' | 'split' | 'preview'>('split');
+  const [showTocOutline, setShowTocOutline] = useState(true);
+  const [diffDisplayMode, setDiffDisplayMode] = useState<'side-by-side' | 'word-inline'>('word-inline');
+  const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Version Diff / Compare state
   const [leftVersionId, setLeftVersionId] = useState<string>('');
@@ -1282,6 +1288,39 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowTocOutline((v) => !v)}
+                  className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${
+                    showTocOutline
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  TOC Outline ({extractDocumentOutline(editorText).length})
+                </button>
+                <div className="inline-flex rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-0.5">
+                  {(
+                    [
+                      { id: 'edit', label: 'Edit' },
+                      { id: 'split', label: 'Split Preview' },
+                      { id: 'preview', label: 'Reader' },
+                    ] as const
+                  ).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setEditorViewMode(m.id)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                        editorViewMode === m.id
+                          ? 'bg-blue-600 text-white'
+                          : 'text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
                   onClick={() => {
                     setUndoStack((u) => [...u, editorText]);
                     const aiCleaned = editorText
@@ -1385,15 +1424,147 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
               </div>
             )}
 
-            <textarea
-              rows={18}
-              value={editorText}
-              onChange={(e) => {
-                setUndoStack((u) => [...u.slice(-20), editorText]);
-                setEditorText(e.target.value);
-              }}
-              className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs leading-relaxed text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
+            {/* Interactive Table of Contents Outline + Split-Screen Live Markdown Preview */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              {showTocOutline && (
+                <div className="md:col-span-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 max-h-[430px] overflow-y-auto">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Outline / Sections</span>
+                    <span className="font-mono">{extractDocumentOutline(editorText).length}</span>
+                  </div>
+                  {extractDocumentOutline(editorText).length === 0 ? (
+                    <p className="text-[11px] text-slate-400">
+                      Add <code className="font-mono"># Heading</code> or <code className="font-mono">[Chorus]</code> markers to populate clickable outline jumps.
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {extractDocumentOutline(editorText).map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            const lines = editorText.split('\n');
+                            const charOffset = lines
+                              .slice(0, Math.max(0, item.lineNumber - 1))
+                              .join('\n').length;
+                            if (editorTextareaRef.current) {
+                              editorTextareaRef.current.focus();
+                              editorTextareaRef.current.setSelectionRange(charOffset, charOffset);
+                            }
+                            showToast(`Jumped to "${item.title}" (Line ${item.lineNumber})`);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-blue-500/10 transition-colors flex items-center justify-between gap-2 text-xs ${
+                            item.level === 1
+                              ? 'font-extrabold text-slate-900 dark:text-white'
+                              : item.level === 2
+                              ? 'pl-4 font-semibold text-slate-700 dark:text-slate-300'
+                              : 'pl-6 text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          <span className="truncate">{item.title}</span>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                            L{item.lineNumber} • {item.wordCount}w
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div
+                className={`${
+                  showTocOutline ? 'md:col-span-9' : 'md:col-span-12'
+                } grid grid-cols-1 ${
+                  editorViewMode === 'split' ? 'lg:grid-cols-2' : 'grid-cols-1'
+                } gap-3`}
+              >
+                {(editorViewMode === 'edit' || editorViewMode === 'split') && (
+                  <textarea
+                    ref={editorTextareaRef}
+                    rows={18}
+                    value={editorText}
+                    onChange={(e) => {
+                      setUndoStack((u) => [...u.slice(-20), editorText]);
+                      setEditorText(e.target.value);
+                    }}
+                    className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs leading-relaxed text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                )}
+
+                {(editorViewMode === 'split' || editorViewMode === 'preview') && (
+                  <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 max-h-[430px] overflow-y-auto space-y-2.5">
+                    <div className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800 pb-1.5">
+                      <span>Live Formatted Preview</span>
+                      <span className="font-mono">
+                        {computeDocumentMetrics(editorText).wordCount} words • {computeDocumentMetrics(editorText).pageCount} page(s)
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+                      {editorText.split('\n').map((line, lIdx) => {
+                        const t = line.trim();
+                        if (!t) return <div key={lIdx} className="h-2" />;
+                        if (t.startsWith('# ')) {
+                          return (
+                            <h2
+                              key={lIdx}
+                              className="text-base font-extrabold text-slate-900 dark:text-white pt-2 border-b border-slate-200/60 dark:border-slate-800 pb-1"
+                            >
+                              {t.slice(2)}
+                            </h2>
+                          );
+                        }
+                        if (t.startsWith('## ')) {
+                          return (
+                            <h3
+                              key={lIdx}
+                              className="text-sm font-bold text-blue-600 dark:text-blue-400 pt-1.5"
+                            >
+                              {t.slice(3)}
+                            </h3>
+                          );
+                        }
+                        if (t.startsWith('### ')) {
+                          return (
+                            <h4
+                              key={lIdx}
+                              className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 pt-1"
+                            >
+                              {t.slice(4)}
+                            </h4>
+                          );
+                        }
+                        if (/^\[.+\]$/.test(t)) {
+                          return (
+                            <div
+                              key={lIdx}
+                              className="inline-block px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-mono text-[11px] font-bold mt-2"
+                            >
+                              {t}
+                            </div>
+                          );
+                        }
+                        if (t.startsWith('> ')) {
+                          return (
+                            <blockquote
+                              key={lIdx}
+                              className="pl-3 border-l-2 border-blue-500 italic text-slate-500 dark:text-slate-400"
+                            >
+                              {t.slice(2)}
+                            </blockquote>
+                          );
+                        }
+                        return (
+                          <p key={lIdx} className="whitespace-pre-wrap">
+                            {line}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -1555,6 +1726,30 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setDiffDisplayMode('word-inline')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          diffDisplayMode === 'word-inline'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        Word-Level Inline Diff
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiffDisplayMode('side-by-side')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          diffDisplayMode === 'side-by-side'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        Side-by-Side Lines
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -1638,49 +1833,94 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden font-mono text-xs">
-                  {diff.rows.map((row, idx) => (
-                    <div
-                      key={idx}
-                      className={`grid grid-cols-2 border-b border-slate-100 dark:border-slate-800/70 ${
-                        row.type === 'modified'
-                          ? 'bg-amber-500/10'
-                          : row.type === 'added'
-                          ? 'bg-emerald-500/10'
-                          : row.type === 'deleted'
-                          ? 'bg-red-500/10'
-                          : ''
-                      }`}
-                    >
-                      <div className="p-2.5 border-r border-slate-200 dark:border-slate-800 whitespace-pre-wrap break-words">
-                        <span className="text-slate-400 mr-2 select-none">
-                          {row.lineNumberLeft ?? ' '}
-                        </span>
-                        <span
-                          className={
-                            row.type === 'deleted' || row.type === 'modified'
-                              ? 'line-through text-red-600 dark:text-red-400'
-                              : ''
-                          }
-                        >
-                          {row.leftText}
-                        </span>
+                  {diff.rows.map((row, idx) => {
+                    const wordTokens =
+                      diffDisplayMode === 'word-inline' && row.type === 'modified'
+                        ? computeWordLevelInlineDiff(row.leftText, row.rightText)
+                        : null;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`grid grid-cols-2 border-b border-slate-100 dark:border-slate-800/70 ${
+                          row.type === 'modified'
+                            ? 'bg-amber-500/10'
+                            : row.type === 'added'
+                            ? 'bg-emerald-500/10'
+                            : row.type === 'deleted'
+                            ? 'bg-red-500/10'
+                            : ''
+                        }`}
+                      >
+                        <div className="p-2.5 border-r border-slate-200 dark:border-slate-800 whitespace-pre-wrap break-words">
+                          <span className="text-slate-400 mr-2 select-none">
+                            {row.lineNumberLeft ?? ' '}
+                          </span>
+                          {wordTokens ? (
+                            <span>
+                              {wordTokens
+                                .filter((t) => t.type !== 'added')
+                                .map((tok, tIdx) => (
+                                  <span
+                                    key={tIdx}
+                                    className={
+                                      tok.type === 'deleted'
+                                        ? 'px-1 py-0.5 rounded bg-red-500/20 line-through text-red-600 dark:text-red-300 font-bold'
+                                        : ''
+                                    }
+                                  >
+                                    {tok.text}
+                                  </span>
+                                ))}
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                row.type === 'deleted' || row.type === 'modified'
+                                  ? 'line-through text-red-600 dark:text-red-400'
+                                  : ''
+                              }
+                            >
+                              {row.leftText}
+                            </span>
+                          )}
+                        </div>
+                        <div className="p-2.5 whitespace-pre-wrap break-words">
+                          <span className="text-slate-400 mr-2 select-none">
+                            {row.lineNumberRight ?? ' '}
+                          </span>
+                          {wordTokens ? (
+                            <span>
+                              {wordTokens
+                                .filter((t) => t.type !== 'deleted')
+                                .map((tok, tIdx) => (
+                                  <span
+                                    key={tIdx}
+                                    className={
+                                      tok.type === 'added'
+                                        ? 'px-1 py-0.5 rounded bg-emerald-500/25 text-emerald-700 dark:text-emerald-200 font-extrabold'
+                                        : ''
+                                    }
+                                  >
+                                    {tok.text}
+                                  </span>
+                                ))}
+                            </span>
+                          ) : (
+                            <span
+                              className={
+                                row.type === 'added' || row.type === 'modified'
+                                  ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                                  : ''
+                              }
+                            >
+                              {row.rightText}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="p-2.5 whitespace-pre-wrap break-words">
-                        <span className="text-slate-400 mr-2 select-none">
-                          {row.lineNumberRight ?? ' '}
-                        </span>
-                        <span
-                          className={
-                            row.type === 'added' || row.type === 'modified'
-                              ? 'font-bold text-emerald-700 dark:text-emerald-300'
-                              : ''
-                          }
-                        >
-                          {row.rightText}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             );
