@@ -77,6 +77,17 @@ android {
     }
 }
 
+// Keep transitive Kotlin runtime artifacts on one compatible version.
+// Some AndroidX dependencies otherwise pull legacy kotlin-stdlib-jdk7/jdk8 jars
+// alongside kotlin-stdlib, which AGP rejects as duplicate classes.
+configurations.configureEach {
+    resolutionStrategy.force(
+        "org.jetbrains.kotlin:kotlin-stdlib:1.8.22",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    )
+}
+
 dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.core:core:$androidxCoreVersion"
