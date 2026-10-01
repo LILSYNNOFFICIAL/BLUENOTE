@@ -772,7 +772,7 @@ async function startServer() {
         parts.push({ text: visualPrompt });
 
         const imgResp = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-3.1-flash-image',
           contents: { parts },
           config: {
             imageConfig: {
@@ -787,7 +787,7 @@ async function startServer() {
             res.json({
               imageUrl: `data:${outMime};base64,${part.inlineData.data}`,
               caption: `Generated with Gemini Image (${aspectRatio || '16:9'}) — Subject: "${visualPrompt}"`,
-              model: 'gemini-2.5-flash-image',
+              model: 'gemini-3.1-flash-image',
             });
             return;
           }
