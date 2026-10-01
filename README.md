@@ -4,7 +4,7 @@
 
 [![Live on GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-lilsynnofficial.github.io%2FBLUENOTE-2563eb?style=for-the-badge&logo=github)](https://lilsynnofficial.github.io/BLUENOTE/)
 [![Repository](https://img.shields.io/badge/Repo-LILSYNNOFFICIAL%2FBLUENOTE-0f172a?style=for-the-badge&logo=github)](https://github.com/LILSYNNOFFICIAL/BLUENOTE)
-[![Android F-Droid & Play Store](https://img.shields.io/badge/Android-F--Droid%20%26%20Google%20Play%20Ready%20(API%2035)-059669?style=for-the-badge&logo=android)](#android-application--f-droid--google-play-store-build-guide)
+[![Android Direct APK](https://img.shields.io/badge/Android-Direct%20APK%20Download-059669?style=for-the-badge&logo=android)](#android-application--direct-apk-download)
 [![100% Local AI](https://img.shields.io/badge/AI%20Engine-100%25%20On--Device%20%E2%80%A2%20Zero%20API%20Keys-059669?style=for-the-badge)](#10-100-local-multimodal-ai-studio-zero-api-keys-required)
 [![Built with React 19 & Vite](https://img.shields.io/badge/Stack-React%2019%20%E2%80%A2%20TypeScript%20%E2%80%A2%20Tailwind%204-4f46e5?style=for-the-badge)](#tech-stack--architecture)
 
@@ -142,33 +142,81 @@ npm run build
 
 ---
 
-## 🤖 Android Application — F-Droid & Google Play Store Build Guide
+## 🤖 Android Application — Direct APK Download
 
-BlueNote includes a complete, production-ready native **Android Gradle Project (`/android`)**, **F-Droid Submission Recipe (`/fdroid/io.github.lilsynnofficial.bluenote.yml`)**, **Fastlane Store Metadata (`/fastlane/metadata/android/en-US/`)**, **Store Privacy Policy ([`PRIVACY_POLICY.md`](PRIVACY_POLICY.md))**, and an automated **GitHub Actions Android APK & AAB Release Pipeline ([`.github/workflows/android-release.yml`](.github/workflows/android-release.yml))**.
+BlueNote is currently distributed to Android users as a **direct-install APK from GitHub Releases**. There is **no Google Play Store listing** at this time. F-Droid support is planned separately.
 
-| Android Specification | Configuration |
-| :--- | :--- |
-| **Application ID / Package Name** | `io.github.lilsynnofficial.bluenote` |
-| **Compile & Target SDK** | **API 35 (Android 15)** — meets Google Play 2025/2026 mandatory target SDK policy |
-| **Minimum SDK** | **API 24 (Android 7.0+)** |
-| **Product Flavors** | `fdroid` (100% FOSS reproducible APK) & `playstore` (Google Play `.aab` bundle) |
-| **F-Droid Reproducible Flag** | `dependenciesInfo { includeInApk = false; includeInBundle = false }` enabled |
-| **Fastlane Store Metadata** | Located in [`fastlane/metadata/android/en-US/`](fastlane/metadata/android/en-US/) |
+### 📱 Install BlueNote on Android
 
-### 1. Build F-Droid APK (`fdroid` flavor)
-```bash
-npm run android:fdroid
-# Output APK: android/app/build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
-```
+**[⬇️ DOWNLOAD THE LATEST BLUENOTE APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/latest/download/BlueNote.apk)**
 
-### 2. Build Google Play Store App Bundle (`.aab` `playstore` flavor)
-```bash
-npm run android:playstore
-# Output AAB: android/app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab
-```
+The download above is the normal user installation path. Users do **not** need Node.js, npm, Android Studio, Gradle, or any developer commands.
+
+1. Open the download link on an Android device.
+2. Download `BlueNote.apk`.
+3. If Android asks, allow the browser/file manager to install apps from that source.
+4. Open the APK and tap **Install**.
+5. Launch BlueNote.
+
+**GitHub Release page:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases
+
+### 🔧 How the APK is produced
+
+GitHub Actions automatically builds the Android APK from the repository's Android WebView project.
+
+- **Workflow:** `.github/workflows/android-release.yml`
+- **Build:** `gradle assembleFdroidRelease`
+- **Target SDK:** API 35
+- **Minimum SDK:** API 24 (Android 7.0+)
+- **Application ID:** `io.github.lilsynnofficial.bluenote`
+- **Release asset:** `BlueNote.apk`
+- **Checksum:** `BlueNote.apk.sha256`
+- **Actions artifact:** `BlueNote-Android-APK` (kept for 30 days as a build/debug backup)
+- **Public distribution:** GitHub Releases, not the Actions artifact page
+
+### 🚀 Publishing a new Android APK release
+
+Normal pushes to `main` continue to build and verify the APK. When a stable Android build is ready for public distribution, create a version tag such as `v1.0.0`.
+
+The Android workflow detects `v*` tags and automatically:
+
+1. Builds the installable APK.
+2. Verifies the APK exists.
+3. Generates a SHA-256 checksum.
+4. Uploads the APK and checksum as workflow artifacts.
+5. Creates a GitHub Release and attaches `BlueNote.apk`.
+6. Makes the release available through the stable **latest release download** link used by the app and README.
+
+GitHub provides stable links to the latest release and its assets, which makes the Release asset a much better public download surface than requiring users to navigate through Actions runs and temporary workflow artifacts.
+
+### 🛠️ Developer build commands
+
+For contributors/developers only:
+
+~~~bash
+# Install dependencies
+npm install
+
+# Build the web application
+npm run build
+
+# Sync the web build into the Android WebView assets
+npm run android:sync
+
+# Build the Android APK
+cd android
+gradle assembleFdroidRelease
+~~~
+
+### 🧪 F-Droid status
+
+BlueNote includes an `fdroid` product flavor and F-Droid submission configuration, but **F-Droid is not currently the primary Android download path**. The direct GitHub Release APK is available independently of the F-Droid review/update cycle.
+
+### 🚫 Google Play Store status
+
+BlueNote is **not currently published on Google Play**. The project may retain Play Store build configuration for future use, but users should not be directed to Google Play for the current Android installation.
 
 ---
-
 ## ⌨️ Keyboard Shortcuts & Quick Actions
 
 | Shortcut / Trigger | Action |
