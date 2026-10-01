@@ -246,10 +246,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ).length;
 
   const totalEstimatedMins = displayedTasks.reduce((acc, t) => acc + (t.estimatedMinutes || 20), 0);
-  const productivityScore = Math.min(
-    99,
-    Math.max(68, completionRate + workspace.habits.filter((h) => h.completedToday).length * 12)
-  );
+  const productivityScore =
+    activeTasks.length === 0 && workspace.habits.length === 0
+      ? 0
+      : Math.min(
+          100,
+          completionRate + workspace.habits.filter((h) => h.completedToday).length * 12
+        );
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -722,31 +725,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  {workspace.projects.slice(0, 3).map((proj) => (
-                    <button
-                      key={proj.id}
-                      onClick={() => onNavigate('projects', proj.id)}
-                      className="w-full text-left p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50/50 border border-slate-200/70 dark:border-slate-800 transition-colors space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          {proj.name}
-                        </span>
-                        <span className="text-xs font-mono font-semibold text-blue-600">
-                          {proj.progress}%
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600 rounded-full"
-                          style={{ width: `${proj.progress}%` }}
-                        />
-                      </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-1">
-                        {proj.aiSummary || proj.description}
+                  {workspace.projects.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
+                      <p className="text-xs text-slate-500">
+                        No active projects yet. Start from a template or create a custom goal.
                       </p>
-                    </button>
-                  ))}
+                      <button
+                        onClick={() => onNavigate('projects')}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Create Project
+                      </button>
+                    </div>
+                  ) : (
+                    workspace.projects.slice(0, 3).map((proj) => (
+                      <button
+                        key={proj.id}
+                        onClick={() => onNavigate('projects', proj.id)}
+                        className="w-full text-left p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50/50 border border-slate-200/70 dark:border-slate-800 transition-colors space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            {proj.name}
+                          </span>
+                          <span className="text-xs font-mono font-semibold text-blue-600">
+                            {proj.progress}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-600 rounded-full"
+                            style={{ width: `${proj.progress}%` }}
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-1">
+                          {proj.aiSummary || proj.description}
+                        </p>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -766,23 +783,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
 
                 <div className="space-y-2.5">
-                  {workspace.notes.slice(0, 3).map((note) => (
-                    <button
-                      key={note.id}
-                      onClick={() => onNavigate('notes', note.id)}
-                      className="w-full text-left p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50/50 border border-slate-200/70 dark:border-slate-800 transition-colors"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {note.title}
-                        </span>
-                        {note.isPinned && <Pin className="w-3 h-3 text-blue-600 shrink-0" />}
-                      </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">
-                        {note.summary || note.content}
+                  {workspace.notes.filter((n) => !n.deletedAt).length === 0 ? (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
+                      <p className="text-xs text-slate-500">
+                        No notes yet. Create a smart note or use Brain Dump.
                       </p>
-                    </button>
-                  ))}
+                      <button
+                        onClick={() => onNavigate('notes')}
+                        className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> New Smart Note
+                      </button>
+                    </div>
+                  ) : (
+                    workspace.notes
+                      .filter((n) => !n.deletedAt)
+                      .slice(0, 3)
+                      .map((note) => (
+                        <button
+                          key={note.id}
+                          onClick={() => onNavigate('notes', note.id)}
+                          className="w-full text-left p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-50/50 border border-slate-200/70 dark:border-slate-800 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {note.title}
+                            </span>
+                            {note.isPinned && <Pin className="w-3 h-3 text-blue-600 shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">
+                            {note.summary || note.content}
+                          </p>
+                        </button>
+                      ))
+                  )}
                 </div>
               </div>
             </div>
@@ -808,25 +842,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               {/* Events */}
               <div className="space-y-2">
-                {workspace.events.slice(0, 3).map((evt) => (
-                  <div
-                    key={evt.id}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-l-4"
-                    style={{ borderLeftColor: evt.color || '#2563eb' }}
-                  >
-                    <div className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 w-24 shrink-0">
-                      {evt.startTime}–{evt.endTime}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                        {evt.title}
-                      </div>
-                      <div className="text-[11px] text-slate-500 truncate">
-                        {evt.location || evt.category}
-                      </div>
-                    </div>
+                {workspace.events.length === 0 ? (
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
+                    <p className="text-xs text-slate-500">
+                      No events scheduled today. Open Planner to block focus time or meetings.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  workspace.events.slice(0, 3).map((evt) => (
+                    <div
+                      key={evt.id}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-l-4"
+                      style={{ borderLeftColor: evt.color || '#2563eb' }}
+                    >
+                      <div className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 w-24 shrink-0">
+                        {evt.startTime}–{evt.endTime}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {evt.title}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {evt.location || evt.category}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Smart Reminders with Snooze */}
@@ -1268,6 +1310,85 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </ResponsiveContainer>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pinned Notes & Recent Activity Timeline Widget */}
+          {visibleWidgets.pinnedTimeline && (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Pin className="w-4 h-4 text-blue-600" />
+                  Pinned Notes & Activity Timeline
+                </h3>
+                <button
+                  onClick={() => onNavigate('second-brain')}
+                  className="text-xs font-semibold text-blue-600 hover:underline"
+                >
+                  Full Timeline →
+                </button>
+              </div>
+
+              {workspace.notes.filter((n) => !n.deletedAt && n.isPinned).length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Pinned Smart Notes
+                  </div>
+                  {workspace.notes
+                    .filter((n) => !n.deletedAt && n.isPinned)
+                    .slice(0, 3)
+                    .map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => onNavigate('notes', note.id)}
+                        className="w-full text-left p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 hover:border-amber-400 transition-colors"
+                      >
+                        <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                          <span className="truncate">{note.title}</span>
+                          <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+                            Pinned
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                          {note.summary || note.content.replace(/[#*`]/g, '').slice(0, 90)}
+                        </p>
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Recent Activity
+                </div>
+                {workspace.activityLog.length === 0 ? (
+                  <p className="text-xs text-slate-400">
+                    No activity logged yet. Capture a task, note, or event to start your timeline.
+                  </p>
+                ) : (
+                  workspace.activityLog.slice(0, 4).map((act) => (
+                    <div
+                      key={act.id}
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {act.action}:
+                        </span>{' '}
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">
+                          {act.entityTitle}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                        {new Date(act.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

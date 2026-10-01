@@ -76,41 +76,35 @@ export const initialWorkspace: WorkspaceState = {
     },
   ],
 
-  automations: [
-    {
-      id: 'auto-1',
-      name: 'Auto-Tag Uploaded Receipts for Tax Time',
-      trigger: 'When a receipt image or PDF is uploaded',
-      action: 'Run OCR, tag #Tax-Deductible, and link to Finance folder',
-      enabled: true,
-      runsCount: 0,
-    },
-    {
-      id: 'auto-2',
-      name: 'Business Card → Contact CRM Auto-Builder',
-      trigger: 'When a business card photo is scanned',
-      action: 'Extract Name, Phone, Email & Company and create Contact Card',
-      enabled: true,
-      runsCount: 0,
-    },
-    {
-      id: 'auto-3',
-      name: 'Morning Briefing & Overdue Rollover',
-      trigger: 'Every morning at 7:30 AM',
-      action: 'Roll over unfinished tasks and generate Today Priority Brief',
-      enabled: true,
-      runsCount: 0,
-    },
-    {
-      id: 'auto-4',
-      name: 'Meeting Note → Action Item Extractor',
-      trigger: 'When a note is saved in Meeting Notes category',
-      action: 'Identify action verbs and propose Tasks with deadlines',
-      enabled: true,
-      runsCount: 0,
-    },
-  ],
+  automations: [],
 };
+
+export const AUTOMATION_TEMPLATES = [
+  {
+    id: 'tpl-auto-receipts',
+    name: 'Auto-Tag Uploaded Receipts for Tax Time',
+    trigger: 'When a receipt image or PDF is uploaded',
+    action: 'Run OCR, tag #Tax-Deductible, and link to Finance folder',
+  },
+  {
+    id: 'tpl-auto-cards',
+    name: 'Business Card → Contact CRM Auto-Builder',
+    trigger: 'When a business card photo is scanned',
+    action: 'Extract Name, Phone, Email & Company and create Contact Card',
+  },
+  {
+    id: 'tpl-auto-morning',
+    name: 'Morning Briefing & Overdue Rollover',
+    trigger: 'Every morning at 7:30 AM',
+    action: 'Roll over unfinished tasks and generate Today Priority Brief',
+  },
+  {
+    id: 'tpl-auto-meetings',
+    name: 'Meeting Note → Action Item Extractor',
+    trigger: 'When a note is saved in Meeting Notes category',
+    action: 'Identify action verbs and propose Tasks with deadlines',
+  },
+];
 
 export const NOTE_TEMPLATES = [
   {

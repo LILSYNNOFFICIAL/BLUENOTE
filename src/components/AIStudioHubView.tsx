@@ -221,7 +221,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
     if (imgLoading) return;
     const effectivePrompt =
       imgPrompt.trim() ||
-      'Minimalist architectural white glass studio overlooking a calm sapphire ocean at sunset';
+      'Vibrant bluebird perched on a blossoming cherry branch at golden hour';
     if (!imgPrompt.trim()) {
       setImgPrompt(effectivePrompt);
     }
@@ -254,7 +254,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
 
     const effectivePrompt =
       veoPrompt.trim() ||
-      'Cinematic golden hour aerial glide over a calm sapphire coast with mountain silhouettes';
+      'Vibrant bluebird perched on a blossoming branch with gentle golden hour breeze';
     if (!veoPrompt.trim()) {
       setVeoPrompt(effectivePrompt);
     }
@@ -666,9 +666,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {[
-                  'Architectural white cliffside glass studio at golden hour',
-                  'Cyberpunk neon skyline over sapphire harbor at night',
-                  'Nordic emerald pine forest with misty mountain lake',
+                  'Make a picture of a bird',
+                  'A cute golden retriever puppy',
+                  'Futuristic red sports car',
+                  'Steaming cup of coffee on a desk',
                 ].map((preset) => (
                   <button
                     key={preset}
@@ -676,7 +677,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
                     onClick={() => setImgPrompt(preset)}
                     className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700"
                   >
-                    {preset.slice(0, 34)}...
+                    {preset}
                   </button>
                 ))}
               </div>

@@ -10,32 +10,55 @@ import {
   CheckSquare,
   Clock,
   Coffee,
+  FileText,
 } from 'lucide-react';
 import { Task } from '../types/bluenote';
 
 interface FocusAndPomodoroModalProps {
   isOpen: boolean;
   task: Task | null;
+  activeTasks?: Task[];
+  onSelectTask?: (task: Task | null) => void;
   onClose: () => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   onLogMinutes: (taskId: string, minutes: number) => void;
+  onSaveScratchpadAsNote?: (title: string, content: string) => void;
 }
+
+const SCRATCHPAD_STORAGE_KEY = 'bluenote_focus_scratchpad_v1';
 
 export const FocusAndPomodoroModal: React.FC<FocusAndPomodoroModalProps> = ({
   isOpen,
   task,
+  activeTasks = [],
+  onSelectTask,
   onClose,
   onToggleSubtask,
   onCompleteTask,
   onLogMinutes,
+  onSaveScratchpadAsNote,
 }) => {
   const [preset, setPreset] = useState<'25/5' | '50/10' | '90/20'>('25/5');
   const [isBreak, setIsBreak] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [deepWorkSilence, setDeepWorkSilence] = useState(true);
-  const [scratchNotes, setScratchNotes] = useState('');
+  const [scratchNotes, setScratchNotes] = useState(() => {
+    try {
+      return localStorage.getItem(SCRATCHPAD_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SCRATCHPAD_STORAGE_KEY, scratchNotes);
+    } catch {
+      // Ignore quota errors
+    }
+  }, [scratchNotes]);
 
   useEffect(() => {
     const [workMins, breakMins] = preset.split('/').map(Number);
@@ -66,12 +89,13 @@ export const FocusAndPomodoroModal: React.FC<FocusAndPomodoroModalProps> = ({
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
+  const totalLoggedMinutes = activeTasks.reduce((sum, t) => sum + (t.actualMinutes || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 text-white flex flex-col justify-between p-6 md:p-12 overflow-y-auto">
       {/* Top Bar */}
       <div className="flex items-center justify-between max-w-5xl w-full mx-auto">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="px-3 py-1 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 text-xs font-semibold flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
             Distraction-Free Focus Mode
@@ -154,68 +178,117 @@ export const FocusAndPomodoroModal: React.FC<FocusAndPomodoroModalProps> = ({
 
         {/* Active Task & Scratchpad Column */}
         <div className="lg:col-span-6 flex flex-col justify-between bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-5">
-          {task ? (
-            <div className="space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400">
-                    Current Priority Task • {task.priority}
-                  </span>
-                  <h2 className="text-xl font-bold text-white mt-1">{task.title}</h2>
-                  <p className="text-xs text-slate-400 mt-1">{task.description}</p>
-                </div>
-                <button
-                  onClick={() => {
-                    onCompleteTask(task.id);
-                    onClose();
+          <div className="space-y-4">
+            {activeTasks.length > 0 && onSelectTask && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Active Focus Task
+                </label>
+                <select
+                  value={task?.id || ''}
+                  onChange={(e) => {
+                    const found = activeTasks.find((t) => t.id === e.target.value) || null;
+                    onSelectTask(found);
                   }}
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-white font-semibold"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Complete
-                </button>
+                  <option value="">Open Deep Work (No specific task)</option>
+                  {activeTasks.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      [{t.priority}] {t.title} ({t.estimatedMinutes || 25}m est.)
+                    </option>
+                  ))}
+                </select>
               </div>
+            )}
 
-              {task.subtasks.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-slate-800">
-                  <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <CheckSquare className="w-3.5 h-3.5 text-blue-400" />
-                    Subtasks ({task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length})
-                  </span>
-                  <div className="space-y-1.5">
-                    {task.subtasks.map((sub) => (
-                      <label
-                        key={sub.id}
-                        className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 cursor-pointer text-xs"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={sub.completed}
-                          onChange={() => onToggleSubtask(task.id, sub.id)}
-                          className="rounded border-slate-600 text-blue-500"
-                        />
-                        <span className={sub.completed ? 'line-through text-slate-500' : 'text-slate-200'}>
-                          {sub.title}
-                        </span>
-                      </label>
-                    ))}
+            {task ? (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400">
+                      Current Priority Task • {task.priority} • {task.actualMinutes || 0}m logged
+                    </span>
+                    <h2 className="text-xl font-bold text-white mt-1">{task.title}</h2>
+                    {task.description && (
+                      <p className="text-xs text-slate-400 mt-1">{task.description}</p>
+                    )}
                   </div>
+                  <button
+                    onClick={() => {
+                      onCompleteTask(task.id);
+                      onClose();
+                    }}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Complete
+                  </button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <h2 className="text-lg font-bold">Open Deep Work Session</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Focus on your highest-priority work without sidebar or notification distractions.
-              </p>
-            </div>
-          )}
+
+                {task.subtasks.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <CheckSquare className="w-3.5 h-3.5 text-blue-400" />
+                      Subtasks ({task.subtasks.filter((s) => s.completed).length}/
+                      {task.subtasks.length})
+                    </span>
+                    <div className="space-y-1.5">
+                      {task.subtasks.map((sub) => (
+                        <label
+                          key={sub.id}
+                          className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 cursor-pointer text-xs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={sub.completed}
+                            onChange={() => onToggleSubtask(task.id, sub.id)}
+                            className="rounded border-slate-600 text-blue-500"
+                          />
+                          <span
+                            className={
+                              sub.completed ? 'line-through text-slate-500' : 'text-slate-200'
+                            }
+                          >
+                            {sub.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <h2 className="text-lg font-bold">Open Deep Work Session</h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Focus on your highest-priority work without sidebar or notification distractions.
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-400">
-              Session Scratchpad (Auto-saved)
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-400">
+                Session Scratchpad (Auto-saved locally)
+              </label>
+              {onSaveScratchpadAsNote && scratchNotes.trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSaveScratchpadAsNote(
+                      task ? `Focus Notes: ${task.title}` : 'Deep Work Session Scratchpad',
+                      scratchNotes.trim()
+                    );
+                    setScratchNotes('');
+                  }}
+                  className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Save to Smart Notes
+                </button>
+              )}
+            </div>
             <textarea
               value={scratchNotes}
               onChange={(e) => setScratchNotes(e.target.value)}
@@ -227,9 +300,11 @@ export const FocusAndPomodoroModal: React.FC<FocusAndPomodoroModalProps> = ({
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Live Focus Telemetry Footer */}
       <div className="text-center text-xs text-slate-500">
-        AI Productivity Coach: You usually complete complex tasks 28% faster during morning focus blocks.
+        {totalLoggedMinutes > 0
+          ? `Workspace Focus Telemetry: ${totalLoggedMinutes} total minutes logged across your active tasks.`
+          : `Pomodoro ${preset} cadence ready — completing a work block automatically logs minutes to your active task.`}
       </div>
     </div>
   );

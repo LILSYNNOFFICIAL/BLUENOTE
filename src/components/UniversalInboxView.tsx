@@ -19,6 +19,7 @@ interface UniversalInboxViewProps {
   onApproveAllInbox: () => void;
   onDeleteInboxItem: (id: string) => void;
   onOpenBrainDump: (tab?: 'brain-dump' | 'ocr-scanner') => void;
+  onClearProcessedInbox?: () => void;
 }
 
 export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
@@ -28,9 +29,11 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
   onApproveAllInbox,
   onDeleteInboxItem,
   onOpenBrainDump,
+  onClearProcessedInbox,
 }) => {
   const [captureInput, setCaptureInput] = useState('');
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, EntityType>>({});
+  const [titleOverrides, setTitleOverrides] = useState<Record<string, string>>({});
 
   const pendingItems = workspace.inbox.filter((i) => i.status === 'Pending Review');
   const processedItems = workspace.inbox.filter((i) => i.status === 'Approved');
@@ -60,10 +63,10 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onOpenBrainDump('brain-dump')}
-              className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 text-indigo-700 text-xs font-semibold flex items-center gap-1.5"
             >
               <Mic className="w-4 h-4" /> Voice / Brain Dump
             </button>
@@ -90,7 +93,7 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
             value={captureInput}
             onChange={(e) => setCaptureInput(e.target.value)}
             placeholder='Drop anything into Inbox: "Call dentist next Tuesday at 10am", "Sarah’s email is sarah@design.co", "Buy printer paper"...'
-            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-2.5 text-sm focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
           <button
             type="submit"
@@ -105,6 +108,8 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
       <div className="space-y-3">
         {pendingItems.map((item) => {
           const currentCategory = categoryOverrides[item.id] || item.detectedCategory;
+          const currentTitle =
+            titleOverrides[item.id] !== undefined ? titleOverrides[item.id] : item.aiSuggestedTitle;
           return (
             <div
               key={item.id}
@@ -115,7 +120,7 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
                   <span className="px-2.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
                     {item.sourceType}
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 text-emerald-700 text-[11px] font-semibold">
                     {item.confidence}% AI Confidence
                   </span>
                   {item.confidence < 85 && (
@@ -125,11 +130,22 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
                   )}
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {item.aiSuggestedTitle}
-                </h3>
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
+                    Suggested Title (Editable before saving)
+                  </label>
+                  <input
+                    type="text"
+                    value={currentTitle}
+                    onChange={(e) =>
+                      setTitleOverrides((prev) => ({ ...prev, [item.id]: e.target.value }))
+                    }
+                    className="w-full max-w-lg text-sm font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
                 <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl font-mono">
-                  "{item.rawContent}"
+                  &ldquo;{item.rawContent}&rdquo;
                 </p>
                 <p className="text-xs text-slate-500 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -163,7 +179,15 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onApproveInboxItem(item, currentCategory)}
+                    onClick={() =>
+                      onApproveInboxItem(
+                        {
+                          ...item,
+                          aiSuggestedTitle: currentTitle.trim() || item.aiSuggestedTitle,
+                        },
+                        currentCategory
+                      )
+                    }
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-2xs transition-colors"
                   >
                     <Check className="w-3.5 h-3.5" /> Approve & Organize
@@ -183,7 +207,7 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
 
         {pendingItems.length === 0 && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-12 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCheck className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -198,11 +222,22 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
 
       {processedItems.length > 0 && (
         <div className="pt-4 space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Recently Organized by AI ({processedItems.length})
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Recently Organized by AI ({processedItems.length})
+            </h3>
+            {onClearProcessedInbox && (
+              <button
+                type="button"
+                onClick={onClearProcessedInbox}
+                className="text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors"
+              >
+                Clear Processed History
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {processedItems.slice(0, 6).map((item) => (
+            {processedItems.slice(0, 8).map((item) => (
               <div
                 key={item.id}
                 className="p-3 rounded-xl bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs"

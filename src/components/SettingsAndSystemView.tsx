@@ -14,6 +14,8 @@ import {
   Eye,
   Key,
   ExternalLink,
+  Plus,
+  Upload,
 } from 'lucide-react';
 import {
   AIConfirmationMode,
@@ -23,13 +25,17 @@ import {
   WorkspaceState,
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
+import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
 
 interface SettingsAndSystemViewProps {
   initialSection?: 'settings' | 'help';
   workspace: WorkspaceState;
   onUpdateSettings: (updates: Partial<UserSettings>) => void;
   onToggleAutomation: (id: string) => void;
+  onAddAutomation?: (name: string, trigger: string, action: string) => void;
+  onDeleteAutomation?: (id: string) => void;
   onExportWorkspace: (format: 'json' | 'markdown' | 'csv') => void;
+  onImportWorkspace?: (jsonText: string) => void;
   onRestoreDeletedItem: (type: 'task' | 'note', id: string) => void;
   onEmptyRecycleBin: () => void;
   onResetDemoWorkspace: () => void;
@@ -41,7 +47,10 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
   workspace,
   onUpdateSettings,
   onToggleAutomation,
+  onAddAutomation,
+  onDeleteAutomation,
   onExportWorkspace,
+  onImportWorkspace,
   onRestoreDeletedItem,
   onEmptyRecycleBin,
   onResetDemoWorkspace,
@@ -51,6 +60,9 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
     'general' | 'ai' | 'emails' | 'automations' | 'export-recycle' | 'help'
   >(initialSection === 'help' ? 'help' : 'general');
   const [emailPreviewSent, setEmailPreviewSent] = useState(false);
+  const [autoName, setAutoName] = useState('');
+  const [autoTrigger, setAutoTrigger] = useState('');
+  const [autoAction, setAutoAction] = useState('');
 
   React.useEffect(() => {
     if (initialSection === 'help') setTab('help');
@@ -533,30 +545,43 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
             </div>
             <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
               <div className="font-bold text-base text-slate-900 dark:text-white">
-                ☀️ Good Morning, {workspace.settings.name.split(' ')[0]}! Here is Today’s Focus:
+                ☀️ Good Morning
+                {workspace.settings.name.trim()
+                  ? `, ${workspace.settings.name.trim().split(' ')[0]}`
+                  : ''}
+                ! Here is Today’s Focus:
               </div>
               <div className="space-y-1.5">
                 <div className="font-bold text-slate-700 dark:text-slate-300">
                   Top Priority Tasks:
                 </div>
-                {workspace.tasks
-                  .filter((t) => t.status !== 'Completed')
-                  .slice(0, 3)
-                  .map((t) => (
-                    <div key={t.id} className="text-slate-600 dark:text-slate-300">
-                      ✓ [{t.priority}] {t.title} ({t.dueTime || 'Today'})
-                    </div>
-                  ))}
+                {workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed').length ===
+                0 ? (
+                  <div className="text-slate-400">No active tasks pending today.</div>
+                ) : (
+                  workspace.tasks
+                    .filter((t) => !t.deletedAt && t.status !== 'Completed')
+                    .slice(0, 3)
+                    .map((t) => (
+                      <div key={t.id} className="text-slate-600 dark:text-slate-300">
+                        ✓ [{t.priority}] {t.title} ({t.dueTime || 'Today'})
+                      </div>
+                    ))
+                )}
               </div>
               <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
                 <div className="font-bold text-slate-700 dark:text-slate-300">
                   Today’s Calendar:
                 </div>
-                {workspace.events.slice(0, 3).map((e) => (
-                  <div key={e.id} className="text-slate-600 dark:text-slate-300">
-                    📅 {e.startTime}–{e.endTime}: {e.title}
-                  </div>
-                ))}
+                {workspace.events.length === 0 ? (
+                  <div className="text-slate-400">No events scheduled on your calendar today.</div>
+                ) : (
+                  workspace.events.slice(0, 3).map((e) => (
+                    <div key={e.id} className="text-slate-600 dark:text-slate-300">
+                      📅 {e.startTime}–{e.endTime}: {e.title}
+                    </div>
+                  ))
+                )}
               </div>
               <p className="text-[11px] italic text-slate-500 pt-2">
                 "Focus on what matters—BlueNote has everything else organized."
@@ -568,36 +593,152 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
 
       {/* TAB 4: AUTOMATION RULES */}
       {tab === 'automations' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Smart Workspace Automations
-          </h2>
-          <div className="space-y-3">
-            {workspace.automations.map((rule) => (
-              <div
-                key={rule.id}
-                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4"
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Smart Workspace Automations
+              </h2>
+              <p className="text-xs text-slate-500">
+                Create custom Trigger → Action rules or activate a recommended workflow template below.
+              </p>
+            </div>
+          </div>
+
+          {/* Create Custom Automation Rule */}
+          {onAddAutomation && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!autoName.trim() || !autoTrigger.trim() || !autoAction.trim()) return;
+                onAddAutomation(autoName.trim(), autoTrigger.trim(), autoAction.trim());
+                setAutoName('');
+                setAutoTrigger('');
+                setAutoAction('');
+              }}
+              className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-4 gap-2.5"
+            >
+              <input
+                type="text"
+                value={autoName}
+                onChange={(e) => setAutoName(e.target.value)}
+                placeholder="Rule Name (e.g., Auto-Tag Tax Receipts)"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white"
+              />
+              <input
+                type="text"
+                value={autoTrigger}
+                onChange={(e) => setAutoTrigger(e.target.value)}
+                placeholder="Trigger (When...)"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white"
+              />
+              <input
+                type="text"
+                value={autoAction}
+                onChange={(e) => setAutoAction(e.target.value)}
+                placeholder="Action (Then...)"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-white"
+              />
+              <button
+                type="submit"
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 flex items-center justify-center gap-1.5"
               >
-                <div className="space-y-1">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white">
-                    {rule.name}
+                <Plus className="w-3.5 h-3.5" /> Add Automation
+              </button>
+            </form>
+          )}
+
+          {/* Active User Automations */}
+          {workspace.automations.length === 0 ? (
+            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
+              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                No custom automations active yet.
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Create a custom rule above or add one of the 1-click automation templates below.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {workspace.automations.map((rule) => (
+                <div
+                  key={rule.id}
+                  className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">
+                      {rule.name}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      <strong>Trigger:</strong> {rule.trigger} → <strong>Action:</strong> {rule.action}
+                    </div>
+                    <div className="text-[11px] font-mono text-blue-600">
+                      Executed {rule.runsCount} times
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">
-                    <strong>Trigger:</strong> {rule.trigger} → <strong>Action:</strong> {rule.action}
-                  </div>
-                  <div className="text-[11px] font-mono text-blue-600">
-                    Executed {rule.runsCount} times
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled}
+                      onChange={() => onToggleAutomation(rule.id)}
+                      className="h-4 w-4 rounded text-blue-600"
+                    />
+                    {onDeleteAutomation && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteAutomation(rule.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600"
+                        title="Delete automation rule"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={rule.enabled}
-                  onChange={() => onToggleAutomation(rule.id)}
-                  className="h-4 w-4 rounded text-blue-600"
-                />
+              ))}
+            </div>
+          )}
+
+          {/* 1-Click Automation Templates */}
+          {onAddAutomation && (
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                1-Click Automation Templates
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {AUTOMATION_TEMPLATES.map((tpl) => {
+                  const alreadyAdded = workspace.automations.some((r) => r.name === tpl.name);
+                  return (
+                    <div
+                      key={tpl.id}
+                      className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 flex items-start justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-slate-900 dark:text-white">
+                          {tpl.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {tpl.trigger} → {tpl.action}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={alreadyAdded}
+                        onClick={() => onAddAutomation(tpl.name, tpl.trigger, tpl.action)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 ${
+                          alreadyAdded
+                            ? 'bg-emerald-500/15 text-emerald-600 cursor-default'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        {alreadyAdded ? 'Added ✓' : '+ Enable'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -631,14 +772,35 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               >
                 Export Tasks & Contacts (CSV)
               </button>
+              {onImportWorkspace && (
+                <label className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" /> Restore Backup (JSON)
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === 'string') {
+                          onImportWorkspace(reader.result);
+                        }
+                      };
+                      reader.readAsText(file);
+                    }}
+                  />
+                </label>
+              )}
             </div>
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={onResetDemoWorkspace}
-                className="text-xs font-semibold text-slate-500 hover:text-blue-600 flex items-center gap-1.5"
+                className="text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1.5"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset Workspace to Default Sample State
+                <RotateCcw className="w-3.5 h-3.5" /> Clear All Workspace Data & Start Fresh
               </button>
             </div>
           </div>

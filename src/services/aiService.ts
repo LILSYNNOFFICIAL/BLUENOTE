@@ -490,13 +490,85 @@ export async function processBrainDumpInput(
     .map((s) => s.trim())
     .filter((s) => s.length > 2);
 
-  return (segments.length > 0 ? segments : [trimmed]).map(localParseSingleSentence);
+  const localItems = (segments.length > 0 ? segments : [trimmed]).map(localParseSingleSentence);
+
+  // Also try AI-powered structured extraction if a key or free cloud AI is available
+  try {
+    const aiRes = await callConfiguredOrFreeTextAI(
+      `Extract all distinct actionable items from the following brain dump into a JSON array.
+Today's date is ${todayISO()} and tomorrow is ${tomorrowISO()}.
+Each object in the JSON array MUST have:
+- "category": one of "task", "reminder", "event", "note", "contact", "shopping", "goal"
+- "title": concise actionable title (string)
+- "description": brief details (string)
+- "priority": one of "Critical", "High", "Medium", "Low"
+- "dueDate": YYYY-MM-DD string (optional)
+- "dueTime": HH:MM 24h string (optional)
+- "tags": array of 1-3 short tag strings
+- "aiReasoning": 1 short sentence explaining why this category was chosen
+
+Return ONLY valid JSON array, no markdown fences:
+Brain dump: """${trimmed}"""`,
+      'You are a structured JSON extraction engine for BlueNote Second Brain. Output only a valid JSON array.'
+    );
+    if (aiRes && aiRes.text) {
+      const cleanedJson = aiRes.text
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+      const firstBracket = cleanedJson.indexOf('[');
+      const lastBracket = cleanedJson.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket > firstBracket) {
+        const parsed = JSON.parse(cleanedJson.slice(firstBracket, lastBracket + 1));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validCategories = new Set([
+            'task',
+            'reminder',
+            'event',
+            'note',
+            'contact',
+            'shopping',
+            'goal',
+          ]);
+          return parsed.map((item: any, idx: number) => {
+            const cat = validCategories.has(item.category) ? item.category : 'task';
+            return {
+              id: `bd-ai-${Date.now()}-${idx}`,
+              category: cat,
+              title: String(item.title || 'Captured Item').trim(),
+              description: String(item.description || trimmed).trim(),
+              priority:
+                item.priority === 'Critical' ||
+                item.priority === 'High' ||
+                item.priority === 'Medium' ||
+                item.priority === 'Low'
+                  ? item.priority
+                  : 'Medium',
+              dueDate: item.dueDate || todayISO(),
+              dueTime: item.dueTime || '09:00',
+              tags: Array.isArray(item.tags) ? item.tags.map(String) : ['AI-Extracted'],
+              confidenceScore: 95,
+              confidence: 95,
+              aiReasoning: String(
+                item.aiReasoning || `Extracted via ${aiRes.modelUsed}`
+              ),
+              selected: true,
+            } as BrainDumpExtractedItem;
+          });
+        }
+      }
+    }
+  } catch {
+    // Fallback cleanly to deterministic local parser
+  }
+
+  return localItems;
 }
 
 export async function performOCRAndExtract(
   filename: string,
   customTextHint: string,
-  _imageDataUrl: string | undefined,
+  imageDataUrl: string | undefined,
   workspace: WorkspaceState
 ): Promise<{
   ocrText: string;
@@ -505,6 +577,63 @@ export async function performOCRAndExtract(
   extractedItems: BrainDumpExtractedItem[];
 }> {
   const lowerName = filename.toLowerCase();
+  const cfg = getAIConfig();
+
+  // If an image is uploaded and Gemini API key is configured, perform multimodal Vision OCR
+  if (imageDataUrl && imageDataUrl.includes('base64,') && cfg.geminiApiKey.trim()) {
+    try {
+      const [header, base64Data] = imageDataUrl.split('base64,');
+      const mimeMatch = header.match(/data:(.*?);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
+          cfg.geminiApiKey.trim()
+        )}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType, data: base64Data } },
+                  {
+                    text: `Perform OCR on this image (${filename}). Extract all visible text verbatim, and provide a 1-sentence summary.${
+                      customTextHint ? ` Additional user note: ${customTextHint}` : ''
+                    }`,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        const extractedText = (data?.candidates?.[0]?.content?.parts || [])
+          .map((p: any) => p.text || '')
+          .join('\n')
+          .trim();
+        if (extractedText) {
+          const items = await processBrainDumpInput(extractedText, workspace);
+          return {
+            ocrText: extractedText,
+            summary: `Gemini Vision OCR extracted ${items.length} actionable item(s) from "${filename}".`,
+            documentCategory: lowerName.includes('card')
+              ? 'Business Card'
+              : lowerName.includes('receipt') || lowerName.includes('invoice')
+              ? 'Receipt'
+              : 'Handwritten Note',
+            extractedItems: items,
+          };
+        }
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
   if (customTextHint.trim()) {
     const items = await processBrainDumpInput(customTextHint, workspace);
     return {
@@ -997,9 +1126,32 @@ export async function callConfiguredOrFreeTextAI(
     return null;
   };
 
-  // Helper 5: 100% Free Keyless Cloud AI (Pollinations OpenAI-compatible endpoint — Zero API Key required!)
+  // Helper 5: 100% Free Keyless Cloud AI (Server-proxied first, then direct Pollinations OpenAI endpoint — Zero API Key required!)
   const tryFreeCloudAI = async (): Promise<{ text: string; modelUsed: string } | null> => {
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+    try {
+      const proxyResp = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          systemInstruction,
+          geminiApiKey: cfg.geminiApiKey.trim() || undefined,
+          groqApiKey: cfg.groqApiKey.trim() || undefined,
+          openRouterApiKey: cfg.openRouterApiKey.trim() || undefined,
+        }),
+      });
+      if (proxyResp.ok) {
+        const proxyData = await proxyResp.json();
+        if (proxyData?.text) {
+          return {
+            text: String(proxyData.text).trim(),
+            modelUsed: proxyData.modelUsed || 'Free Cloud AI (No API Key Required)',
+          };
+        }
+      }
+    } catch {}
+
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 7500);
@@ -1059,6 +1211,36 @@ export async function testAIProviderConnection(): Promise<{
   provider: string;
   message: string;
 }> {
+  const cfg = getAIConfig();
+  if (cfg.preferredProvider === 'groq' && !cfg.groqApiKey.trim()) {
+    return {
+      ok: false,
+      provider: 'Groq Cloud API',
+      message: 'Please paste your free Groq API key (starting with gsk_...) or switch to 100% Free AI.',
+    };
+  }
+  if (cfg.preferredProvider === 'gemini' && !cfg.geminiApiKey.trim()) {
+    return {
+      ok: false,
+      provider: 'Google Gemini API',
+      message: 'Please paste your free Google Gemini API key (starting with AIzaSy...) or switch to 100% Free AI.',
+    };
+  }
+  if (cfg.preferredProvider === 'openrouter' && !cfg.openRouterApiKey.trim()) {
+    return {
+      ok: false,
+      provider: 'OpenRouter Free Models',
+      message: 'Please paste your free OpenRouter API key (starting with sk-or-v1-...) or switch to 100% Free AI.',
+    };
+  }
+  if (cfg.preferredProvider === 'huggingface' && !cfg.huggingFaceToken.trim()) {
+    return {
+      ok: false,
+      provider: 'Hugging Face Free API',
+      message: 'Please paste your free Hugging Face token (starting with hf_...) or switch to 100% Free AI.',
+    };
+  }
+
   const res = await callConfiguredOrFreeTextAI(
     'Reply with a single short sentence confirming that BlueNote AI is connected and ready.',
     'You are BlueNote AI.'
@@ -1096,6 +1278,20 @@ export function getAspectDimensions(
     default:
       return { width: 1280, height: 720 };
   }
+}
+
+export function cleanImagePromptSubject(rawPrompt: string): string {
+  let s = String(rawPrompt || '').trim();
+  const prefixPatterns = [
+    /^(please\s+)?(can\s+you\s+|could\s+you\s+|would\s+you\s+|i\s+want\s+you\s+to\s+|i\s+want\s+|i'd\s+like\s+to\s+|i'd\s+like\s+|i\s+need\s+|let's\s+)?(make|create|generate|draw|render|paint|show|give|design|produce|sketch|illustrate|take)(\s+me)?\s+/i,
+    /^(a\s+|an\s+|the\s+|some\s+)?(nice\s+|good\s+|cool\s+|beautiful\s+|cute\s+|hd\s+|high\s+res\s+|detailed\s+|realistic\s+)?(picture|pic|pictures|image|images|img|photo|photograph|photos|illustration|drawing|painting|artwork|art|sketch|graphic|render|rendering|portrait|shot|view)\s+(of\s+|showing\s+|with\s+|featuring\s+|about\s+)/i,
+    /^(a\s+|an\s+|the\s+)?(picture|pic|image|img|photo|photograph|illustration|drawing|painting|sketch)\s+(of\s+|showing\s+|with\s+|featuring\s+)/i,
+    /^(of\s+|showing\s+|featuring\s+)/i,
+  ];
+  for (const pat of prefixPatterns) {
+    s = s.replace(pat, '').trim();
+  }
+  return s || String(rawPrompt || '').trim();
 }
 
 export function selectPaletteFromPrompt(prompt: string): {
@@ -1136,16 +1332,19 @@ export function selectPaletteFromPrompt(prompt: string): {
     lower.includes('green') ||
     lower.includes('mountain') ||
     lower.includes('garden') ||
-    lower.includes('emerald')
+    lower.includes('emerald') ||
+    lower.includes('bird') ||
+    lower.includes('tree') ||
+    lower.includes('flower')
   ) {
     return {
-      skyTop: '#042f2e',
-      skyMid: '#0f766e',
-      skyBottom: '#ccfbf1',
+      skyTop: '#064e3b',
+      skyMid: '#0284c7',
+      skyBottom: '#e0f2fe',
       sunColor: '#fef08a',
-      mountainFar: '#115e59',
-      mountainNear: '#022c22',
-      accent: '#34d399',
+      mountainFar: '#0f766e',
+      mountainNear: '#064e3b',
+      accent: '#38bdf8',
       themeType: 'forest',
     };
   }
@@ -1181,6 +1380,662 @@ export function selectPaletteFromPrompt(prompt: string): {
   };
 }
 
+// Draw detailed foreground subject based on prompt keywords so offline/canvas renders always match the user's subject
+function drawForegroundSubject(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  prompt: string,
+  t = 0
+) {
+  const lower = prompt.toLowerCase();
+  const cx = width * 0.5;
+  const cy = height * 0.54;
+  const unit = Math.min(width, height);
+  const bobY = Math.sin(t * Math.PI * 2) * (unit * 0.015);
+
+  // 1. BIRD / AVIAN SUBJECTS ("bird", "eagle", "owl", "parrot", "swan", "duck", "hawk", "cardinal", "bluejay", "crow", "robin", "sparrow", "hummingbird")
+  if (
+    /\b(bird|birds|eagle|hawk|falcon|owl|parrot|macaw|swan|duck|goose|flamingo|crow|raven|robin|sparrow|bluejay|jay|cardinal|pigeon|dove|gull|seagull|hummingbird|phoenix|peacock|toucan|canary|finch| swallow|wing|wings|feather)\b/i.test(
+      lower
+    )
+  ) {
+    const isRed = /\b(red|cardinal|phoenix|scarlet|crimson|robin)\b/i.test(lower);
+    const isGold = /\b(gold|golden|eagle|hawk|falcon|yellow|canary)\b/i.test(lower);
+    const isGreen = /\b(green|parrot|macaw|emerald|hummingbird|peacock)\b/i.test(lower);
+    const isWhite = /\b(white|swan|dove|seagull|gull)\b/i.test(lower);
+    const isDark = /\b(black|crow|raven|owl)\b/i.test(lower);
+
+    const bodyPrimary = isRed
+      ? '#ef4444'
+      : isGold
+      ? '#f59e0b'
+      : isGreen
+      ? '#10b981'
+      : isWhite
+      ? '#f8fafc'
+      : isDark
+      ? '#1e293b'
+      : '#2563eb';
+    const bodySecondary = isRed
+      ? '#991b1b'
+      : isGold
+      ? '#92400e'
+      : isGreen
+      ? '#047857'
+      : isWhite
+      ? '#cbd5e1'
+      : isDark
+      ? '#0f172a'
+      : '#1d4ed8';
+    const wingTipColor = isRed
+      ? '#fca5a5'
+      : isGold
+      ? '#fde68a'
+      : isGreen
+      ? '#6ee7b7'
+      : isWhite
+      ? '#94a3b8'
+      : '#38bdf8';
+    const breastColor = isRed
+      ? '#fecaca'
+      : isGold
+      ? '#fef3c7'
+      : isGreen
+      ? '#a7f3d0'
+      : isWhite
+      ? '#ffffff'
+      : '#bae6fd';
+
+    ctx.save();
+
+    // Foreground tree branch with leaves & blossoms
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = unit * 0.028;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, height * 0.72);
+    ctx.quadraticCurveTo(width * 0.35, height * 0.68, width * 0.78, height * 0.63);
+    ctx.stroke();
+
+    // Secondary twig
+    ctx.lineWidth = unit * 0.014;
+    ctx.beginPath();
+    ctx.moveTo(width * 0.56, height * 0.66);
+    ctx.quadraticCurveTo(width * 0.68, height * 0.56, width * 0.82, height * 0.52);
+    ctx.stroke();
+
+    // Leaves along branch
+    const leafPositions = [
+      [0.18, 0.7, -0.4],
+      [0.28, 0.67, 0.5],
+      [0.64, 0.64, -0.3],
+      [0.74, 0.62, 0.4],
+      [0.72, 0.55, -0.5],
+      [0.8, 0.52, 0.2],
+    ];
+    for (const [lx, ly, rot] of leafPositions) {
+      ctx.save();
+      ctx.translate(width * lx, height * ly);
+      ctx.rotate(rot);
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, unit * 0.032, unit * 0.014, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Bird position perched / soaring at center
+    ctx.translate(cx * 0.96, height * 0.53 + bobY);
+    const s = unit * 0.34;
+    const wingFlap = Math.sin(t * Math.PI * 4) * 0.14;
+
+    // 1. Long Fanned Tail Feathers
+    ctx.save();
+    ctx.rotate(-0.22);
+    for (let tf = -2; tf <= 2; tf++) {
+      ctx.fillStyle = tf % 2 === 0 ? bodySecondary : bodyPrimary;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.32, s * 0.12);
+      ctx.quadraticCurveTo(
+        -s * 0.75,
+        s * (0.28 + tf * 0.05),
+        -s * 0.92,
+        s * (0.36 + tf * 0.06)
+      );
+      ctx.quadraticCurveTo(-s * 0.65, s * (0.18 + tf * 0.04), -s * 0.28, s * 0.05);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 2. Back Wing (Raised / Layered Feathers)
+    ctx.save();
+    ctx.rotate(-0.35 + wingFlap);
+    const backWingGrad = ctx.createLinearGradient(-s * 0.2, -s * 0.7, s * 0.2, 0);
+    backWingGrad.addColorStop(0, wingTipColor);
+    backWingGrad.addColorStop(1, bodySecondary);
+    ctx.fillStyle = backWingGrad;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.1, -s * 0.05);
+    ctx.bezierCurveTo(-s * 0.45, -s * 0.65, -s * 0.05, -s * 0.95, s * 0.28, -s * 0.72);
+    ctx.quadraticCurveTo(s * 0.18, -s * 0.32, s * 0.08, -s * 0.02);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Sculpted Bird Torso & Breast Plumage
+    const bodyGrad = ctx.createLinearGradient(-s * 0.35, -s * 0.3, s * 0.4, s * 0.35);
+    bodyGrad.addColorStop(0, bodyPrimary);
+    bodyGrad.addColorStop(0.55, bodySecondary);
+    bodyGrad.addColorStop(1, breastColor);
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.04, s * 0.38, s * 0.24, -0.25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Soft Breast Highlight
+    ctx.fillStyle = breastColor;
+    ctx.beginPath();
+    ctx.ellipse(s * 0.14, s * 0.09, s * 0.22, s * 0.14, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Foreground Wing with Layered Primary Feathers
+    ctx.save();
+    ctx.rotate(0.12 - wingFlap * 0.8);
+    const wingGrad = ctx.createLinearGradient(-s * 0.45, -s * 0.45, s * 0.2, s * 0.2);
+    wingGrad.addColorStop(0, wingTipColor);
+    wingGrad.addColorStop(0.5, bodyPrimary);
+    wingGrad.addColorStop(1, bodySecondary);
+    ctx.fillStyle = wingGrad;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.08, -s * 0.08);
+    ctx.bezierCurveTo(-s * 0.35, -s * 0.62, -s * 0.72, -s * 0.38, -s * 0.58, s * 0.08);
+    ctx.quadraticCurveTo(-s * 0.2, s * 0.18, s * 0.12, s * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // Feather quill lines on foreground wing
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 2;
+    for (let f = 0; f < 5; f++) {
+      ctx.beginPath();
+      ctx.moveTo(s * 0.02, -s * 0.02);
+      ctx.quadraticCurveTo(
+        -s * (0.25 + f * 0.05),
+        -s * (0.28 - f * 0.04),
+        -s * (0.48 + f * 0.03),
+        -s * (0.18 - f * 0.06)
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 5. Bird Head & Crest
+    ctx.fillStyle = bodyPrimary;
+    ctx.beginPath();
+    ctx.arc(s * 0.28, -s * 0.18, s * 0.17, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crown / Crest Feathers
+    ctx.beginPath();
+    ctx.moveTo(s * 0.16, -s * 0.31);
+    ctx.lineTo(s * 0.04, -s * 0.44);
+    ctx.lineTo(s * 0.22, -s * 0.34);
+    ctx.lineTo(s * 0.12, -s * 0.48);
+    ctx.lineTo(s * 0.3, -s * 0.33);
+    ctx.closePath();
+    ctx.fill();
+
+    // 6. Beak (Upper & Lower Mandible)
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.42, -s * 0.24);
+    ctx.quadraticCurveTo(s * 0.62, -s * 0.21, s * 0.66, -s * 0.14);
+    ctx.lineTo(s * 0.42, -s * 0.14);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.42, -s * 0.14);
+    ctx.lineTo(s * 0.6, -s * 0.14);
+    ctx.lineTo(s * 0.43, -s * 0.09);
+    ctx.closePath();
+    ctx.fill();
+
+    // 7. Expressive Eye with Catchlight
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.arc(s * 0.33, -s * 0.2, s * 0.042, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(s * 0.345, -s * 0.215, s * 0.015, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 8. Bird Legs & Talons gripping branch
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = unit * 0.008;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.02, s * 0.24);
+    ctx.lineTo(0, s * 0.38);
+    ctx.moveTo(s * 0.08, s * 0.22);
+    ctx.lineTo(s * 0.1, s * 0.36);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Background companion birds soaring in the sky
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
+    const flock = [
+      [0.22, 0.24, 18],
+      [0.28, 0.19, 14],
+      [0.76, 0.22, 16],
+      [0.82, 0.27, 12],
+    ];
+    for (const [bx, by, span] of flock) {
+      const fx = width * bx;
+      const fy = height * by + Math.sin(t * Math.PI * 4 + bx * 10) * 6;
+      ctx.beginPath();
+      ctx.moveTo(fx - span, fy - 4);
+      ctx.quadraticCurveTo(fx - span * 0.4, fy - 12, fx, fy);
+      ctx.quadraticCurveTo(fx + span * 0.4, fy - 12, fx + span, fy - 4);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  // 2. CAT / FELINE SUBJECTS
+  if (/\b(cat|cats|kitten|feline|lion|tiger|panther|leopard|cheetah|lynx)\b/i.test(lower)) {
+    const s = unit * 0.32;
+    ctx.save();
+    ctx.translate(cx, cy + s * 0.15);
+
+    // Tail
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = s * 0.11;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.25, s * 0.35);
+    ctx.bezierCurveTo(
+      s * 0.75,
+      s * 0.3,
+      s * 0.85,
+      -s * 0.2 + Math.sin(t * Math.PI * 2) * 20,
+      s * 0.55,
+      -s * 0.35
+    );
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.12, s * 0.32, s * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.38, s * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pointed Ears
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.24, -s * 0.48);
+    ctx.lineTo(-s * 0.18, -s * 0.78);
+    ctx.lineTo(-s * 0.04, -s * 0.58);
+    ctx.moveTo(s * 0.24, -s * 0.48);
+    ctx.lineTo(s * 0.18, -s * 0.78);
+    ctx.lineTo(s * 0.04, -s * 0.58);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing Eyes
+    ctx.fillStyle = '#34d399';
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.09, -s * 0.4, s * 0.045, s * 0.03, -0.15, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.09, -s * 0.4, s * 0.045, s * 0.03, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Whiskers
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 2;
+    for (const dir of [-1, 1]) {
+      for (let w = -1; w <= 1; w++) {
+        ctx.beginPath();
+        ctx.moveTo(dir * s * 0.08, -s * 0.32 + w * 4);
+        ctx.lineTo(dir * s * 0.38, -s * 0.34 + w * 10);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 3. DOG / WOLF / FOX SUBJECTS
+  if (/\b(dog|dogs|puppy|canine|wolf|fox|hound|husky|corgi|retriever|shepherd)\b/i.test(lower)) {
+    const isFox = /\b(fox)\b/i.test(lower);
+    const coat = isFox ? '#ea580c' : '#d97706';
+    const s = unit * 0.32;
+    ctx.save();
+    ctx.translate(cx, cy + s * 0.12);
+
+    // Bushy Tail
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.42, s * 0.15, s * 0.28, s * 0.12, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.08, s * 0.12, s * 0.36, s * 0.25, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head & Snout
+    ctx.beginPath();
+    ctx.arc(s * 0.18, -s * 0.24, s * 0.22, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.38, -s * 0.2, s * 0.16, s * 0.09, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.beginPath();
+    ctx.moveTo(s * 0.05, -s * 0.38);
+    ctx.lineTo(s * 0.12, -s * 0.68);
+    ctx.lineTo(s * 0.24, -s * 0.42);
+    ctx.closePath();
+    ctx.fill();
+
+    // White Chest & Eye
+    ctx.fillStyle = '#fef3c7';
+    ctx.beginPath();
+    ctx.ellipse(s * 0.18, s * 0.08, s * 0.14, s * 0.2, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(s * 0.25, -s * 0.27, s * 0.032, 0, Math.PI * 2);
+    ctx.arc(s * 0.52, -s * 0.22, s * 0.035, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // 4. FLOWER / ROSE / TREE / BOTANICAL SUBJECTS
+  if (
+    /\b(flower|flowers|rose|roses|sunflower|tulip|lotus|orchid|blossom|bouquet|daisy|lily|tree|bonsai|oak|pine|palm)\b/i.test(
+      lower
+    )
+  ) {
+    const s = unit * 0.32;
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Stem
+    ctx.strokeStyle = '#15803d';
+    ctx.lineWidth = s * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(s * 0.08, s * 0.5, 0, s * 0.95);
+    ctx.stroke();
+
+    // Petals
+    const petalCount = 12;
+    for (let i = 0; i < petalCount; i++) {
+      ctx.save();
+      ctx.rotate((i * Math.PI * 2) / petalCount + t * 0.4);
+      ctx.fillStyle = i % 2 === 0 ? '#f43f5e' : '#fb7185';
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.32, s * 0.14, s * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Golden Center
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // 5. CAR / VEHICLE / SPORTS CAR
+  if (
+    /\b(car|cars|supercar|sedan|suv|truck|vehicle|automobile|lamborghini|ferrari|porsche|tesla|motorcycle|bike)\b/i.test(
+      lower
+    )
+  ) {
+    const s = unit * 0.42;
+    ctx.save();
+    ctx.translate(cx, height * 0.68);
+
+    // Chassis
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.75, 0);
+    ctx.lineTo(-s * 0.68, -s * 0.22);
+    ctx.lineTo(-s * 0.32, -s * 0.42);
+    ctx.lineTo(s * 0.22, -s * 0.42);
+    ctx.lineTo(s * 0.58, -s * 0.2);
+    ctx.lineTo(s * 0.75, -s * 0.05);
+    ctx.lineTo(s * 0.75, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cabin Windows
+    ctx.fillStyle = '#bae6fd';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.28, -s * 0.22);
+    ctx.lineTo(-s * 0.18, -s * 0.37);
+    ctx.lineTo(s * 0.18, -s * 0.37);
+    ctx.lineTo(s * 0.42, -s * 0.22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wheels
+    for (const wx of [-s * 0.44, s * 0.44]) {
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(wx, 0, s * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(wx, 0, s * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 6. ROBOT / ANDROID / MECH / AI
+  if (/\b(robot|android|cyborg|mech|mecha|bot|drone)\b/i.test(lower)) {
+    const s = unit * 0.32;
+    ctx.save();
+    ctx.translate(cx, cy + bobY);
+
+    // Shoulders / Torso
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.roundRect(-s * 0.45, -s * 0.05, s * 0.9, s * 0.75, 24);
+    ctx.fill();
+
+    // Glowing Chest Core
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(0, s * 0.28, s * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head Helmet
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.roundRect(-s * 0.32, -s * 0.62, s * 0.64, s * 0.48, 20);
+    ctx.fill();
+
+    // Visor &Glowing Eyes
+    ctx.fillStyle = '#090d16';
+    ctx.beginPath();
+    ctx.roundRect(-s * 0.24, -s * 0.48, s * 0.48, s * 0.2, 10);
+    ctx.fill();
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(-s * 0.1, -s * 0.38, s * 0.045, 0, Math.PI * 2);
+    ctx.arc(s * 0.1, -s * 0.38, s * 0.045, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // 7. COFFEE / MUG / CUP / TEA / CAFE
+  if (/\b(coffee|espresso|latte|cappuccino|tea|mug|cup|cafe)\b/i.test(lower)) {
+    const s = unit * 0.34;
+    ctx.save();
+    ctx.translate(cx, cy + s * 0.12);
+
+    // Saucer
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.42, s * 0.62, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cup Handle
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = s * 0.09;
+    ctx.beginPath();
+    ctx.arc(s * 0.38, s * 0.06, s * 0.18, -Math.PI * 0.45, Math.PI * 0.45);
+    ctx.stroke();
+
+    // Cup Body
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(-s * 0.42, -s * 0.24, s * 0.84, s * 0.64, [8, 8, 42, 42]);
+    ctx.fill();
+
+    // Rich Coffee Crema Top
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.24, s * 0.4, s * 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rising Steam Ribbons
+    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+    ctx.lineWidth = 4;
+    for (let st = -1; st <= 1; st++) {
+      ctx.beginPath();
+      ctx.moveTo(st * s * 0.14, -s * 0.38);
+      ctx.bezierCurveTo(
+        st * s * 0.14 - 14,
+        -s * 0.58,
+        st * s * 0.14 + 14,
+        -s * 0.72,
+        st * s * 0.14,
+        -s * 0.92
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
+  // 8. HOUSE / HOME / CABIN / CASTLE / ARCHITECTURE
+  if (/\b(house|home|cabin|cottage|villa|mansion|castle|building|studio)\b/i.test(lower)) {
+    const s = unit * 0.38;
+    ctx.save();
+    ctx.translate(cx, height * 0.68);
+
+    // Main Structure
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(-s * 0.55, -s * 0.55, s * 1.1, s * 0.55);
+
+    // Pitched Roof
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.68, -s * 0.55);
+    ctx.lineTo(0, -s * 0.98);
+    ctx.lineTo(s * 0.68, -s * 0.55);
+    ctx.closePath();
+    ctx.fill();
+
+    // Warm Glowing Windows
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(-s * 0.38, -s * 0.4, s * 0.22, s * 0.22);
+    ctx.fillRect(s * 0.16, -s * 0.4, s * 0.22, s * 0.22);
+
+    // Door
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-s * 0.08, -s * 0.32, s * 0.16, s * 0.32);
+    ctx.restore();
+    return;
+  }
+
+  // 9. BUTTERFLY / DRAGONFLY / BEE / INSECT
+  if (/\b(butterfly|moth|dragonfly|bee|ladybug)\b/i.test(lower)) {
+    const s = unit * 0.36;
+    ctx.save();
+    ctx.translate(cx, cy + bobY);
+    const flap = 0.85 + Math.sin(t * Math.PI * 4) * 0.15;
+
+    for (const dir of [-1, 1]) {
+      ctx.save();
+      ctx.scale(dir * flap, 1);
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.1);
+      ctx.bezierCurveTo(s * 0.65, -s * 0.65, s * 0.85, s * 0.05, 0, s * 0.15);
+      ctx.fill();
+
+      ctx.fillStyle = '#6366f1';
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.1);
+      ctx.bezierCurveTo(s * 0.55, s * 0.15, s * 0.48, s * 0.65, 0, s * 0.35);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.08, s * 0.04, s * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  // 10. FISH / WHALE / DOLPHIN / SHARK / AQUATIC
+  if (/\b(fish|goldfish|koi|whale|dolphin|shark|turtle|octopus)\b/i.test(lower)) {
+    const s = unit * 0.36;
+    ctx.save();
+    ctx.translate(cx, cy + bobY);
+
+    ctx.fillStyle = '#f97316';
+    // Tail Fin
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.38, 0);
+    ctx.lineTo(-s * 0.72, -s * 0.28);
+    ctx.lineTo(-s * 0.58, 0);
+    ctx.lineTo(-s * 0.72, s * 0.28);
+    ctx.closePath();
+    ctx.fill();
+
+    // Streamlined Body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.45, s * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(s * 0.26, -s * 0.05, s * 0.045, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(s * 0.27, -s * 0.05, s * 0.024, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+}
+
 // Draw a rich, gallery-grade scene onto a 2D canvas (supports static and animated frame `t` in [0,1])
 export function renderSceneFrameToCanvas(
   ctx: CanvasRenderingContext2D,
@@ -1190,7 +2045,8 @@ export function renderSceneFrameToCanvas(
   t = 0,
   bgImg?: HTMLImageElement | null
 ) {
-  const palette = selectPaletteFromPrompt(prompt);
+  const cleanSubject = cleanImagePromptSubject(prompt);
+  const palette = selectPaletteFromPrompt(cleanSubject);
 
   if (bgImg) {
     const scale = 1.02 + Math.sin(t * Math.PI * 2) * 0.05;
@@ -1208,20 +2064,10 @@ export function renderSceneFrameToCanvas(
     grad.addColorStop(1, `${palette.accent}28`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
-
-    // Subtle animated light rays over edited/animated photo
-    ctx.fillStyle = 'rgba(255, 250, 235, 0.55)';
-    for (let p = 0; p < 18; p++) {
-      const px = (p * 157 + Math.floor(t * width * 0.3)) % width;
-      const py = (p * 97 + Math.sin(t * Math.PI * 2 + p) * 24 + height) % height;
-      ctx.beginPath();
-      ctx.arc(px, py, (p % 3) + 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
     return;
   }
 
-  // 1. Multi-stop atmospheric sky gradient
+  // 1. Multi-stop atmospheric backdrop gradient
   const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
   skyGrad.addColorStop(0, palette.skyTop);
   skyGrad.addColorStop(0.55, palette.skyMid);
@@ -1229,25 +2075,12 @@ export function renderSceneFrameToCanvas(
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Starfield / atmospheric perspective grid
   let seed = 0;
-  for (let i = 0; i < prompt.length; i++) {
-    seed = (seed * 31 + prompt.charCodeAt(i)) % 100000;
+  for (let i = 0; i < cleanSubject.length; i++) {
+    seed = (seed * 31 + cleanSubject.charCodeAt(i)) % 100000;
   }
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
-  for (let s = 0; s < 48; s++) {
-    const sx = (seed + s * 173) % width;
-    const sy = (seed + s * 97) % Math.floor(height * 0.52);
-    const twinkle = 0.35 + 0.65 * Math.abs(Math.sin(t * Math.PI * 2 + s));
-    ctx.globalAlpha = twinkle * 0.65;
-    ctx.beginPath();
-    ctx.arc(sx, sy, (s % 2) + 1.1, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // 3. Volumetric Sun / Celestial Orb
+  // 2. Soft Studio Depth-of-Field Bokeh Orbs
   const sunX = width * (0.56 + Math.sin(t * Math.PI * 2) * 0.07);
   const sunY = height * (0.37 - Math.sin(t * Math.PI) * 0.08);
   const sunRadius = Math.min(width, height) * 0.16;
@@ -1258,71 +2091,67 @@ export function renderSceneFrameToCanvas(
     sunRadius * 0.08,
     sunX,
     sunY,
-    sunRadius * 2.7
+    sunRadius * 2.8
   );
-  sunGlow.addColorStop(0, palette.sunColor);
-  sunGlow.addColorStop(0.35, `${palette.accent}99`);
+  sunGlow.addColorStop(0, `${palette.sunColor}cc`);
+  sunGlow.addColorStop(0.4, `${palette.accent}66`);
   sunGlow.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = sunGlow;
   ctx.beginPath();
-  ctx.arc(sunX, sunY, sunRadius * 2.7, 0, Math.PI * 2);
+  ctx.arc(sunX, sunY, sunRadius * 2.8, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = palette.sunColor;
-  ctx.beginPath();
-  ctx.arc(sunX, sunY, sunRadius * 0.72, 0, Math.PI * 2);
-  ctx.fill();
+  // Only draw mountains if the prompt explicitly asks for mountains, peaks, hills, cliffs, or landscapes!
+  const wantsMountains =
+    /\b(mountain|mountains|peak|peaks|alp|alps|hill|hills|ridge|canyon|valley|cliff|landscape|horizon)\b/i.test(
+      cleanSubject
+    );
 
-  // 4. Layered Parallax Ridges / Architectural Skyline
-  const drawRidge = (
-    baseY: number,
-    amplitude: number,
-    freq: number,
-    phase: number,
-    fill: string
-  ) => {
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.moveTo(0, height);
-    for (let x = 0; x <= width; x += 14) {
-      const nx = x / width;
-      const y =
-        height * baseY -
-        Math.sin(nx * freq + phase + t * Math.PI * 2) * (height * amplitude) -
-        Math.cos(nx * freq * 2.1 - phase + t * Math.PI * 2) * (height * amplitude * 0.45);
-      ctx.lineTo(x, y);
+  if (wantsMountains) {
+    const drawRidge = (
+      baseY: number,
+      amplitude: number,
+      freq: number,
+      phase: number,
+      fill: string
+    ) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width; x += 14) {
+        const nx = x / width;
+        const y =
+          height * baseY -
+          Math.sin(nx * freq + phase + t * Math.PI * 2) * (height * amplitude) -
+          Math.cos(nx * freq * 2.1 - phase + t * Math.PI * 2) * (height * amplitude * 0.45);
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(width, height);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    drawRidge(0.68, 0.06, 5.2, (seed % 10) * 0.4, `${palette.mountainFar}aa`);
+    drawRidge(0.76, 0.05, 6.8, (seed % 7) * 0.7, palette.mountainNear);
+  } else {
+    // Soft out-of-focus studio bokeh circles so the foreground subject is the unmistakable hero
+    for (let b = 0; b < 14; b++) {
+      const bx = ((seed + b * 211) % width);
+      const by = ((seed + b * 139) % height);
+      const br = Math.min(width, height) * (0.04 + (b % 4) * 0.025);
+      ctx.fillStyle = b % 2 === 0 ? `${palette.sunColor}22` : `${palette.accent}22`;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.lineTo(width, height);
-    ctx.closePath();
-    ctx.fill();
-  };
-
-  drawRidge(0.64, 0.09, 5.2, (seed % 10) * 0.4, `${palette.mountainFar}cc`);
-  drawRidge(0.73, 0.07, 6.8, (seed % 7) * 0.7, palette.mountainNear);
-
-  // 5. Reflective Water / Horizon Plane with Shimmer
-  const waterTop = height * 0.76;
-  const waterGrad = ctx.createLinearGradient(0, waterTop, 0, height);
-  waterGrad.addColorStop(0, palette.mountainNear);
-  waterGrad.addColorStop(1, palette.skyTop);
-  ctx.fillStyle = waterGrad;
-  ctx.fillRect(0, waterTop, width, height - waterTop);
-
-  ctx.strokeStyle = `${palette.sunColor}88`;
-  ctx.lineWidth = 2.2;
-  for (let i = 0; i < 12; i++) {
-    const wy = waterTop + 10 + i * ((height - waterTop) / 13);
-    const waveOffset = Math.sin(t * Math.PI * 4 + i * 0.7) * 16;
-    const halfSpan = sunRadius * (1.35 - i * 0.08);
-    ctx.beginPath();
-    ctx.moveTo(sunX - halfSpan + waveOffset, wy);
-    ctx.lineTo(sunX + halfSpan + waveOffset, wy);
-    ctx.stroke();
   }
 
-  // 6. Floating Atmospheric Light Motes
-  ctx.fillStyle = 'rgba(255, 250, 235, 0.7)';
-  for (let p = 0; p < 24; p++) {
+  // 3. Render Foreground Subject Matching Prompt (Bird, Cat, Dog, Flower, Car, Robot, Coffee, House, Butterfly, Fish, etc.)
+  drawForegroundSubject(ctx, width, height, cleanSubject, t);
+
+  // 4. Floating Atmospheric Light Motes
+  ctx.fillStyle = 'rgba(255, 250, 235, 0.65)';
+  for (let p = 0; p < 18; p++) {
     const px = (p * 137 + Math.floor(t * width * 0.28) + seed) % width;
     const py =
       (p * 83 + Math.sin(t * Math.PI * 2 + p) * 28 + height) %
@@ -1333,20 +2162,56 @@ export function renderSceneFrameToCanvas(
   }
 }
 
-// 1. Image Generation & Editing (Server/Env Gemini + Free Pollinations AI + High-Res Studio Canvas)
+async function rasterizeSvgToPngDataUrl(
+  rawSvg: string,
+  width: number,
+  height: number
+): Promise<string | null> {
+  let svg = rawSvg.trim();
+  const svgStart = svg.indexOf('<svg');
+  const svgEnd = svg.lastIndexOf('</svg>');
+  if (svgStart === -1 || svgEnd === -1) return null;
+  svg = svg.slice(svgStart, svgEnd + 6);
+  if (!svg.includes('xmlns=')) {
+    svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  return new Promise<string | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = width;
+      c.height = height;
+      const cx = c.getContext('2d')!;
+      cx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(svgUrl);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(svgUrl);
+      resolve(null);
+    };
+    img.src = svgUrl;
+  });
+}
+
+// 1. Image Generation & Editing (Multi-Provider: HF FLUX + Gemini + Server-Proxied Pollinations Flux + Subject Canvas)
 export async function generateOrEditImage(params: {
   prompt: string;
   base64Image?: string;
   mimeType?: string;
   aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 }): Promise<{ imageUrl: string; caption: string; model: string }> {
-  const effectivePrompt =
+  const rawPrompt =
     params.prompt.trim() ||
-    'Minimalist architectural studio overlooking a calm coastal horizon at golden hour, ultra detailed';
+    'Majestic bluebird perched on a blossoming branch at golden hour, ultra detailed';
+  const visualPrompt = cleanImagePromptSubject(rawPrompt);
   const { width, height } = getAspectDimensions(params.aspectRatio || '16:9');
   const aiCfg = getAIConfig();
 
-  // Tier 0: If user provided a Free Hugging Face API Token, try FLUX.1-schnell first
+  // Tier 0: If user provided a Free Hugging Face API Token, try FLUX.1-schnell directly
   if (!params.base64Image && aiCfg.huggingFaceToken.trim()) {
     try {
       const hfResp = await fetch(
@@ -1357,7 +2222,7 @@ export async function generateOrEditImage(params: {
             Authorization: `Bearer ${aiCfg.huggingFaceToken.trim()}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ inputs: effectivePrompt }),
+          body: JSON.stringify({ inputs: `${visualPrompt}, centered subject, high detail` }),
         }
       );
       if (hfResp.ok) {
@@ -1372,7 +2237,7 @@ export async function generateOrEditImage(params: {
           if (dataUrl.startsWith('data:image')) {
             return {
               imageUrl: dataUrl,
-              caption: `Generated with Hugging Face FLUX.1-schnell (${width}×${height}) — "${effectivePrompt}"`,
+              caption: `Generated with Hugging Face FLUX.1-schnell (${width}×${height}) — "${rawPrompt}"`,
               model: 'FLUX.1-schnell (Hugging Face Free API)',
             };
           }
@@ -1381,17 +2246,18 @@ export async function generateOrEditImage(params: {
     } catch {}
   }
 
-  // Tier 1: Try Server-Side Gemini endpoint (/api/ai/image)
+  // Tier 1: Server-Side Multi-Engine Endpoint (/api/ai/image) — proxies HF, Gemini, and Pollinations Flux without CORS!
   try {
     const resp = await fetch('/api/ai/image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prompt: effectivePrompt,
+        prompt: rawPrompt,
         aspectRatio: params.aspectRatio || '16:9',
         base64Image: params.base64Image,
         mimeType: params.mimeType,
         userGeminiKey: aiCfg.geminiApiKey || undefined,
+        userHfToken: aiCfg.huggingFaceToken || undefined,
       }),
     });
     if (resp.ok) {
@@ -1401,38 +2267,18 @@ export async function generateOrEditImage(params: {
           imageUrl: data.imageUrl,
           caption:
             data.caption ||
-            `Generated (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${effectivePrompt}"`,
+            `Generated (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
           model: data.model || 'gemini-2.5-flash-image',
         };
       }
       if (data.svgMarkup && data.svgMarkup.includes('<svg')) {
-        const svgBlob = new Blob([data.svgMarkup], {
-          type: 'image/svg+xml;charset=utf-8',
-        });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const renderedPng = await new Promise<string | null>((resolve) => {
-          const img = new Image();
-          img.onload = () => {
-            const c = document.createElement('canvas');
-            c.width = width;
-            c.height = height;
-            const cx = c.getContext('2d')!;
-            cx.drawImage(img, 0, 0, width, height);
-            URL.revokeObjectURL(svgUrl);
-            resolve(c.toDataURL('image/png'));
-          };
-          img.onerror = () => {
-            URL.revokeObjectURL(svgUrl);
-            resolve(null);
-          };
-          img.src = svgUrl;
-        });
+        const renderedPng = await rasterizeSvgToPngDataUrl(data.svgMarkup, width, height);
         if (renderedPng) {
           return {
             imageUrl: renderedPng,
             caption:
               data.caption ||
-              `Generated (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${effectivePrompt}"`,
+              `Generated (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
             model: 'gemini-3-flash-preview',
           };
         }
@@ -1442,16 +2288,17 @@ export async function generateOrEditImage(params: {
     // Proceed to Tier 2
   }
 
-  // Tier 2: Free Keyless Pollinations AI Flux Model (when online and generating from text)
+  // Tier 2: Client-Side Free Pollinations AI Flux Model (with 16s timeout + Image element fallback)
   if (!params.base64Image && typeof navigator !== 'undefined' && navigator.onLine !== false) {
-    try {
-      const seed = Math.floor(Math.random() * 1000000);
-      const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(
-        effectivePrompt
-      )}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=flux`;
+    const seed = Math.floor(Math.random() * 1000000);
+    const enhancedPrompt = `${visualPrompt}, centered subject in clear focus, ultra detailed, vibrant lighting`;
+    const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(
+      enhancedPrompt
+    )}?width=${width}&height=${height}&seed=${seed}&nologo=true&model=flux`;
 
+    try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6500);
+      const timeoutId = setTimeout(() => controller.abort(), 16000);
       const imgResp = await fetch(pollUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -1467,19 +2314,61 @@ export async function generateOrEditImage(params: {
           if (dataUrl.startsWith('data:image')) {
             return {
               imageUrl: dataUrl,
-              caption: `Generated HD AI Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${effectivePrompt}"`,
-              model: 'gemini-2.5-flash-image / flux-free',
+              caption: `Generated HD AI Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
+              model: 'Free Cloud AI (FLUX Diffusion)',
             };
           }
         }
       }
     } catch {
-      // Proceed to Tier 3 On-Device Studio Canvas
+      // Try loading via HTMLImageElement in case fetch was blocked by CORS
+      try {
+        const loadedViaImg = await new Promise<boolean>((resolve) => {
+          const testImg = new Image();
+          const timer = setTimeout(() => resolve(false), 12000);
+          testImg.onload = () => {
+            clearTimeout(timer);
+            resolve(testImg.naturalWidth > 64);
+          };
+          testImg.onerror = () => {
+            clearTimeout(timer);
+            resolve(false);
+          };
+          testImg.src = pollUrl;
+        });
+        if (loadedViaImg) {
+          return {
+            imageUrl: pollUrl,
+            caption: `Generated HD AI Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
+            model: 'Free Cloud AI (FLUX Diffusion)',
+          };
+        }
+      } catch {}
     }
   }
 
-  // Tier 3: Guaranteed High-Definition On-Device Studio Canvas Engine
-  await new Promise((r) => setTimeout(r, 280));
+  // Tier 3: Ask User's Configured Text AI (Groq / OpenRouter / Gemini / Free Cloud AI) to synthesize custom SVG artwork of the subject
+  if (!params.base64Image) {
+    try {
+      const svgAi = await callConfiguredOrFreeTextAI(
+        `Return ONLY raw valid SVG code (<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">...</svg>) with no markdown backticks or explanation. Draw a rich, colorful, detailed illustration clearly depicting: "${visualPrompt}" in the center of the frame with layered shapes, gradients, and lighting.`,
+        'You are an expert SVG vector illustrator. Output only valid <svg>...</svg> markup.'
+      );
+      if (svgAi?.text && svgAi.text.includes('<svg')) {
+        const renderedPng = await rasterizeSvgToPngDataUrl(svgAi.text, width, height);
+        if (renderedPng) {
+          return {
+            imageUrl: renderedPng,
+            caption: `Synthesized Custom AI Illustration (${width}×${height}) — "${rawPrompt}"`,
+            model: svgAi.modelUsed,
+          };
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 4: Guaranteed High-Definition On-Device Studio Subject & Scene Canvas Engine
+  await new Promise((r) => setTimeout(r, 220));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -1496,12 +2385,12 @@ export async function generateOrEditImage(params: {
     });
   }
 
-  renderSceneFrameToCanvas(ctx, width, height, effectivePrompt, 0.25, bgImg);
+  renderSceneFrameToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
 
   return {
     imageUrl: canvas.toDataURL('image/png'),
-    caption: `Synthesized HD Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${effectivePrompt}"`,
-    model: 'gemini-2.5-flash-image (Studio Engine)',
+    caption: `Synthesized HD Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
+    model: 'BlueNote Studio Subject Engine',
   };
 }
 
@@ -1517,14 +2406,13 @@ export async function startVeoVideoGeneration(params: {
 }): Promise<{ operationName: string }> {
   const effectivePrompt =
     params.prompt.trim() ||
-    'Golden sunlight drifting across a serene coastal mountain horizon with floating light motes';
+    'Majestic bird soaring across a golden coastal horizon with floating light motes';
   const opName = `local-video-${Date.now()}`;
   const width = params.aspectRatio === '9:16' ? 540 : 960;
   const height = params.aspectRatio === '9:16' ? 960 : 540;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  // Attach invisibly during recording so Android WebView & Chrome captureStream flushes frames reliably
   canvas.style.position = 'fixed';
   canvas.style.left = '-9999px';
   canvas.style.top = '-9999px';
@@ -1633,7 +2521,7 @@ export async function downloadVeoVideoBlobUrl(operationName: string): Promise<st
   return localVideoStore.get(operationName) || '';
 }
 
-// 3. Audio Transcription (Server Gemini 3 Flash + Web Speech Fallback)
+// 3. Audio Transcription (Server Gemini 3 Flash + Client Gemini Key + Web Speech Fallback)
 export async function transcribeAudioWithGemini(
   input: { base64Audio: string; mimeType: string } | string,
   optionalMimeType?: string
@@ -1643,13 +2531,18 @@ export async function transcribeAudioWithGemini(
     typeof input === 'string'
       ? optionalMimeType || 'audio/webm'
       : input.mimeType || 'audio/webm';
+  const aiCfg = getAIConfig();
 
   if (base64Audio) {
     try {
       const resp = await fetch('/api/ai/transcribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64Audio, mimeType }),
+        body: JSON.stringify({
+          base64Audio,
+          mimeType,
+          userGeminiKey: aiCfg.geminiApiKey || undefined,
+        }),
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -1663,6 +2556,43 @@ export async function transcribeAudioWithGemini(
     } catch {
       // Fallback if server endpoint is unreachable
     }
+
+    // Direct Client Gemini API fallback if user configured a Gemini API key
+    if (aiCfg.geminiApiKey.trim()) {
+      try {
+        const cleanB64 = base64Audio.includes(',') ? base64Audio.split(',')[1] : base64Audio;
+        const gResp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
+            aiCfg.geminiApiKey.trim()
+          )}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { inlineData: { data: cleanB64, mimeType } },
+                    { text: 'Transcribe this voice note accurately into clean text.' },
+                  ],
+                },
+              ],
+            }),
+          }
+        );
+        if (gResp.ok) {
+          const gData = await gResp.json();
+          const tText = gData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (tText) {
+            const resObj: any = new String(tText);
+            resObj.transcript = tText;
+            resObj.model = 'Google Gemini 2.5 Flash (Free API)';
+            return resObj;
+          }
+        }
+      } catch {}
+    }
   }
 
   await new Promise((r) => setTimeout(r, 350));
@@ -1674,12 +2604,32 @@ export async function transcribeAudioWithGemini(
   return result;
 }
 
-// 4. Google Search Grounding (Server Gemini Search Grounding + Curated Citations Fallback)
+// 4. Google Search Grounding (Server Gemini Search Grounding + Free AI Research Synthesis)
 export async function searchWithGoogleGrounding(
   query: string
 ): Promise<{ text: string; links: GroundingLink[] }> {
   const effectiveQuery =
     query.trim() || 'Latest breakthroughs in personal knowledge graphs and cognitive productivity';
+  const aiCfg = getAIConfig();
+  const encoded = encodeURIComponent(effectiveQuery);
+  const defaultLinks: GroundingLink[] = [
+    {
+      title: `Google Search — "${effectiveQuery}"`,
+      uri: `https://www.google.com/search?q=${encoded}`,
+      sourceType: 'web',
+    },
+    {
+      title: `Google Scholar — Research on "${effectiveQuery}"`,
+      uri: `https://scholar.google.com/scholar?q=${encoded}`,
+      sourceType: 'web',
+    },
+    {
+      title: `Wikipedia Reference — ${effectiveQuery}`,
+      uri: `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
+      sourceType: 'web',
+    },
+  ];
+
   try {
     const resp = await fetch('/api/ai/chat', {
       method: 'POST',
@@ -1687,6 +2637,9 @@ export async function searchWithGoogleGrounding(
       body: JSON.stringify({
         prompt: effectiveQuery,
         useSearchGrounding: true,
+        userGeminiKey: aiCfg.geminiApiKey || undefined,
+        userGroqKey: aiCfg.groqApiKey || undefined,
+        userOpenRouterKey: aiCfg.openRouterApiKey || undefined,
       }),
     });
     if (resp.ok) {
@@ -1694,46 +2647,32 @@ export async function searchWithGoogleGrounding(
       if (data.text) {
         return {
           text: data.text,
-          links:
-            data.links && data.links.length > 0
-              ? data.links
-              : [
-                  {
-                    title: `Google Search — "${effectiveQuery}"`,
-                    uri: `https://www.google.com/search?q=${encodeURIComponent(effectiveQuery)}`,
-                    sourceType: 'web',
-                  },
-                ],
+          links: data.links && data.links.length > 0 ? data.links : defaultLinks,
         };
       }
     }
   } catch {}
 
-  await new Promise((r) => setTimeout(r, 260));
-  const encoded = encodeURIComponent(effectiveQuery);
+  try {
+    const freeRes = await callConfiguredOrFreeTextAI(
+      `Provide a concise, well-structured research summary with key facts and actionable takeaways for: "${effectiveQuery}".`,
+      'You are an executive research analyst.'
+    );
+    if (freeRes?.text) {
+      return {
+        text: freeRes.text,
+        links: defaultLinks,
+      };
+    }
+  } catch {}
+
   return {
     text:
       `### Research Synthesis: "${effectiveQuery}"\n\n` +
       `1. **Executive Overview**: Structured synthesis of key concepts, primary sources, and actionable takeaways for *"${effectiveQuery}"*.\n` +
       `2. **Actionable Next Steps**: Capture key citations into your Saved Links Vault or convert milestones directly into Project Tasks.\n` +
       `3. **Verified Reference Links**: Explore the direct research sources below.`,
-    links: [
-      {
-        title: `Google Scholar — Peer-Reviewed Research on "${effectiveQuery}"`,
-        uri: `https://scholar.google.com/scholar?q=${encoded}`,
-        sourceType: 'web',
-      },
-      {
-        title: `Wikipedia Reference — ${effectiveQuery}`,
-        uri: `https://en.wikipedia.org/wiki/Special:Search?search=${encoded}`,
-        sourceType: 'web',
-      },
-      {
-        title: `Semantic Scholar — Papers on ${effectiveQuery}`,
-        uri: `https://www.semanticscholar.org/search?q=${encoded}`,
-        sourceType: 'web',
-      },
-    ],
+    links: defaultLinks,
   };
 }
 
@@ -1745,6 +2684,25 @@ export async function searchWithGoogleMapsGrounding(params: {
 }): Promise<{ text: string; links: GroundingLink[] }> {
   const effectiveQuery =
     params.query.trim() || 'Quiet specialty coffee shops and coworking studios with Wi-Fi';
+  const aiCfg = getAIConfig();
+  const encoded = encodeURIComponent(effectiveQuery);
+  const defaultMapLinks: GroundingLink[] = [
+    {
+      title: `Google Maps Search: ${effectiveQuery}`,
+      uri: `https://www.google.com/maps/search/?api=1&query=${encoded}`,
+      sourceType: 'maps',
+      reviewSnippet: 'Direct interactive Google Maps results, hours, and navigation.',
+    },
+    {
+      title: `Top Rated "${effectiveQuery}" Nearby`,
+      uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        effectiveQuery + ' top rated'
+      )}`,
+      sourceType: 'maps',
+      reviewSnippet: 'Filtered for highest-rated local options.',
+    },
+  ];
+
   try {
     const resp = await fetch('/api/ai/chat', {
       method: 'POST',
@@ -1752,6 +2710,9 @@ export async function searchWithGoogleMapsGrounding(params: {
       body: JSON.stringify({
         prompt: effectiveQuery,
         useMapsGrounding: true,
+        userGeminiKey: aiCfg.geminiApiKey || undefined,
+        userGroqKey: aiCfg.groqApiKey || undefined,
+        userOpenRouterKey: aiCfg.openRouterApiKey || undefined,
         latLng:
           params.latitude !== undefined && params.longitude !== undefined
             ? { latitude: params.latitude, longitude: params.longitude }
@@ -1763,25 +2724,26 @@ export async function searchWithGoogleMapsGrounding(params: {
       if (data.text) {
         return {
           text: data.text,
-          links:
-            data.links && data.links.length > 0
-              ? data.links
-              : [
-                  {
-                    title: `Google Maps — ${effectiveQuery}`,
-                    uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                      effectiveQuery
-                    )}`,
-                    sourceType: 'maps',
-                  },
-                ],
+          links: data.links && data.links.length > 0 ? data.links : defaultMapLinks,
         };
       }
     }
   } catch {}
 
+  try {
+    const freeRes = await callConfiguredOrFreeTextAI(
+      `Provide practical local discovery recommendations and what to look for when searching for: "${effectiveQuery}".`,
+      'You are a local spatial discovery assistant.'
+    );
+    if (freeRes?.text) {
+      return {
+        text: freeRes.text,
+        links: defaultMapLinks,
+      };
+    }
+  } catch {}
+
   await new Promise((r) => setTimeout(r, 260));
-  const encoded = encodeURIComponent(effectiveQuery);
   const coordsSuffix =
     params.latitude !== undefined && params.longitude !== undefined
       ? ` (@${params.latitude.toFixed(3)},${params.longitude.toFixed(3)})`
@@ -1791,22 +2753,7 @@ export async function searchWithGoogleMapsGrounding(params: {
       `### Spatial & Local Discovery: "${effectiveQuery}"${coordsSuffix}\n\n` +
       `• **Curated Locations**: Open the direct Google Maps search links below to compare ratings, hours, and directions.\n` +
       `• **Workspace Integration**: Click "Save to BlueNote Links" on any result to pin it to your Saved Links organizer.`,
-    links: [
-      {
-        title: `Google Maps Search: ${effectiveQuery}`,
-        uri: `https://www.google.com/maps/search/?api=1&query=${encoded}`,
-        sourceType: 'maps',
-        reviewSnippet: 'Direct interactive Google Maps results, hours, and navigation.',
-      },
-      {
-        title: `Top Rated "${effectiveQuery}" Nearby`,
-        uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          effectiveQuery + ' top rated'
-        )}`,
-        sourceType: 'maps',
-        reviewSnippet: 'Filtered for highest-rated local options.',
-      },
-    ],
+    links: defaultMapLinks,
   };
 }
 

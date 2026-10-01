@@ -44,6 +44,8 @@ export interface Subtask {
   notes?: string;
 }
 
+export type TaskEnergyLevel = 'High' | 'Medium' | 'Low';
+
 export interface Task {
   id: string;
   title: string;
@@ -55,6 +57,7 @@ export interface Task {
   estimatedMinutes: number;
   actualMinutes: number;
   completionPercentage: number;
+  energyLevel?: TaskEnergyLevel;
   projectId?: string;
   category: string;
   tags: string[];

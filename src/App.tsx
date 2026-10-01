@@ -156,6 +156,26 @@ const LEGACY_DEMO_IDS = new Set([
   'hab-2',
   'hab-3',
   'hab-4',
+  'auto-1',
+  'auto-2',
+  'auto-3',
+  'auto-4',
+  'goal-1',
+  'goal-2',
+  'kg-1',
+  'kg-2',
+  'kg-3',
+  'kg-4',
+  'act-1',
+  'act-2',
+  'act-3',
+  'act-4',
+  'ss-1',
+  'ss-2',
+  'cnt-1',
+  'cnt-2',
+  'cnt-3',
+  'cnt-4',
 ]);
 
 function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
@@ -167,6 +187,7 @@ function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
     settings: {
       ...ws.settings,
       name: ws.settings?.name === 'Alex Rivera' ? '' : ws.settings?.name || '',
+      email: ws.settings?.email === 'alex@bluenote.ai' ? '' : ws.settings?.email || '',
     },
     tasks: filterById(ws.tasks),
     notes: filterById(ws.notes),
@@ -177,7 +198,12 @@ function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
     links: filterById(ws.links),
     files: filterById(ws.files),
     habits: filterById(ws.habits),
+    goals: filterById(ws.goals),
     inbox: filterById(ws.inbox),
+    knowledgeGraph: filterById(ws.knowledgeGraph),
+    activityLog: filterById(ws.activityLog),
+    savedSearches: filterById(ws.savedSearches),
+    automations: filterById(ws.automations),
     personalPatterns: filterById(ws.personalPatterns),
     patternObservations: filterById(ws.patternObservations),
     shoppingLists: Array.isArray(ws.shoppingLists)
@@ -404,18 +430,49 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [workspace, authReady, currentUser]);
 
-  // Global keyboard shortcuts (Cmd/Ctrl+K for Command Palette, Cmd/Ctrl+J for AI Assistant, Cmd/Ctrl+B for Brain Dump)
+  // Global keyboard shortcuts (Cmd/Ctrl+K, /, Cmd/Ctrl+B, Cmd/Ctrl+U, Cmd/Ctrl+F, Cmd/Ctrl+G, Cmd/Ctrl+J, Esc)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+
+      if (e.key === 'Escape') {
+        setCommandPaletteOpen(false);
+        setBrainDumpModal((prev) => ({ ...prev, open: false }));
+        setFocusModalOpen(false);
+        setAuthModalOpen(false);
+        setAndroidModalOpen(false);
+        setAiKeysModalOpen(false);
+        setAiDrawerOpen(false);
+        return;
+      }
+
+      if (!isTyping && e.key === '/' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
         e.preventDefault();
         setAiDrawerOpen((prev) => !prev);
-      } else if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'b') {
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         setBrainDumpModal({ open: true, tab: 'brain-dump' });
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        setBrainDumpModal({ open: true, tab: 'ocr-scanner' });
+      } else if (!isTyping && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        setActiveSection('second-brain');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1659,6 +1716,13 @@ export default function App() {
                     inbox: prev.inbox.filter((i) => i.id !== id),
                   }))
                 }
+                onClearProcessedInbox={() => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    inbox: prev.inbox.filter((i) => i.status !== 'Approved'),
+                  }));
+                  showToast('Cleared processed inbox history');
+                }}
                 onOpenBrainDump={(tab = 'brain-dump') =>
                   setBrainDumpModal({ open: true, tab })
                 }
@@ -2089,6 +2153,67 @@ export default function App() {
                     ),
                   }));
                 }}
+                onDeleteShoppingItem={(listId, itemId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    shoppingLists: prev.shoppingLists.map((l) =>
+                      l.id === listId
+                        ? {
+                            ...l,
+                            items: l.items.filter((item) => item.id !== itemId),
+                          }
+                        : l
+                    ),
+                  }));
+                  showToast('Removed item from shopping list');
+                }}
+                onClearCheckedShoppingItems={(listId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    shoppingLists: prev.shoppingLists.map((l) =>
+                      l.id === listId
+                        ? {
+                            ...l,
+                            items: l.items.filter((item) => !item.checked),
+                          }
+                        : l
+                    ),
+                  }));
+                  showToast('Cleared checked shopping items');
+                }}
+                onAddShoppingList={(name, store) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    shoppingLists: [
+                      ...prev.shoppingLists,
+                      {
+                        id: `slist-${Date.now()}`,
+                        name,
+                        store,
+                        items: [],
+                        updatedAt: new Date().toISOString(),
+                      },
+                    ],
+                  }));
+                  showToast(`Created checklist "${name}"`);
+                }}
+                onDeleteShoppingList={(listId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    shoppingLists: prev.shoppingLists.filter((l) => l.id !== listId),
+                  }));
+                  showToast('Checklist removed');
+                }}
+                onChangeEnergyMode={(mode) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      energyMode: mode,
+                    },
+                  }));
+                  showToast(`Smart Sort switched to ${mode} mode`);
+                }}
               />
             )}
 
@@ -2163,6 +2288,22 @@ export default function App() {
                     ),
                   }));
                   showToast('Moved note to Recycle Bin');
+                }}
+                onCreateFolder={(folderName) => {
+                  const newFolder = {
+                    id: `fld-${Date.now()}`,
+                    name: folderName,
+                    icon: 'Folder',
+                    color: '#2563eb',
+                  };
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    folders: [...prev.folders, newFolder],
+                  }));
+                  showToast(`Created folder "${folderName}"`);
+                }}
+                onExtractTasksFromNote={(content) => {
+                  handleQuickCapture(content);
                 }}
               />
             )}
@@ -2262,6 +2403,95 @@ export default function App() {
                     ),
                   }));
                 }}
+                onDeleteProject={(projectId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    projects: prev.projects.filter((p) => p.id !== projectId),
+                  }));
+                  showToast('Project removed');
+                }}
+                onDeleteGoal={(goalId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    goals: prev.goals.filter((g) => g.id !== goalId),
+                  }));
+                  showToast('Goal removed');
+                }}
+                onToggleTask={handleToggleTask}
+                onAddProjectTask={(projectId, title, priority) => {
+                  const today = new Date().toISOString().split('T')[0];
+                  handleAddTask({
+                    title,
+                    description: 'Added to project checklist',
+                    priority,
+                    status: 'Not Started',
+                    dueDate: today,
+                    estimatedMinutes: 30,
+                    actualMinutes: 0,
+                    completionPercentage: 0,
+                    projectId,
+                    category: 'Project',
+                    tags: ['Project-Task'],
+                    subtasks: [],
+                    linkedItems: [],
+                  });
+                }}
+                onUpdateProjectProgress={(projectId, progress) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    projects: prev.projects.map((p) =>
+                      p.id === projectId
+                        ? {
+                            ...p,
+                            progress,
+                            status: progress >= 100 ? 'Completed' : 'Active',
+                            updatedAt: new Date().toISOString(),
+                          }
+                        : p
+                    ),
+                  }));
+                }}
+                onUpdateGoalProgress={(goalId, progress) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    goals: prev.goals.map((g) =>
+                      g.id === goalId
+                        ? {
+                            ...g,
+                            progress,
+                            status: progress >= 100 ? 'Completed' : 'On Track',
+                          }
+                        : g
+                    ),
+                  }));
+                }}
+                onAddHabit={(name, schedule) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    habits: [
+                      ...prev.habits,
+                      {
+                        id: `hab-${Date.now()}`,
+                        name,
+                        icon: 'Flame',
+                        schedule,
+                        streak: 0,
+                        completedToday: false,
+                        historyDates: [],
+                        targetPerWeek: schedule === 'Daily' ? 7 : 5,
+                        reminderTime: '08:00',
+                      },
+                    ],
+                  }));
+                  showToast(`Added habit "${name}"`);
+                }}
+                onDeleteHabit={(habitId) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    habits: prev.habits.filter((h) => h.id !== habitId),
+                  }));
+                  showToast('Habit removed');
+                }}
               />
             )}
 
@@ -2309,11 +2539,30 @@ export default function App() {
                     ),
                   }));
                 }}
+                onDeleteEvent={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    events: prev.events.filter((e) => e.id !== id),
+                  }));
+                  showToast('Event deleted');
+                }}
+                onDeleteReminder={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    reminders: prev.reminders.filter((r) => r.id !== id),
+                  }));
+                  showToast('Reminder deleted');
+                }}
+                onUpdateTask={handleUpdateTask}
                 onAutoGenerateTimeBlocks={() => {
                   const today = new Date().toISOString().split('T')[0];
                   const topTasks = workspace.tasks
                     .filter((t) => !t.deletedAt && t.status !== 'Completed')
                     .slice(0, 2);
+                  if (topTasks.length === 0) {
+                    showToast('Add open tasks first so AI can schedule focus blocks for them');
+                    return;
+                  }
                   const generatedBlocks: CalendarEvent[] = topTasks.map((t, idx) => ({
                     id: `evt-ai-${Date.now()}-${idx}`,
                     title: `Focus Block: ${t.title}`,
@@ -2391,6 +2640,45 @@ export default function App() {
                   setWorkspace((prev) => ({ ...prev, contacts: merged }));
                   showToast('Scanned CRM & merged duplicate contact records');
                 }}
+                onDeleteContact={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    contacts: prev.contacts.filter((c) => c.id !== id),
+                  }));
+                  showToast('Contact removed');
+                }}
+                onDeleteLink={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    links: prev.links.filter((l) => l.id !== id),
+                  }));
+                  showToast('Saved link removed');
+                }}
+                onDeleteFile={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    files: prev.files.filter((f) => f.id !== id),
+                  }));
+                  showToast('File removed');
+                }}
+                onUpdateContact={(id, updates) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    contacts: prev.contacts.map((c) =>
+                      c.id === id
+                        ? { ...c, ...updates, updatedAt: new Date().toISOString() }
+                        : c
+                    ),
+                  }));
+                }}
+                onToggleFavoriteLink={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    links: prev.links.map((l) =>
+                      l.id === id ? { ...l, isFavorite: !l.isFavorite } : l
+                    ),
+                  }));
+                }}
               />
             )}
 
@@ -2401,7 +2689,91 @@ export default function App() {
                 workspace={workspace}
                 onNavigate={handleNavigate}
                 onRebuildGraph={() => {
-                  showToast('AI scanned all entities and verified Knowledge Graph connections');
+                  const now = new Date().toISOString();
+                  const discovered: KnowledgeEdge[] = [];
+                  // Auto-discover real relationships across user's projects, tasks, notes, and contacts
+                  workspace.tasks
+                    .filter((t) => !t.deletedAt)
+                    .forEach((t) => {
+                      if (t.projectId) {
+                        const proj = workspace.projects.find((p) => p.id === t.projectId);
+                        if (proj) {
+                          discovered.push({
+                            id: `edge-tp-${t.id}-${proj.id}`,
+                            sourceType: 'task',
+                            sourceId: t.id,
+                            sourceTitle: t.title,
+                            targetType: 'project',
+                            targetId: proj.id,
+                            targetTitle: proj.name,
+                            relationshipType: 'Part of Project',
+                            confidenceScore: 98,
+                            createdByAi: true,
+                            approvedByUser: true,
+                            createdAt: now,
+                          });
+                        }
+                      }
+                    });
+
+                  workspace.notes
+                    .filter((n) => !n.deletedAt)
+                    .forEach((n) => {
+                      workspace.projects.forEach((p) => {
+                        if (
+                          n.title.toLowerCase().includes(p.name.toLowerCase()) ||
+                          n.content.toLowerCase().includes(p.name.toLowerCase())
+                        ) {
+                          discovered.push({
+                            id: `edge-np-${n.id}-${p.id}`,
+                            sourceType: 'note',
+                            sourceId: n.id,
+                            sourceTitle: n.title,
+                            targetType: 'project',
+                            targetId: p.id,
+                            targetTitle: p.name,
+                            relationshipType: 'References Project',
+                            confidenceScore: 92,
+                            createdByAi: true,
+                            approvedByUser: true,
+                            createdAt: now,
+                          });
+                        }
+                      });
+                      workspace.contacts.forEach((c) => {
+                        const fullName = `${c.firstName} ${c.lastName}`.trim().toLowerCase();
+                        if (fullName && n.content.toLowerCase().includes(fullName)) {
+                          discovered.push({
+                            id: `edge-nc-${n.id}-${c.id}`,
+                            sourceType: 'note',
+                            sourceId: n.id,
+                            sourceTitle: n.title,
+                            targetType: 'contact',
+                            targetId: c.id,
+                            targetTitle: `${c.firstName} ${c.lastName}`.trim(),
+                            relationshipType: 'Mentions Contact',
+                            confidenceScore: 95,
+                            createdByAi: true,
+                            approvedByUser: true,
+                            createdAt: now,
+                          });
+                        }
+                      });
+                    });
+
+                  setWorkspace((prev) => {
+                    const existingIds = new Set(prev.knowledgeGraph.map((e) => e.id));
+                    const fresh = discovered.filter((d) => !existingIds.has(d.id));
+                    return {
+                      ...prev,
+                      knowledgeGraph: [...fresh, ...prev.knowledgeGraph],
+                    };
+                  });
+                  showToast(
+                    discovered.length > 0
+                      ? `Auto-discovered ${discovered.length} Knowledge Graph connection(s)`
+                      : 'Scanned workspace — add shared project/contact names across notes & tasks to auto-link'
+                  );
                 }}
                 onRemoveRelationship={(edgeId) => {
                   setWorkspace((prev) => ({
@@ -2439,6 +2811,33 @@ export default function App() {
                     ],
                   }));
                   showToast(`Saved search filter "${name}"`);
+                }}
+                onDeleteSavedSearch={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    savedSearches: prev.savedSearches.filter((s) => s.id !== id),
+                  }));
+                }}
+                onAddMemoryFact={(fact) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      learnedMemoryFacts: [...prev.settings.learnedMemoryFacts, fact],
+                    },
+                  }));
+                  showToast('Saved AI memory preference');
+                }}
+                onRemoveMemoryFact={(idx) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      learnedMemoryFacts: prev.settings.learnedMemoryFacts.filter(
+                        (_, i) => i !== idx
+                      ),
+                    },
+                  }));
                 }}
               />
             )}
@@ -2558,7 +2957,44 @@ export default function App() {
                     ),
                   }));
                 }}
+                onAddAutomation={(name, trigger, action) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    automations: [
+                      {
+                        id: `auto-${Date.now()}`,
+                        name,
+                        trigger,
+                        action,
+                        enabled: true,
+                        runsCount: 0,
+                      },
+                      ...prev.automations,
+                    ],
+                  }));
+                  showToast(`Automation "${name}" enabled`);
+                }}
+                onDeleteAutomation={(id) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    automations: prev.automations.filter((a) => a.id !== id),
+                  }));
+                  showToast('Automation rule deleted');
+                }}
                 onExportWorkspace={handleExportWorkspace}
+                onImportWorkspace={(jsonText) => {
+                  try {
+                    const parsed = JSON.parse(jsonText);
+                    if (parsed && typeof parsed === 'object') {
+                      setWorkspace((prev) =>
+                        stripLegacyDemoData({ ...prev, ...parsed })
+                      );
+                      showToast('Workspace backup restored successfully!');
+                    }
+                  } catch {
+                    showToast('Invalid JSON backup file');
+                  }
+                }}
                 onRestoreDeletedItem={(type, id) => {
                   setWorkspace((prev) => ({
                     ...prev,
@@ -2868,6 +3304,8 @@ export default function App() {
         <FocusAndPomodoroModal
           isOpen={focusModalOpen}
           task={focusTask}
+          activeTasks={workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed')}
+          onSelectTask={(selected) => setFocusTask(selected)}
           onClose={() => setFocusModalOpen(false)}
           onToggleSubtask={handleToggleSubtask}
           onCompleteTask={(taskId) => {
@@ -2883,6 +3321,33 @@ export default function App() {
               ),
             }));
             showToast(`Logged ${minutes}m of focused work`);
+          }}
+          onSaveScratchpadAsNote={(title, content) => {
+            const now = new Date().toISOString();
+            const newNote: Note = {
+              id: `note-${Date.now()}`,
+              title,
+              content: `# ${title}\n\n${content}`,
+              summary: content.slice(0, 140),
+              folderId: workspace.folders[0]?.id || 'fld-work',
+              color: 'blue',
+              category: 'Focus Session',
+              tags: ['Focus-Notes'],
+              isPinned: false,
+              isFavorite: false,
+              isArchived: false,
+              wordCount: content.trim().split(/\s+/).filter(Boolean).length,
+              version: 1,
+              history: [],
+              linkedItems: [],
+              createdAt: now,
+              updatedAt: now,
+            };
+            setWorkspace((prev) => ({
+              ...prev,
+              notes: [newNote, ...prev.notes],
+            }));
+            showToast(`Saved "${title}" to Smart Notes`);
           }}
         />
 
@@ -2912,6 +3377,7 @@ export default function App() {
               ...prev,
               settings: { ...prev.settings, name, email },
             }));
+            showToast(`Signed in as ${name || 'BlueNote User'}`);
           }}
         />
 

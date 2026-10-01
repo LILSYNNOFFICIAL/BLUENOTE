@@ -15,6 +15,7 @@ import {
   HardDrive,
   Merge,
   Clock,
+  Trash2,
 } from 'lucide-react';
 import {
   Contact,
@@ -30,6 +31,11 @@ interface ContactsLinksFilesViewProps {
   onAddLink: (l: Omit<SavedLink, 'id' | 'createdAt'>) => void;
   onOpenOCRScanner: () => void;
   onMergeDuplicateContacts: () => void;
+  onDeleteContact?: (id: string) => void;
+  onDeleteLink?: (id: string) => void;
+  onDeleteFile?: (id: string) => void;
+  onUpdateContact?: (id: string, updates: Partial<Contact>) => void;
+  onToggleFavoriteLink?: (id: string) => void;
 }
 
 export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
@@ -39,6 +45,11 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
   onAddLink,
   onOpenOCRScanner,
   onMergeDuplicateContacts,
+  onDeleteContact,
+  onDeleteLink,
+  onDeleteFile,
+  onUpdateContact,
+  onToggleFavoriteLink,
 }) => {
   const [tab, setTab] = useState<'contacts' | 'links' | 'files'>(activeTab);
   const [selectedContactId, setSelectedContactId] = useState<string>(
@@ -51,6 +62,8 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [interactionType, setInteractionType] = useState<'Call' | 'Meeting' | 'Email' | 'Note'>('Call');
+  const [interactionSummary, setInteractionSummary] = useState('');
 
   // Link Form
   const [urlInput, setUrlInput] = useState('');
@@ -239,75 +252,115 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
             </button>
           </form>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-5 space-y-2.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  All Contacts ({activeContacts.length})
-                </span>
-                <button
-                  onClick={onMergeDuplicateContacts}
-                  className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-                >
-                  <Merge className="w-3 h-3" /> Check & Merge Duplicates
-                </button>
-              </div>
-              {activeContacts.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedContactId(c.id)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between ${
-                    selectedContact?.id === c.id
-                      ? 'bg-white dark:bg-slate-900 border-blue-500 ring-2 ring-blue-500/15 shadow-2xs'
-                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center">
-                      {c.firstName[0]}
-                      {c.lastName?.[0] || ''}
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        {c.firstName} {c.lastName}
-                        {c.isFavorite && (
-                          <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {c.jobTitle ? `${c.jobTitle} • ` : ''}
-                        {c.company || c.relationship}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono text-slate-500">{c.phones[0]}</span>
-                </button>
-              ))}
+          {activeContacts.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Your Contact CRM is empty
+              </p>
+              <p className="text-xs text-slate-500">
+                Add a contact above or click &ldquo;Scan Business Card / Document&rdquo; to auto-extract contact details.
+              </p>
             </div>
-
-            <div className="lg:col-span-7">
-              {selectedContact && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
-                  <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xl flex items-center justify-center">
-                        {selectedContact.firstName[0]}
-                        {selectedContact.lastName?.[0] || ''}
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-5 space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    All Contacts ({activeContacts.length})
+                  </span>
+                  <button
+                    onClick={onMergeDuplicateContacts}
+                    className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Merge className="w-3 h-3" /> Check & Merge Duplicates
+                  </button>
+                </div>
+                {activeContacts.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedContactId(c.id)}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                      selectedContact?.id === c.id
+                        ? 'bg-white dark:bg-slate-900 border-blue-500 ring-2 ring-blue-500/15 shadow-2xs'
+                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center">
+                        {c.firstName[0]}
+                        {c.lastName?.[0] || ''}
                       </div>
                       <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
-                          {selectedContact.relationship} Contact
-                        </span>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                          {selectedContact.firstName} {selectedContact.lastName}
-                        </h2>
-                        <p className="text-xs text-slate-500">
-                          {selectedContact.jobTitle}{' '}
-                          {selectedContact.company ? `at ${selectedContact.company}` : ''}
-                        </p>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          {c.firstName} {c.lastName}
+                          {c.isFavorite && (
+                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {c.jobTitle ? `${c.jobTitle} • ` : ''}
+                          {c.company || c.relationship}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    <span className="text-xs font-mono text-slate-500">{c.phones[0]}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="lg:col-span-7">
+                {selectedContact && (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+                    <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-xl flex items-center justify-center">
+                          {selectedContact.firstName[0]}
+                          {selectedContact.lastName?.[0] || ''}
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
+                            {selectedContact.relationship} Contact
+                          </span>
+                          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                            {selectedContact.firstName} {selectedContact.lastName}
+                          </h2>
+                          <p className="text-xs text-slate-500">
+                            {selectedContact.jobTitle}{' '}
+                            {selectedContact.company ? `at ${selectedContact.company}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {onUpdateContact && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdateContact(selectedContact.id, {
+                                isFavorite: !selectedContact.isFavorite,
+                              })
+                            }
+                            className={`p-2 rounded-xl border ${
+                              selectedContact.isFavorite
+                                ? 'bg-amber-500 text-white border-amber-500'
+                                : 'border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500'
+                            }`}
+                            title="Toggle Favorite Contact"
+                          >
+                            <Star className="w-4 h-4" />
+                          </button>
+                        )}
+                        {onDeleteContact && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteContact(selectedContact.id)}
+                            className="p-2 text-slate-400 hover:text-red-500"
+                            title="Delete contact"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center gap-2.5">
@@ -345,31 +398,93 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
                     <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       AI Context & Relationship Notes
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 bg-blue-50/50 dark:bg-slate-800 p-3.5 rounded-xl border border-blue-100 dark:border-slate-700">
-                      {selectedContact.notes}
-                    </p>
+                    {onUpdateContact ? (
+                      <textarea
+                        rows={2}
+                        value={selectedContact.notes}
+                        onChange={(e) =>
+                          onUpdateContact(selectedContact.id, { notes: e.target.value })
+                        }
+                        placeholder="Add personal context, preferences, or follow-up notes..."
+                        className="w-full text-xs text-slate-700 dark:text-slate-200 bg-blue-50/50 dark:bg-slate-800 p-3 rounded-xl border border-blue-100 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                    ) : (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 bg-blue-50/50 dark:bg-slate-800 p-3.5 rounded-xl border border-blue-100 dark:border-slate-700">
+                        {selectedContact.notes}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       Interaction Timeline ({selectedContact.interactions.length})
                     </div>
-                    {selectedContact.interactions.map((int) => (
-                      <div
-                        key={int.id}
-                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs"
+                    {onUpdateContact && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (!interactionSummary.trim()) return;
+                          const nextEntry = {
+                            id: `int-${Date.now()}`,
+                            date: new Date().toISOString().split('T')[0],
+                            type: interactionType,
+                            summary: interactionSummary.trim(),
+                          };
+                          onUpdateContact(selectedContact.id, {
+                            interactions: [nextEntry, ...selectedContact.interactions],
+                          });
+                          setInteractionSummary('');
+                        }}
+                        className="flex flex-wrap sm:flex-nowrap gap-2"
                       >
-                        <span>
-                          <strong className="text-blue-600">[{int.type}]</strong> {int.summary}
-                        </span>
-                        <span className="text-[11px] font-mono text-slate-400">{int.date}</span>
-                      </div>
-                    ))}
+                        <select
+                          value={interactionType}
+                          onChange={(e) => setInteractionType(e.target.value as any)}
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold"
+                        >
+                          <option value="Call">Call</option>
+                          <option value="Meeting">Meeting</option>
+                          <option value="Email">Email</option>
+                          <option value="Note">Note</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={interactionSummary}
+                          onChange={(e) => setInteractionSummary(e.target.value)}
+                          placeholder={`Log interaction with ${selectedContact.firstName}...`}
+                          className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold"
+                        >
+                          + Log
+                        </button>
+                      </form>
+                    )}
+                    {selectedContact.interactions.length === 0 ? (
+                      <p className="text-xs text-slate-400">
+                        No interactions logged yet. Use the bar above to record calls, meetings, or notes.
+                      </p>
+                    ) : (
+                      selectedContact.interactions.map((int) => (
+                        <div
+                          key={int.id}
+                          className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs"
+                        >
+                          <span>
+                            <strong className="text-blue-600">[{int.type}]</strong> {int.summary}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">{int.date}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -415,52 +530,89 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
             </button>
           </form>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {workspace.links.map((link) => (
-              <div
-                key={link.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs flex flex-col justify-between space-y-3"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 dark:bg-slate-800 text-blue-600">
-                      {link.domain} • {link.category}
-                    </span>
-                    {link.readingMinutes && (
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> {link.readingMinutes} min read
+          {workspace.links.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                No saved links yet
+              </p>
+              <p className="text-xs text-slate-500">
+                Paste any URL above or capture a link via Quick Capture to index it here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {workspace.links.map((link) => (
+                <div
+                  key={link.id}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs flex flex-col justify-between space-y-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-blue-50 dark:bg-slate-800 text-blue-600">
+                        {link.domain} • {link.category}
                       </span>
-                    )}
+                      <div className="flex items-center gap-2">
+                        {link.readingMinutes && (
+                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> {link.readingMinutes} min read
+                          </span>
+                        )}
+                        {onToggleFavoriteLink && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleFavoriteLink(link.id)}
+                            className="p-1 text-slate-400 hover:text-amber-500"
+                            title="Favorite link"
+                          >
+                            <Star
+                              className={`w-3.5 h-3.5 ${
+                                link.isFavorite ? 'text-amber-500 fill-amber-500' : ''
+                              }`}
+                            />
+                          </button>
+                        )}
+                        {onDeleteLink && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteLink(link.id)}
+                            className="p-1 text-slate-400 hover:text-red-500"
+                            title="Delete saved link"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {link.title}
+                    </h3>
+                    <p className="text-xs text-slate-500">{link.description}</p>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {link.title}
-                  </h3>
-                  <p className="text-xs text-slate-500">{link.description}</p>
-                </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <div className="flex gap-1.5">
-                    {link.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                      >
-                        #{t}
-                      </span>
-                    ))}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex gap-1.5">
+                      {link.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        >
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      Open Link <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
-                  >
-                    Open Link <ExternalLink className="w-3 h-3" />
-                  </a>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -490,49 +642,70 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {workspace.files.map((file) => (
-              <div
-                key={file.id}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600">
-                      <FileText className="w-5 h-5" />
+          {workspace.files.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-8 text-center space-y-2">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                No files or OCR scans uploaded yet
+              </p>
+              <p className="text-xs text-slate-500">
+                Click &ldquo;Upload & Run AI OCR&rdquo; above to scan a receipt, business card, whiteboard, or document.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {workspace.files.map((file) => (
+                <div
+                  key={file.id}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-emerald-600">
+                          {file.category} • OCR {file.ocrStatus}
+                        </span>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {file.displayName}
+                        </h3>
+                        <p className="text-[11px] text-slate-400">
+                          {file.filename} • {(file.sizeBytes / 1024).toFixed(0)} KB
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase text-emerald-600">
-                        {file.category} • OCR {file.ocrStatus}
-                      </span>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {file.displayName}
-                      </h3>
-                      <p className="text-[11px] text-slate-400">
-                        {file.filename} • {(file.sizeBytes / 1024).toFixed(0)} KB
+                    {onDeleteFile && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteFile(file.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-500"
+                        title="Delete file"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {file.ocrText && (
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700 space-y-1">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Indexed OCR Text
+                      </div>
+                      <p className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                        {file.ocrText}
                       </p>
                     </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Tags: {file.tags.map((t) => `#${t}`).join(' ')}</span>
+                    <span>v{file.version}</span>
                   </div>
                 </div>
-
-                {file.ocrText && (
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/70 dark:border-slate-700 space-y-1">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" /> Indexed OCR Text
-                    </div>
-                    <p className="text-xs font-mono text-slate-700 dark:text-slate-300">
-                      {file.ocrText}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Tags: {file.tags.map((t) => `#${t}`).join(' ')}</span>
-                  <span>v{file.version}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

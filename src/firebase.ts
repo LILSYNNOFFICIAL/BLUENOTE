@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider,
   GithubAuthProvider,
   signInWithPopup,
+  signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
@@ -20,9 +21,42 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const CUSTOM_FIREBASE_CONFIG_KEY = 'bluenote_custom_firebase_config_v1';
+
+export function getEffectiveFirebaseConfig() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_FIREBASE_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.apiKey === 'string' && typeof parsed.projectId === 'string') {
+        return {
+          ...firebaseConfig,
+          ...parsed,
+        };
+      }
+    }
+  } catch {
+    // Fallback to default firebaseConfig
+  }
+  return firebaseConfig;
+}
+
+export function saveCustomFirebaseConfig(configJson: string | null) {
+  if (!configJson || !configJson.trim()) {
+    localStorage.removeItem(CUSTOM_FIREBASE_CONFIG_KEY);
+    return;
+  }
+  localStorage.setItem(CUSTOM_FIREBASE_CONFIG_KEY, configJson.trim());
+}
+
+export function hasCustomFirebaseConfig(): boolean {
+  return Boolean(localStorage.getItem(CUSTOM_FIREBASE_CONFIG_KEY));
+}
+
+const activeConfig = getEffectiveFirebaseConfig();
+const app = initializeApp(activeConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(app, activeConfig.firestoreDatabaseId || firebaseConfig.firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
 export const githubProvider = new GithubAuthProvider();
@@ -92,6 +126,7 @@ testFirestoreConnection();
 
 export {
   signInWithPopup,
+  signInAnonymously,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,

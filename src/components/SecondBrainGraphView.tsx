@@ -26,6 +26,9 @@ interface SecondBrainGraphViewProps {
   onRemoveRelationship: (edgeId: string) => void;
   onAddManualRelationship: (sourceTitle: string, targetTitle: string, relType: string) => void;
   onSaveSearch: (name: string, query: string, filterType: string) => void;
+  onAddMemoryFact?: (fact: string) => void;
+  onRemoveMemoryFact?: (index: number) => void;
+  onDeleteSavedSearch?: (id: string) => void;
 }
 
 export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
@@ -36,6 +39,9 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
   onRemoveRelationship,
   onAddManualRelationship,
   onSaveSearch,
+  onAddMemoryFact,
+  onRemoveMemoryFact,
+  onDeleteSavedSearch,
 }) => {
   const [subTab, setSubTab] = useState<'graph' | 'search' | 'timeline'>(initialTab);
   const [query, setQuery] = useState('');
@@ -45,6 +51,7 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
   const [newSrc, setNewSrc] = useState('');
   const [newTgt, setNewTgt] = useState('');
   const [newRel, setNewRel] = useState('Connected To');
+  const [newMemoryFact, setNewMemoryFact] = useState('');
 
   React.useEffect(() => {
     setSubTab(initialTab);
@@ -61,6 +68,51 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
       includeArchived
     );
   }, [query, workspace, filterType, includeArchived]);
+
+  // Dynamically compute real Second Brain insights from user's actual workspace items
+  const liveInsights = useMemo(() => {
+    const insights: { title: string; body: string; tone: 'blue' | 'indigo' | 'emerald' }[] = [];
+
+    const activeTasks = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed');
+    const activeNotes = workspace.notes.filter((n) => !n.deletedAt);
+
+    if (workspace.knowledgeGraph.length > 0) {
+      const topEdge = workspace.knowledgeGraph[0];
+      insights.push({
+        title: 'Active Knowledge Link',
+        body: `"${topEdge.sourceTitle}" (${topEdge.sourceType}) is linked via "${topEdge.relationshipType}" to "${topEdge.targetTitle}" (${topEdge.targetType}).`,
+        tone: 'blue',
+      });
+    }
+
+    if (workspace.projects.length > 0) {
+      const topProj = workspace.projects[0];
+      const linkedTasksCount = activeTasks.filter((t) => t.projectId === topProj.id).length;
+      insights.push({
+        title: 'Project Momentum',
+        body: `"${topProj.name}" is ${topProj.progress}% complete with ${linkedTasksCount} open task(s) scheduled.`,
+        tone: 'indigo',
+      });
+    }
+
+    if (workspace.contacts.length > 0) {
+      const topContact = workspace.contacts[0];
+      const fullName = `${topContact.firstName} ${topContact.lastName}`.trim();
+      insights.push({
+        title: 'CRM Connection',
+        body: `${fullName}${topContact.company ? ` (${topContact.company})` : ''} is indexed in your Second Brain directory.`,
+        tone: 'emerald',
+      });
+    } else if (activeTasks.length > 0 || activeNotes.length > 0) {
+      insights.push({
+        title: 'Workspace Index Ready',
+        body: `Indexing ${activeTasks.length} active task(s) and ${activeNotes.length} smart note(s). Click "Rebuild Graph" anytime to auto-discover cross-item links.`,
+        tone: 'emerald',
+      });
+    }
+
+    return insights;
+  }, [workspace]);
 
   const mapTypeToSection = (t: EntityType): ActiveSection => {
     switch (t) {
@@ -134,16 +186,16 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
-                Knowledge Timeline
+                Knowledge Timeline ({workspace.activityLog.length})
               </button>
             </div>
 
             <button
               onClick={onRebuildGraph}
-              className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1.5"
-              title="Rebuild Knowledge Graph & Semantic Index"
+              className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              title="Scan your tasks, notes, projects, and contacts to auto-discover relationships"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Rebuild Graph
+              <RefreshCw className="w-3.5 h-3.5" /> Auto-Discover Links
             </button>
           </div>
         </div>
@@ -151,7 +203,7 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
         {/* Universal Semantic Search Bar */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-2.5">
-            <div className="flex-1 flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-blue-600 focus-within:bg-white">
+            <div className="flex-1 flex items-center gap-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-blue-600 focus-within:bg-white dark:focus-within:bg-slate-900">
               <Search className="w-4 h-4 text-blue-600 shrink-0" />
               <input
                 type="text"
@@ -160,7 +212,7 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
                   setQuery(e.target.value);
                   if (subTab !== 'search') setSubTab('search');
                 }}
-                placeholder='Search naturally or semantically (try "doctor" to find Dentist Dr. Rostova, "receipt", "insurance", "Sarah")...'
+                placeholder="Search across your tasks, notes, projects, contacts, files & links..."
                 className="w-full bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none"
               />
             </div>
@@ -168,7 +220,7 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold"
+              className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200"
             >
               <option value="all">All Object Types</option>
               <option value="task">Tasks</option>
@@ -190,32 +242,38 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
             )}
           </div>
 
-          {/* Saved Searches Pills */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold text-slate-400">Saved Searches:</span>
-            {workspace.savedSearches.map((ss) => (
-              <button
-                key={ss.id}
-                onClick={() => {
-                  setQuery(ss.query);
-                  setFilterType(ss.filterType);
-                  setSubTab('search');
-                }}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-700 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 transition-colors"
-              >
-                🔍 {ss.name}
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setQuery('doctor');
-                setSubTab('search');
-              }}
-              className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium"
-            >
-              ✨ Try Semantic: "doctor" → Dentist
-            </button>
-          </div>
+          {/* Saved Searches Bar */}
+          {workspace.savedSearches.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold text-slate-400">Saved Searches:</span>
+              {workspace.savedSearches.map((ss) => (
+                <div
+                  key={ss.id}
+                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300"
+                >
+                  <button
+                    onClick={() => {
+                      setQuery(ss.query);
+                      setFilterType(ss.filterType);
+                      setSubTab('search');
+                    }}
+                    className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    🔍 {ss.name}
+                  </button>
+                  {onDeleteSavedSearch && (
+                    <button
+                      onClick={() => onDeleteSavedSearch(ss.id)}
+                      className="text-slate-400 hover:text-red-500 ml-1"
+                      title="Remove saved search"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -330,57 +388,68 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
               </svg>
             </div>
 
-            <div className="space-y-3">
-              {workspace.knowledgeGraph.map((edge) => (
-                <div
-                  key={edge.id}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                >
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      onClick={() =>
-                        onNavigate(mapTypeToSection(edge.sourceType), edge.sourceId)
-                      }
-                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-400 text-xs font-bold text-slate-800 dark:text-slate-100"
-                    >
-                      <span className="text-[10px] uppercase text-blue-600 mr-1.5">
-                        [{edge.sourceType}]
+            {workspace.knowledgeGraph.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  No Knowledge Graph relationships linked yet.
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Link any two items below or click &ldquo;Auto-Discover Links&rdquo; above after adding tasks, notes, projects, or contacts.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {workspace.knowledgeGraph.map((edge) => (
+                  <div
+                    key={edge.id}
+                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <button
+                        onClick={() =>
+                          onNavigate(mapTypeToSection(edge.sourceType), edge.sourceId)
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-400 text-xs font-bold text-slate-800 dark:text-slate-100"
+                      >
+                        <span className="text-[10px] uppercase text-blue-600 mr-1.5">
+                          [{edge.sourceType}]
+                        </span>
+                        {edge.sourceTitle}
+                      </button>
+
+                      <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1">
+                        {edge.relationshipType} <ArrowRight className="w-3 h-3" />
                       </span>
-                      {edge.sourceTitle}
-                    </button>
 
-                    <span className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1">
-                      {edge.relationshipType} <ArrowRight className="w-3 h-3" />
-                    </span>
+                      <button
+                        onClick={() =>
+                          onNavigate(mapTypeToSection(edge.targetType), edge.targetId)
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-400 text-xs font-bold text-slate-800 dark:text-slate-100"
+                      >
+                        <span className="text-[10px] uppercase text-indigo-600 mr-1.5">
+                          [{edge.targetType}]
+                        </span>
+                        {edge.targetTitle}
+                      </button>
+                    </div>
 
-                    <button
-                      onClick={() =>
-                        onNavigate(mapTypeToSection(edge.targetType), edge.targetId)
-                      }
-                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-blue-400 text-xs font-bold text-slate-800 dark:text-slate-100"
-                    >
-                      <span className="text-[10px] uppercase text-indigo-600 mr-1.5">
-                        [{edge.targetType}]
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-mono text-emerald-600">
+                        {edge.confidenceScore}% match
                       </span>
-                      {edge.targetTitle}
-                    </button>
+                      <button
+                        onClick={() => onRemoveRelationship(edge.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600"
+                        title="Remove relationship"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-mono text-emerald-600">
-                      {edge.confidenceScore}% match
-                    </span>
-                    <button
-                      onClick={() => onRemoveRelationship(edge.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-600"
-                      title="Remove relationship"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Add Manual Relationship */}
             <form
@@ -398,25 +467,25 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
                 value={newSrc}
                 onChange={(e) => setNewSrc(e.target.value)}
                 placeholder="Source Item Title..."
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
               />
               <input
                 type="text"
                 value={newRel}
                 onChange={(e) => setNewRel(e.target.value)}
                 placeholder="Relationship..."
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
               />
               <input
                 type="text"
                 value={newTgt}
                 onChange={(e) => setNewTgt(e.target.value)}
                 placeholder="Target Item Title..."
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
               />
               <button
                 type="submit"
-                className="rounded-xl bg-blue-600 text-white text-xs font-semibold py-1.5 flex items-center justify-center gap-1"
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-1.5 flex items-center justify-center gap-1 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Link Items
               </button>
@@ -430,30 +499,80 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
                 <Sparkles className="w-4 h-4 text-blue-600" />
                 Second Brain Insights
               </h3>
-              <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
-                <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-slate-800 border border-blue-100 dark:border-slate-700">
-                  <strong>Cross-Project Link:</strong> Your <em>Home Depot Roof Receipt</em> is connected to both <strong>Home Renovation</strong> and <strong>Quarterly Taxes</strong> (30% energy credit).
+              {liveInsights.length === 0 ? (
+                <p className="text-xs text-slate-400">
+                  Add tasks, notes, projects, or contacts to generate live cross-workspace insights.
+                </p>
+              ) : (
+                <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+                  {liveInsights.map((ins, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl bg-blue-50/60 dark:bg-slate-800 border border-blue-100 dark:border-slate-700"
+                    >
+                      <strong>{ins.title}:</strong> {ins.body}
+                    </div>
+                  ))}
                 </div>
-                <div className="p-3 rounded-xl bg-indigo-50/60 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700">
-                  <strong>Frequent Collaborator:</strong> You have mentioned <strong>Sarah Chen</strong> across 3 notes, tasks, and calendar meetings this week.
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Learned AI Memory Preferences
               </h3>
-              <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                {workspace.settings.learnedMemoryFacts.map((fact, i) => (
-                  <li
-                    key={i}
-                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800"
+              {workspace.settings.learnedMemoryFacts.length === 0 ? (
+                <p className="text-xs text-slate-400">
+                  No personal memory preferences stored yet. Add facts you want BlueNote AI to remember across sessions.
+                </p>
+              ) : (
+                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                  {workspace.settings.learnedMemoryFacts.map((fact, i) => (
+                    <li
+                      key={i}
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2"
+                    >
+                      <span>• {fact}</span>
+                      {onRemoveMemoryFact && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMemoryFact(i)}
+                          className="text-slate-400 hover:text-red-500 shrink-0"
+                          title="Remove memory fact"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {onAddMemoryFact && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newMemoryFact.trim()) return;
+                    onAddMemoryFact(newMemoryFact.trim());
+                    setNewMemoryFact('');
+                  }}
+                  className="flex items-center gap-2 pt-2"
+                >
+                  <input
+                    type="text"
+                    value={newMemoryFact}
+                    onChange={(e) => setNewMemoryFact(e.target.value)}
+                    placeholder="Add AI memory preference..."
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0"
                   >
-                    • {fact}
-                  </li>
-                ))}
-              </ul>
+                    Add
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -466,7 +585,7 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               Search Results ({searchHits.length})
             </h2>
-            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={includeArchived}
@@ -477,66 +596,82 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
             </label>
           </div>
 
-          <div className="space-y-2.5">
-            {searchHits.map((hit) => (
-              <button
-                key={`${hit.type}-${hit.id}`}
-                onClick={() => onNavigate(mapTypeToSection(hit.type), hit.id)}
-                className="w-full text-left p-4 rounded-xl bg-slate-50 hover:bg-blue-50/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 transition-colors"
-              >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-600 text-white">
-                      {hit.type}
-                    </span>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
-                      {hit.title}
-                    </span>
-                    <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                      {hit.matchedVia}
-                    </span>
+          {searchHits.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
+              <p className="text-xs font-medium text-slate-500">
+                {query.trim()
+                  ? `No items matched "${query}". Try a broader term or different object filter.`
+                  : 'Your workspace index is empty. Add tasks, notes, projects, contacts, or links to search them here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {searchHits.map((hit) => (
+                <button
+                  key={`${hit.type}-${hit.id}`}
+                  onClick={() => onNavigate(mapTypeToSection(hit.type), hit.id)}
+                  className="w-full text-left p-4 rounded-xl bg-slate-50 hover:bg-blue-50/50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-4 transition-colors"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-600 text-white">
+                        {hit.type}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">
+                        {hit.title}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded">
+                        {hit.matchedVia}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500">{hit.subtitle}</div>
+                    {hit.snippet && (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                        {hit.snippet}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-xs text-slate-500">{hit.subtitle}</div>
-                  {hit.snippet && (
-                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
-                      {hit.snippet}
-                    </p>
-                  )}
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
-              </button>
-            ))}
-          </div>
+                  <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 3: CHRONOLOGICAL KNOWLEDGE TIMELINE (Addendum C & O) */}
+      {/* TAB 3: CHRONOLOGICAL KNOWLEDGE TIMELINE */}
       {subTab === 'timeline' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">
           <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-600" />
             Chronological Second Brain Timeline
           </h2>
-          <div className="relative pl-6 border-l-2 border-blue-200 dark:border-slate-700 space-y-4">
-            {workspace.activityLog.map((act) => (
-              <div key={act.id} className="relative">
-                <div className="absolute -left-[29px] top-1.5 w-3 h-3 rounded-full bg-blue-600 ring-4 ring-white dark:ring-slate-900" />
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
-                      {act.action}
-                    </span>
-                    <span className="text-xs text-blue-600 font-medium ml-2">
-                      — {act.entityTitle}
+          {workspace.activityLog.length === 0 ? (
+            <p className="text-xs text-slate-400 py-4">
+              No workspace activity logged yet. As you capture tasks, notes, and files, your chronological history will appear here.
+            </p>
+          ) : (
+            <div className="relative pl-6 border-l-2 border-blue-200 dark:border-slate-700 space-y-4">
+              {workspace.activityLog.map((act) => (
+                <div key={act.id} className="relative">
+                  <div className="absolute -left-[29px] top-1.5 w-3 h-3 rounded-full bg-blue-600 ring-4 ring-white dark:ring-slate-900" />
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                        {act.action}
+                      </span>
+                      <span className="text-xs text-blue-600 font-medium ml-2">
+                        — {act.entityTitle}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {new Date(act.timestamp).toLocaleString()}
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {new Date(act.timestamp).toLocaleString()}
-                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
