@@ -633,7 +633,7 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shrink-0 transition-all"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Free AI & API Keys Setup</span>
+            <span>AI Engine Status</span>
           </button>
         )}
       </div>

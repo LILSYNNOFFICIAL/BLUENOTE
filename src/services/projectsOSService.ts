@@ -893,15 +893,13 @@ export function searchProjectKnowledge(params: {
 }
 
 /**
- * Topic-driven multi-document merge.
- *
- * This is intentionally local-first: it does not require an API key or send
- * project documents to a cloud model. It scores document blocks against the
- * user's topic and preserves source provenance in the merged Markdown.
+ * Topic-Focused Multi-Document Merger & Deduplicator
+ * Scans all uploaded project documents for a requested topic/theme (or merges all if general),
+ * extracts matching paragraphs/sections, removes duplicate passages, and outputs a clean Markdown compilation.
  */
 export function mergeProjectDocumentsByTopic(
   documents: ProjectDocument[],
-  topic: string
+  topicInstruction?: string
 ): {
   title: string;
   markdownContent: string;
@@ -909,129 +907,181 @@ export function mergeProjectDocumentsByTopic(
   sectionsFound: number;
   duplicatesRemoved: number;
 } {
-  const rawTopic = topic.trim();
-  if (!rawTopic) {
-    return organizeProjectDocumentsWithAI(documents, 'Merge all uploaded documents');
-  }
+  const cleanInstruction = (topicInstruction || '').trim();
+  const stopWords = new Set([
+    'look',
+    'through',
+    'all',
+    'uploaded',
+    'documents',
+    'pull',
+    'out',
+    'group',
+    'related',
+    'sections',
+    'remove',
+    'duplicates',
+    'and',
+    'organize',
+    'everything',
+    'into',
+    'clean',
+    'markdown',
+    'file',
+    'merge',
+    'combine',
+    'about',
+    'the',
+    'from',
+    'with',
+    'that',
+    'this',
+    'for',
+  ]);
 
-  const normalize = (value: string) =>
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9\\s]/g, ' ')
-      .replace(/\\s+/g, ' ')
-      .trim();
+  const keywords = cleanInstruction
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !stopWords.has(w));
 
-  const tokens = normalize(rawTopic)
-    .split(' ')
-    .filter((token) => token.length > 2);
+  const seenNormalized = new Set<string>();
+  let duplicatesRemoved = 0;
+  let sectionsFound = 0;
+  const matchedSources = new Set<string>();
 
-  const expanded = new Set(tokens);
-  tokens.forEach((token) => {
-    const mapped = CONCEPTUAL_SEMANTIC_MAP[token];
-    mapped?.forEach((term) => expanded.add(normalize(term)));
-    if (token.endsWith('ing') && token.length > 5) expanded.add(token.slice(0, -3));
-    if (token.endsWith('er') && token.length > 4) expanded.add(token.slice(0, -2));
-    if (token.endsWith('s') && token.length > 4) expanded.add(token.slice(0, -1));
-  });
-
-  // Common structural terms make requests such as "lyrics" useful even when
-  // the exact word is absent from a section.
-  if (/\\blyrics?\\b/i.test(rawTopic)) {
-    ['verse', 'chorus', 'pre chorus', 'bridge', 'intro', 'outro', 'hook', 'lyrics'].forEach((x) =>
-      expanded.add(x)
-    );
-  }
-
-  const selected: {
+  const groupedByDoc: {
     filename: string;
-    block: string;
-    score: number;
+    contentType: string;
+    passages: string[];
   }[] = [];
 
   documents.forEach((doc) => {
-    const filename = normalize(doc.filename);
-    const blocks = doc.finalContent
-      .split(/\\n\\s*\\n/)
-      .map((block) => block.trim())
-      .filter((block) => block.length >= 12);
+    const blocks = doc.finalContent.split(/\n\s*\n/);
+    const docContentType = doc.contentType || 'General';
+    const docMatchesTopic =
+      keywords.length === 0 ||
+      keywords.some(
+        (kw) =>
+          doc.filename.toLowerCase().includes(kw) ||
+          doc.tags.some((t) => t.toLowerCase().includes(kw)) ||
+          docContentType.toLowerCase().includes(kw)
+      );
+
+    const keptPassages: string[] = [];
 
     blocks.forEach((block) => {
-      const text = normalize(block);
-      let score = 0;
+      const trimmed = block.trim();
+      if (!trimmed) return;
 
-      if (filename.includes(normalize(rawTopic))) score += 45;
-      if (text.includes(normalize(rawTopic))) score += 60;
+      const lowerBlock = trimmed.toLowerCase();
+      const blockMatches =
+        docMatchesTopic || keywords.some((kw) => lowerBlock.includes(kw));
 
-      expanded.forEach((term) => {
-        if (term.length > 2 && text.includes(term)) score += 12;
-      });
+      if (!blockMatches) return;
 
-      const matchedTokens = tokens.filter((token) => text.includes(token)).length;
-      score += matchedTokens * 8;
+      const norm = lowerBlock
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-      if (score >= 24) {
-        selected.push({ filename: doc.filename, block, score });
+      if (norm.length < 6) return;
+      if (seenNormalized.has(norm)) {
+        duplicatesRemoved++;
+        return;
       }
+      seenNormalized.add(norm);
+      sectionsFound++;
+      keptPassages.push(trimmed);
     });
-  });
 
-  selected.sort((a, b) => b.score - a.score);
-
-  const seen = new Set<string>();
-  const deduped = selected.filter((item) => {
-    const key = normalize(item.block);
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  const grouped = new Map<string, typeof deduped>();
-  deduped.forEach((item) => {
-    const existing = grouped.get(item.filename) || [];
-    existing.push(item);
-    grouped.set(item.filename, existing);
-  });
-
-  const safeTitle = rawTopic
-    .replace(/[^a-z0-9\\s_-]/gi, '')
-    .trim()
-    .replace(/\\s+/g, '_')
-    .slice(0, 50) || 'Topic';
-
-  const lines = [
-    '# BlueNote Topic Merge',
-    '',
-    `> **Topic:** ${rawTopic}`,
-    `> **Source documents:** ${documents.length}`,
-    `> **Relevant sections:** ${deduped.length}`,
-    `> **Duplicate passages removed:** ${selected.length - deduped.length}`,
-    '',
-    '---',
-    '',
-  ];
-
-  if (deduped.length === 0) {
-    lines.push(
-      `No sufficiently relevant passages were found for **"${rawTopic}"**. Try a broader topic such as "roof", "contractor", "lyrics", or "taxes".`
-    );
-  } else {
-    let sectionNumber = 0;
-    grouped.forEach((items, filename) => {
-      sectionNumber += 1;
-      lines.push(`## ${sectionNumber}. ${filename}`, '');
-      items.forEach((item) => {
-        lines.push(item.block, '');
+    // Fallback: if keyword filter was too strict and matched nothing in any doc, we'll handle below
+    if (keptPassages.length > 0) {
+      matchedSources.add(doc.filename);
+      groupedByDoc.push({
+        filename: doc.filename,
+        contentType: docContentType,
+        passages: keptPassages,
       });
-      lines.push('---', '');
+    }
+  });
+
+  // If specific keywords yielded 0 matches across all docs, include all non-duplicate blocks
+  if (groupedByDoc.length === 0 && documents.length > 0) {
+    documents.forEach((doc) => {
+      const blocks = doc.finalContent.split(/\n\s*\n/);
+      const keptPassages: string[] = [];
+      blocks.forEach((block) => {
+        const trimmed = block.trim();
+        if (!trimmed) return;
+        const norm = trimmed
+          .toLowerCase()
+          .replace(/[^\w\s]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (norm.length < 6) return;
+        if (seenNormalized.has(norm)) {
+          duplicatesRemoved++;
+          return;
+        }
+        seenNormalized.add(norm);
+        sectionsFound++;
+        keptPassages.push(trimmed);
+      });
+      if (keptPassages.length > 0) {
+        matchedSources.add(doc.filename);
+        groupedByDoc.push({
+          filename: doc.filename,
+          contentType: doc.contentType || 'General',
+          passages: keptPassages,
+        });
+      }
     });
   }
 
+  const nowDate = new Date().toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const safeSlug =
+    keywords.length > 0
+      ? keywords
+          .slice(0, 3)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join('_')
+      : 'Project_Documents';
+  const outputTitle = `Merged_${safeSlug}.md`;
+  const sourceFiles = Array.from(matchedSources);
+
+  const mdParts: string[] = [
+    `# ${outputTitle}`,
+    `> **AI Multi-Document Topic Compilation** • Generated ${nowDate}`,
+    cleanInstruction ? `> **Topic / Directive**: "${cleanInstruction}"` : '',
+    `> **Sources Merged (${sourceFiles.length})**: ${sourceFiles.join(', ') || 'None'}`,
+    `> **Deduplication**: ${sectionsFound} unique sections preserved • ${duplicatesRemoved} duplicate passages removed`,
+    '',
+    '---',
+    '',
+  ].filter(Boolean);
+
+  groupedByDoc.forEach((group, idx) => {
+    mdParts.push(`## ${idx + 1}. ${group.filename} (${group.contentType})`);
+    mdParts.push('');
+    group.passages.forEach((p) => {
+      mdParts.push(p);
+      mdParts.push('');
+    });
+    mdParts.push('---\n');
+  });
+
   return {
-    title: `Merged_${safeTitle}.md`,
-    markdownContent: lines.join('\\n'),
-    sourceFiles: Array.from(new Set(deduped.map((item) => item.filename))),
-    sectionsFound: deduped.length,
-    duplicatesRemoved: selected.length - deduped.length,
+    title: outputTitle,
+    markdownContent: mdParts.join('\n'),
+    sourceFiles,
+    sectionsFound,
+    duplicatesRemoved,
   };
 }
 
@@ -1044,29 +1094,19 @@ export function organizeProjectDocumentsWithAI(
   documents: ProjectDocument[],
   customInstruction?: string
 ): {
-  // If the user supplied a topic-focused instruction, use the local topic
-  // merger instead of pretending a generic instruction was AI-understood.
-  // This keeps the workflow keyless and preserves source provenance.
-  if (customInstruction && !/\\blyrics?\\b/i.test(customInstruction)) {
-    const topicMatch = customInstruction.match(
-      /(?:about|regarding|related to|focused on|for|on)\\s+["']?([^.,;:]+)["']?/i
-    );
-    const requestedTopic = topicMatch?.[1]?.trim() || customInstruction
-      .replace(/^(look through|search|find|pull out|give me|merge|combine|organize)\\s+/i, '')
-      .trim();
-
-    if (requestedTopic && requestedTopic.length >= 3) {
-      return mergeProjectDocumentsByTopic(documents, requestedTopic);
-    }
-  }
-
-
   title: string;
   markdownContent: string;
   sourceFiles: string[];
   sectionsFound: number;
   duplicatesRemoved: number;
 } {
+  if (
+    customInstruction &&
+    customInstruction.trim().length > 0 &&
+    !/\b(lyric|lyrics|song|songs|chorus|verse)\b/i.test(customInstruction)
+  ) {
+    return mergeProjectDocumentsByTopic(documents, customInstruction);
+  }
   const sourceFiles = documents.map((d) => d.filename);
   const seenNormalizedLines = new Set<string>();
   let duplicatesRemoved = 0;

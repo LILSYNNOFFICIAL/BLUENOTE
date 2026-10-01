@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+release-assets/
 android/app/src/main/assets/public/
 android/.gradle/
 android/app/build/
@@ -8,6 +9,22 @@ coverage/
 .DS_Store
 *.log
 bun.lock
-.env*
+
+# Environment files & secrets (NEVER commit real credentials)
+.env
+.env.local
+.env.development
+.env.production
+.env.*
 !.env.example
 
+# OAuth & Service Account credential files
+client_secret*.json
+*client_secret*.json
+service-account*.json
+*credentials*.json
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore

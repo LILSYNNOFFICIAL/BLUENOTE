@@ -62,8 +62,8 @@ import {
   detectPhotoAlbumDuplicates,
   formatBytes,
   generateStandalonePhotoAlbumHTML,
-  organizeProjectDocumentsWithAI,
   mergeProjectDocumentsByTopic,
+  organizeProjectDocumentsWithAI,
   searchProjectKnowledge,
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
@@ -157,7 +157,9 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   const [customOrganizePrompt, setCustomOrganizePrompt] = useState(
     'Look through all uploaded documents, pull out all song lyrics, group related sections, remove duplicates, and organize everything into a clean markdown file.'
   );
-  const [projectMergeTopic, setProjectMergeTopic] = useState('');
+  const [projectMergeTopic, setProjectMergeTopic] = useState(
+    'Merge all documents about album release planning, marketing, or production notes'
+  );
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('songs about losing someone');
@@ -2247,6 +2249,35 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
             </button>
           </div>
 
+          {/* Topic-Focused Multi-Document Merger Bar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={projectMergeTopic}
+              onChange={(e) => setProjectMergeTopic(e.target.value)}
+              placeholder="Enter any topic or theme to merge across all uploaded documents..."
+              className="flex-1 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs"
+            />
+            <button
+              onClick={() => {
+                const merged = mergeProjectDocumentsByTopic(
+                  project.documents,
+                  projectMergeTopic
+                );
+                triggerSandboxProposal(
+                  merged.title,
+                  'Topic-Focused Merge',
+                  merged.markdownContent,
+                  merged.sourceFiles,
+                  `Merged ${merged.sectionsFound} topic-matched sections across ${merged.sourceFiles.length} documents (${merged.duplicatesRemoved} duplicates removed).`
+                );
+              }}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Layers className="w-4 h-4" /> Merge Documents by Topic
+            </button>
+          </div>
+
           {/* 10 Action Buttons from Section 25 */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {[
@@ -2282,15 +2313,16 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
               {
                 label: 'Merge Documents',
                 run: () => {
-                  const merged = project.documents
-                    .map((d) => `## ${d.filename}\n\n${d.finalContent}`)
-                    .join('\n\n---\n\n');
+                  const merged = mergeProjectDocumentsByTopic(
+                    project.documents,
+                    projectMergeTopic
+                  );
                   triggerSandboxProposal(
-                    'Merged_Project_Compilation.md',
+                    merged.title,
                     'Merge Documents',
-                    `# ${project.name} — Merged Compilation\n\n${merged}`,
-                    project.documents.map((d) => d.filename),
-                    `Combined ${project.documents.length} documents with non-destructive preservation.`
+                    merged.markdownContent,
+                    merged.sourceFiles,
+                    `Combined ${merged.sectionsFound} sections across ${merged.sourceFiles.length} documents (${merged.duplicatesRemoved} duplicates removed).`
                   );
                 },
               },

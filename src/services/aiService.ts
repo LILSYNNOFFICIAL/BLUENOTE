@@ -623,49 +623,28 @@ export async function performOCRAndExtract(
   extractedItems: BrainDumpExtractedItem[];
 }> {
   const lowerName = filename.toLowerCase();
-  const cfg = getAIConfig();
 
-  // If an image is uploaded and Gemini API key is configured, perform multimodal Vision OCR
-  if (imageDataUrl && imageDataUrl.includes('base64,') && cfg.geminiApiKey.trim()) {
+  // If an image is uploaded, try server-side Vision OCR (/api/ai/chat) first
+  if (imageDataUrl && imageDataUrl.includes('base64,')) {
     try {
-      const [header, base64Data] = imageDataUrl.split('base64,');
-      const mimeMatch = header.match(/data:(.*?);/);
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-          cfg.geminiApiKey.trim()
-        )}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  { inlineData: { mimeType, data: base64Data } },
-                  {
-                    text: `Perform OCR on this image (${filename}). Extract all visible text verbatim, and provide a 1-sentence summary.${
-                      customTextHint ? ` Additional user note: ${customTextHint}` : ''
-                    }`,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+      const resp = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `Perform OCR on this image (${filename}). Extract all visible text verbatim, and provide a 1-sentence summary.${
+            customTextHint ? ` Additional user note: ${customTextHint}` : ''
+          }`,
+          imageDataUrl,
+        }),
+      });
       if (resp.ok) {
         const data = await resp.json();
-        const extractedText = (data?.candidates?.[0]?.content?.parts || [])
-          .map((p: any) => p.text || '')
-          .join('\n')
-          .trim();
+        const extractedText = String(data?.text || '').trim();
         if (extractedText) {
           const items = await processBrainDumpInput(extractedText, workspace);
           return {
             ocrText: extractedText,
-            summary: `Gemini Vision OCR extracted ${items.length} actionable item(s) from "${filename}".`,
+            summary: `Vision OCR extracted ${items.length} actionable item(s) from "${filename}".`,
             documentCategory: lowerName.includes('card')
               ? 'Business Card'
               : lowerName.includes('receipt') || lowerName.includes('invoice')
@@ -676,7 +655,7 @@ export async function performOCRAndExtract(
         }
       }
     } catch {
-      // Fall through
+      // Fall through to local OCR extraction
     }
   }
 
@@ -786,7 +765,6 @@ export async function askBlueNoteAI(
 
   // Try Server-Side Gemini API (/api/ai/chat) if available
   try {
-    const aiCfg = getAIConfig();
     const resp = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -796,7 +774,6 @@ export async function askBlueNoteAI(
         useSearchGrounding: options?.useSearchGrounding,
         useMapsGrounding: options?.useMapsGrounding,
         latLng: options?.latLng,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
       }),
     });
     if (resp.ok) {
@@ -910,13 +887,11 @@ export async function summarizeContent(
   } catch {}
 
   try {
-    const aiCfg = getAIConfig();
     const resp = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt: `Summarize the following note titled "${title}" in a ${length} format:\n\n${content}`,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
       }),
     });
     if (resp.ok) {
@@ -948,308 +923,91 @@ export async function summarizeContent(
 // 5. Hugging Face Free Inference API (hf_... — FLUX.1-schnell & Qwen/Mistral)
 // ============================================================================
 
-export type AIProviderPreference =
-  | 'free-cloud'
-  | 'groq'
-  | 'gemini'
-  | 'openrouter'
-  | 'huggingface';
+export type AIProviderPreference = 'free-cloud' | 'server-managed';
 
 export interface UserAIConfig {
   preferredProvider: AIProviderPreference;
-  groqApiKey: string;
-  geminiApiKey: string;
-  openRouterApiKey: string;
-  huggingFaceToken: string;
-  openRouterModel: string;
   hasSeenKeyPrompt: boolean;
 }
 
-const AI_CONFIG_STORAGE_KEY = 'bluenote_ai_provider_config_v1';
-
 export const DEFAULT_AI_CONFIG: UserAIConfig = {
   preferredProvider: 'free-cloud',
-  groqApiKey: '',
-  geminiApiKey: '',
-  openRouterApiKey: '',
-  huggingFaceToken: '',
-  openRouterModel: 'meta-llama/llama-3.3-70b-instruct:free',
-  hasSeenKeyPrompt: false,
+  hasSeenKeyPrompt: true,
 };
 
 export function getAIConfig(): UserAIConfig {
-  try {
-    const raw = localStorage.getItem(AI_CONFIG_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULT_AI_CONFIG,
-        ...parsed,
-      };
-    }
-  } catch {}
   return { ...DEFAULT_AI_CONFIG };
 }
 
 export function saveAIConfig(updates: Partial<UserAIConfig>): UserAIConfig {
-  const next: UserAIConfig = {
-    ...getAIConfig(),
+  return {
+    ...DEFAULT_AI_CONFIG,
     ...updates,
   };
-  try {
-    localStorage.setItem(AI_CONFIG_STORAGE_KEY, JSON.stringify(next));
-  } catch {}
-  return next;
 }
 
-export function hasAnyCustomApiKey(cfg?: UserAIConfig): boolean {
-  const c = cfg || getAIConfig();
-  return Boolean(
-    c.groqApiKey.trim() ||
-      c.geminiApiKey.trim() ||
-      c.openRouterApiKey.trim() ||
-      c.huggingFaceToken.trim()
-  );
+export function hasAnyCustomApiKey(_cfg?: UserAIConfig): boolean {
+  return false;
 }
 
-export function getActiveAIProviderBadge(cfg?: UserAIConfig): string {
-  const c = cfg || getAIConfig();
-  if (c.preferredProvider === 'groq' && c.groqApiKey.trim()) return 'Groq Free API (Llama 3.3 70B)';
-  if (c.preferredProvider === 'gemini' && c.geminiApiKey.trim()) return 'Gemini Free API Key';
-  if (c.preferredProvider === 'openrouter' && c.openRouterApiKey.trim()) return 'OpenRouter Free Models';
-  if (c.preferredProvider === 'huggingface' && c.huggingFaceToken.trim()) return 'Hugging Face Free API';
-  if (c.groqApiKey.trim()) return 'Groq Free API (Llama 3.3 70B)';
-  if (c.geminiApiKey.trim()) return 'Gemini Free API Key';
-  if (c.openRouterApiKey.trim()) return 'OpenRouter Free Models';
-  if (c.huggingFaceToken.trim()) return 'Hugging Face Free API';
-  return '100% Free Cloud AI (No Key Needed)';
-}
-
-function getEnvGeminiKey(): string {
-  try {
-    const cfg = getAIConfig();
-    if (cfg.geminiApiKey && cfg.geminiApiKey.trim()) {
-      return cfg.geminiApiKey.trim();
-    }
-  } catch {}
-  try {
-    const viteKey = (import.meta as any)?.env?.VITE_GEMINI_API_KEY;
-    if (viteKey && viteKey !== 'MY_GEMINI_API_KEY') return String(viteKey).trim();
-  } catch {}
-  try {
-    const procKey = (process as any)?.env?.GEMINI_API_KEY;
-    if (procKey && procKey !== 'MY_GEMINI_API_KEY') return String(procKey).trim();
-  } catch {}
-  return '';
+export function getActiveAIProviderBadge(_cfg?: UserAIConfig): string {
+  return 'Built-In Cloud & On-Device AI';
 }
 
 export async function callConfiguredOrFreeTextAI(
   prompt: string,
   systemInstruction = 'You are BlueNote AI, a helpful, concise executive assistant.'
 ): Promise<{ text: string; modelUsed: string } | null> {
-  const cfg = getAIConfig();
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
 
-  // Helper 1: Groq Cloud API (100% Free Tier - Llama 3.3 70B)
-  const tryGroq = async (): Promise<{ text: string; modelUsed: string } | null> => {
-    const key = cfg.groqApiKey.trim();
-    if (!key) return null;
-    try {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.6,
-          max_tokens: 1024,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data?.choices?.[0]?.message?.content?.trim();
-        if (text) return { text, modelUsed: 'Groq • llama-3.3-70b-versatile (Free API)' };
+  // Tier 1: Server-managed AI proxy (/api/ai/chat) — all credentials remain strictly server-side
+  try {
+    const proxyResp = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+      }),
+    });
+    if (proxyResp.ok) {
+      const proxyData = await proxyResp.json();
+      if (proxyData?.text) {
+        return {
+          text: String(proxyData.text).trim(),
+          modelUsed: proxyData.modelUsed || 'BlueNote Server AI',
+        };
       }
-    } catch {}
-    return null;
-  };
+    }
+  } catch {}
 
-  // Helper 2: OpenRouter Free Models (:free)
-  const tryOpenRouter = async (): Promise<{ text: string; modelUsed: string } | null> => {
-    const key = cfg.openRouterApiKey.trim();
-    if (!key) return null;
-    const model = cfg.openRouterModel || 'meta-llama/llama-3.3-70b-instruct:free';
-    try {
-      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
-          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://bluenote.app',
-          'X-Title': 'BlueNote AI Second Brain',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: prompt },
-          ],
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data?.choices?.[0]?.message?.content?.trim();
-        if (text) return { text, modelUsed: `OpenRouter • ${model}` };
+  // Tier 2: Zero-key open cloud inference fallback for static/offline deployments
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7500);
+    const resp = await fetch('https://text.pollinations.ai/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: 'openai',
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const data = await resp.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      if (text) {
+        return { text, modelUsed: 'BlueNote Cloud AI' };
       }
-    } catch {}
-    return null;
-  };
+    }
+  } catch {}
 
-  // Helper 3: Google Gemini Free Tier API Key (direct or via server)
-  const tryGemini = async (): Promise<{ text: string; modelUsed: string } | null> => {
-    const key = getEnvGeminiKey();
-    if (!key) return null;
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-          key
-        )}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          }),
-        }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data?.candidates?.[0]?.content?.parts
-          ?.map((p: any) => p.text || '')
-          .join('')
-          .trim();
-        if (text) return { text, modelUsed: 'Google Gemini 2.5 Flash (Free API)' };
-      }
-    } catch {}
-    return null;
-  };
-
-  // Helper 4: Hugging Face Free Inference API
-  const tryHuggingFace = async (): Promise<{ text: string; modelUsed: string } | null> => {
-    const token = cfg.huggingFaceToken.trim();
-    if (!token) return null;
-    try {
-      const resp = await fetch(
-        'https://router.huggingface.co/hf-inference/models/Qwen/Qwen2.5-72B-Instruct/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            model: 'Qwen/Qwen2.5-72B-Instruct',
-            messages: [
-              { role: 'system', content: systemInstruction },
-              { role: 'user', content: prompt },
-            ],
-            max_tokens: 800,
-          }),
-        }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data?.choices?.[0]?.message?.content?.trim();
-        if (text) return { text, modelUsed: 'Hugging Face • Qwen2.5-72B (Free API)' };
-      }
-    } catch {}
-    return null;
-  };
-
-  // Helper 5: 100% Free Keyless Cloud AI (Server-proxied first, then direct Pollinations OpenAI endpoint — Zero API Key required!)
-  const tryFreeCloudAI = async (): Promise<{ text: string; modelUsed: string } | null> => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
-    try {
-      const proxyResp = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          systemInstruction,
-          geminiApiKey: cfg.geminiApiKey.trim() || undefined,
-          groqApiKey: cfg.groqApiKey.trim() || undefined,
-          openRouterApiKey: cfg.openRouterApiKey.trim() || undefined,
-        }),
-      });
-      if (proxyResp.ok) {
-        const proxyData = await proxyResp.json();
-        if (proxyData?.text) {
-          return {
-            text: String(proxyData.text).trim(),
-            modelUsed: proxyData.modelUsed || 'Free Cloud AI (No API Key Required)',
-          };
-        }
-      }
-    } catch {}
-
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7500);
-      const resp = await fetch('https://text.pollinations.ai/openai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: 'openai',
-          messages: [
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: prompt },
-          ],
-        }),
-      });
-      clearTimeout(timer);
-      if (resp.ok) {
-        const data = await resp.json();
-        const text = data?.choices?.[0]?.message?.content?.trim();
-        if (text) {
-          return { text, modelUsed: 'Free Cloud AI (No API Key Required)' };
-        }
-      }
-    } catch {}
-    return null;
-  };
-
-  // Prioritize user's selected provider first, then any configured key, then 100% Free Cloud AI
-  if (cfg.preferredProvider === 'groq') {
-    const r = await tryGroq();
-    if (r) return r;
-  } else if (cfg.preferredProvider === 'openrouter') {
-    const r = await tryOpenRouter();
-    if (r) return r;
-  } else if (cfg.preferredProvider === 'gemini') {
-    const r = await tryGemini();
-    if (r) return r;
-  } else if (cfg.preferredProvider === 'huggingface') {
-    const r = await tryHuggingFace();
-    if (r) return r;
-  } else if (cfg.preferredProvider === 'free-cloud') {
-    const r = await tryFreeCloudAI();
-    if (r) return r;
-  }
-
-  return (
-    (await tryGroq()) ||
-    (await tryGemini()) ||
-    (await tryOpenRouter()) ||
-    (await tryHuggingFace()) ||
-    (await tryFreeCloudAI())
-  );
+  return null;
 }
 
 export async function testAIProviderConnection(): Promise<{
@@ -1257,36 +1015,6 @@ export async function testAIProviderConnection(): Promise<{
   provider: string;
   message: string;
 }> {
-  const cfg = getAIConfig();
-  if (cfg.preferredProvider === 'groq' && !cfg.groqApiKey.trim()) {
-    return {
-      ok: false,
-      provider: 'Groq Cloud API',
-      message: 'Please paste your free Groq API key (starting with gsk_...) or switch to 100% Free AI.',
-    };
-  }
-  if (cfg.preferredProvider === 'gemini' && !cfg.geminiApiKey.trim()) {
-    return {
-      ok: false,
-      provider: 'Google Gemini API',
-      message: 'Please paste your free Google Gemini API key (starting with AIzaSy...) or switch to 100% Free AI.',
-    };
-  }
-  if (cfg.preferredProvider === 'openrouter' && !cfg.openRouterApiKey.trim()) {
-    return {
-      ok: false,
-      provider: 'OpenRouter Free Models',
-      message: 'Please paste your free OpenRouter API key (starting with sk-or-v1-...) or switch to 100% Free AI.',
-    };
-  }
-  if (cfg.preferredProvider === 'huggingface' && !cfg.huggingFaceToken.trim()) {
-    return {
-      ok: false,
-      provider: 'Hugging Face Free API',
-      message: 'Please paste your free Hugging Face token (starting with hf_...) or switch to 100% Free AI.',
-    };
-  }
-
   const res = await callConfiguredOrFreeTextAI(
     'Reply with a single short sentence confirming that BlueNote AI is connected and ready.',
     'You are BlueNote AI.'
@@ -1300,8 +1028,8 @@ export async function testAIProviderConnection(): Promise<{
   }
   return {
     ok: true,
-    provider: 'BlueNote On-Device Neural Engine (Offline / Zero-Key Ready)',
-    message: 'On-device AI engine is active and ready with zero external keys required.',
+    provider: 'BlueNote On-Device Neural Engine',
+    message: 'Built-in AI engine is active and ready.',
   };
 }
 
@@ -2382,44 +2110,6 @@ export async function generateOrEditImage(params: {
     'Majestic bluebird perched on a blossoming branch at golden hour, ultra detailed';
   const visualPrompt = cleanImagePromptSubject(rawPrompt);
   const { width, height } = getAspectDimensions(params.aspectRatio || '16:9');
-  const aiCfg = getAIConfig();
-
-  // Tier 0: If user provided a Free Hugging Face API Token, try FLUX.1-schnell directly
-  if (!params.base64Image && aiCfg.huggingFaceToken.trim()) {
-    try {
-      const hfResp = await fetch(
-        'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${aiCfg.huggingFaceToken.trim()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputs: `${visualPrompt}, ultra-crisp 8k UHD, razor-sharp focus, high detail, masterpiece`,
-          }),
-        }
-      );
-      if (hfResp.ok) {
-        const blob = await hfResp.blob();
-        if (blob.size > 2048) {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(String(reader.result || ''));
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          if (dataUrl.startsWith('data:image')) {
-            return {
-              imageUrl: dataUrl,
-              caption: `Generated with Hugging Face FLUX.1-schnell (${width}×${height}) — "${rawPrompt}"`,
-              model: 'FLUX.1-schnell (Hugging Face Free API)',
-            };
-          }
-        }
-      }
-    } catch {}
-  }
 
   // Tier 1: Server-Side Multi-Engine Endpoint (/api/ai/image) — proxies FLUX.1-schnell, FLUX.1-Merged, Gemini, Openverse & Wikimedia!
   try {
@@ -2431,8 +2121,6 @@ export async function generateOrEditImage(params: {
         aspectRatio: params.aspectRatio || '16:9',
         base64Image: params.base64Image,
         mimeType: params.mimeType,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
-        userHfToken: aiCfg.huggingFaceToken || undefined,
       }),
     });
     if (resp.ok) {
@@ -2721,7 +2409,6 @@ export async function transcribeAudioWithGemini(
     typeof input === 'string'
       ? optionalMimeType || 'audio/webm'
       : input.mimeType || 'audio/webm';
-  const aiCfg = getAIConfig();
 
   if (base64Audio) {
     try {
@@ -2731,7 +2418,6 @@ export async function transcribeAudioWithGemini(
         body: JSON.stringify({
           base64Audio,
           mimeType,
-          userGeminiKey: aiCfg.geminiApiKey || undefined,
         }),
       });
       if (resp.ok) {
@@ -2745,43 +2431,6 @@ export async function transcribeAudioWithGemini(
       }
     } catch {
       // Fallback if server endpoint is unreachable
-    }
-
-    // Direct Client Gemini API fallback if user configured a Gemini API key
-    if (aiCfg.geminiApiKey.trim()) {
-      try {
-        const cleanB64 = base64Audio.includes(',') ? base64Audio.split(',')[1] : base64Audio;
-        const gResp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-            aiCfg.geminiApiKey.trim()
-          )}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: 'user',
-                  parts: [
-                    { inlineData: { data: cleanB64, mimeType } },
-                    { text: 'Transcribe this voice note accurately into clean text.' },
-                  ],
-                },
-              ],
-            }),
-          }
-        );
-        if (gResp.ok) {
-          const gData = await gResp.json();
-          const tText = gData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (tText) {
-            const resObj: any = new String(tText);
-            resObj.transcript = tText;
-            resObj.model = 'Google Gemini 2.5 Flash (Free API)';
-            return resObj;
-          }
-        }
-      } catch {}
     }
   }
 
@@ -2800,7 +2449,6 @@ export async function searchWithGoogleGrounding(
 ): Promise<{ text: string; links: GroundingLink[] }> {
   const effectiveQuery =
     query.trim() || 'Latest breakthroughs in personal knowledge graphs and cognitive productivity';
-  const aiCfg = getAIConfig();
   const encoded = encodeURIComponent(effectiveQuery);
   const defaultLinks: GroundingLink[] = [
     {
@@ -2827,9 +2475,6 @@ export async function searchWithGoogleGrounding(
       body: JSON.stringify({
         prompt: effectiveQuery,
         useSearchGrounding: true,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
-        userGroqKey: aiCfg.groqApiKey || undefined,
-        userOpenRouterKey: aiCfg.openRouterApiKey || undefined,
       }),
     });
     if (resp.ok) {
@@ -2874,7 +2519,6 @@ export async function searchWithGoogleMapsGrounding(params: {
 }): Promise<{ text: string; links: GroundingLink[] }> {
   const effectiveQuery =
     params.query.trim() || 'Quiet specialty coffee shops and coworking studios with Wi-Fi';
-  const aiCfg = getAIConfig();
   const encoded = encodeURIComponent(effectiveQuery);
   const defaultMapLinks: GroundingLink[] = [
     {
@@ -2900,9 +2544,6 @@ export async function searchWithGoogleMapsGrounding(params: {
       body: JSON.stringify({
         prompt: effectiveQuery,
         useMapsGrounding: true,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
-        userGroqKey: aiCfg.groqApiKey || undefined,
-        userOpenRouterKey: aiCfg.openRouterApiKey || undefined,
         latLng:
           params.latitude !== undefined && params.longitude !== undefined
             ? { latitude: params.latitude, longitude: params.longitude }
@@ -2994,14 +2635,12 @@ export async function generateMusicWithLyria(params: {
   } | null = null;
 
   try {
-    const aiCfg = getAIConfig();
     const resp = await fetch('/api/ai/music', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt: effectivePrompt,
         durationSec,
-        userGeminiKey: aiCfg.geminiApiKey || undefined,
       }),
     });
     if (resp.ok) {

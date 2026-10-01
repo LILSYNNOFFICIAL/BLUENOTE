@@ -6,29 +6,12 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 let envGeminiKeyDenied = false;
 
-function getGeminiClient(overrideKey?: string): GoogleGenAI | null {
-  const trimmedOverride = overrideKey ? String(overrideKey).trim() : '';
-  if (trimmedOverride && trimmedOverride.startsWith('AIza')) {
-    return new GoogleGenAI({
-      apiKey: trimmedOverride,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-  }
-
+function getGeminiClient(): GoogleGenAI | null {
   if (envGeminiKeyDenied) {
     return null;
   }
 
-  const envKey = (
-    process.env.GEMINI_API_KEY ||
-    process.env.VITE_GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    ''
-  ).trim();
+  const envKey = (process.env.GEMINI_API_KEY || '').trim();
 
   // Only use the environment key if it is a valid AIza* Gemini API key
   if (!envKey || envKey === 'MY_GEMINI_API_KEY' || !envKey.startsWith('AIza')) {
@@ -167,21 +150,17 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   app.get('/api/health', (_req, res) => {
-    const envKey = (
-      process.env.GEMINI_API_KEY ||
-      process.env.VITE_GEMINI_API_KEY ||
-      process.env.GOOGLE_API_KEY ||
-      ''
-    ).trim();
+    const envKey = (process.env.GEMINI_API_KEY || '').trim();
     const hasKey = Boolean(envKey && envKey.startsWith('AIza') && !envGeminiKeyDenied);
     res.json({
       status: 'ok',
       geminiConfigured: hasKey,
+      authProvider: 'firebase-auth',
       mode: hasKey ? 'hybrid-server-gemini-and-free-cloud-ai' : 'free-cloud-and-local-ai',
     });
   });
 
-  // 1. Server-Side AI Chat / Grounding / Brain Dump Endpoint
+  // 1. Server-Side AI Chat / Grounding / Brain Dump / Vision OCR Endpoint
   app.post('/api/ai/chat', async (req, res) => {
     const {
       prompt,
@@ -189,19 +168,10 @@ async function startServer() {
       useSearchGrounding,
       useMapsGrounding,
       latLng,
-      userGeminiKey,
-      geminiApiKey,
-      userGroqKey,
-      groqApiKey,
-      userOpenRouterKey,
-      openRouterApiKey,
+      imageDataUrl,
     } = req.body || {};
 
-    const effectiveGeminiKey = userGeminiKey || geminiApiKey;
-    const effectiveGroqKey = userGroqKey || groqApiKey;
-    const effectiveOpenRouterKey = userOpenRouterKey || openRouterApiKey;
-
-    const ai = getGeminiClient(effectiveGeminiKey);
+    const ai = getGeminiClient();
     if (ai) {
       try {
         const tools: any[] = [];
@@ -230,10 +200,26 @@ async function startServer() {
           };
         }
 
+        let contentsPayload: any = String(prompt || '');
+        if (imageDataUrl && String(imageDataUrl).includes('base64,')) {
+          const [header, base64Data] = String(imageDataUrl).split('base64,');
+          const mimeMatch = header.match(/data:(.*?);/);
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+          contentsPayload = [
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data,
+              },
+            },
+            String(prompt || 'Extract all visible text from this image.'),
+          ];
+        }
+
         const modelName = useMapsGrounding ? 'gemini-2.5-flash' : 'gemini-3-flash-preview';
         const response = await ai.models.generateContent({
           model: modelName,
-          contents: String(prompt || ''),
+          contents: contentsPayload,
           config,
         });
 
@@ -265,86 +251,10 @@ async function startServer() {
         });
         return;
       } catch (err: any) {
-        if (!effectiveGeminiKey && String(err?.message || '').includes('403')) {
+        if (String(err?.message || '').includes('403')) {
           envGeminiKeyDenied = true;
         }
       }
-    }
-
-    // Try Groq if key provided
-    if (effectiveGroqKey && String(effectiveGroqKey).trim()) {
-      try {
-        const gResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${String(effectiveGroqKey).trim()}`,
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  systemInstruction ||
-                  'You are BlueNote AI, a concise executive productivity assistant.',
-              },
-              { role: 'user', content: String(prompt || '') },
-            ],
-          }),
-        });
-        if (gResp.ok) {
-          const gData: any = await gResp.json();
-          const text = gData?.choices?.[0]?.message?.content?.trim();
-          if (text) {
-            res.json({
-              text,
-              links: [],
-              model: 'Groq • llama-3.3-70b-versatile',
-              modelUsed: 'Groq • llama-3.3-70b-versatile',
-            });
-            return;
-          }
-        }
-      } catch {}
-    }
-
-    // Try OpenRouter if key provided
-    if (effectiveOpenRouterKey && String(effectiveOpenRouterKey).trim()) {
-      try {
-        const orResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${String(effectiveOpenRouterKey).trim()}`,
-          },
-          body: JSON.stringify({
-            model: 'meta-llama/llama-3.3-70b-instruct:free',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  systemInstruction ||
-                  'You are BlueNote AI, a concise executive productivity assistant.',
-              },
-              { role: 'user', content: String(prompt || '') },
-            ],
-          }),
-        });
-        if (orResp.ok) {
-          const orData: any = await orResp.json();
-          const text = orData?.choices?.[0]?.message?.content?.trim();
-          if (text) {
-            res.json({
-              text,
-              links: [],
-              model: 'OpenRouter • llama-3.3-70b-instruct:free',
-              modelUsed: 'OpenRouter • llama-3.3-70b-instruct:free',
-            });
-            return;
-          }
-        }
-      } catch {}
     }
 
     // Try 100% Free Cloud AI (Pollinations OpenAI-compatible endpoint with 5s timeout)
@@ -417,7 +327,7 @@ async function startServer() {
   });
 
   app.post('/api/ai/music', async (req, res) => {
-    const { prompt, durationSec, userGeminiKey } = req.body || {};
+    const { prompt, durationSec } = req.body || {};
     const rawPrompt = String(
       prompt || 'Warm lo-fi Rhodes electric piano, deep sub-bass, and crisp studio drums'
     ).trim();
@@ -483,7 +393,7 @@ async function startServer() {
     } catch {}
 
     // Step B: Generate custom song metadata & lyrics via Gemini or Free Cloud AI
-    const ai = getGeminiClient(userGeminiKey);
+    const ai = getGeminiClient();
     if (ai) {
       try {
         const response = await ai.models.generateContent({
@@ -521,7 +431,7 @@ async function startServer() {
         });
         return;
       } catch (err: any) {
-        if (!userGeminiKey && String(err?.message || '').includes('403')) {
+        if (String(err?.message || '').includes('403')) {
           envGeminiKeyDenied = true;
         }
       }
@@ -706,55 +616,21 @@ async function startServer() {
   }
 
   // 3. Server-Side Multi-Engine Image Generation Endpoint
-  // Supports: Hugging Face Token FLUX -> Google Gemini Image -> Zero-Key Gradio 5 FLUX.1-schnell & FLUX.1-Merged -> Pollinations -> Openverse & Wikimedia HD
+  // Supports: Google Gemini Image -> Zero-Key Gradio 5 FLUX.1-schnell & FLUX.1-Merged -> Pollinations -> Openverse & Wikimedia HD
   app.post('/api/ai/image', async (req, res) => {
     const {
       prompt,
       aspectRatio,
       base64Image,
       mimeType,
-      userGeminiKey,
-      userHfToken,
     } = req.body || {};
 
     const rawPrompt = String(prompt || 'Vibrant bluebird perched on a blossoming branch').trim();
     const visualPrompt = cleanImagePromptServer(rawPrompt);
     const { width, height } = getAspectDimensionsServer(aspectRatio || '16:9');
 
-    // Tier A: Hugging Face Free Inference API (FLUX.1-schnell) if user provided token
-    if (!base64Image && userHfToken && String(userHfToken).trim()) {
-      try {
-        const hfResp = await fetch(
-          'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${String(userHfToken).trim()}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              inputs: `${visualPrompt}, ultra-crisp 8k UHD, centered subject in razor-sharp focus, high detail, masterpiece`,
-            }),
-          }
-        );
-        if (hfResp.ok) {
-          const arrayBuf = await hfResp.arrayBuffer();
-          const buf = Buffer.from(arrayBuf);
-          if (buf.length > 2048) {
-            const contentType = hfResp.headers.get('content-type') || 'image/jpeg';
-            res.json({
-              imageUrl: `data:${contentType};base64,${buf.toString('base64')}`,
-              caption: `Generated with FLUX.1-schnell (${width}×${height}) — Subject: "${visualPrompt}"`,
-              model: 'FLUX.1-schnell (Hugging Face Free API)',
-            });
-            return;
-          }
-        }
-      } catch {}
-    }
-
-    // Tier B: Google Gemini Image (when a valid AIza* Gemini API key is configured)
-    const ai = getGeminiClient(userGeminiKey);
+    // Tier A: Google Gemini Image (when a valid AIza* Gemini API key is configured on server)
+    const ai = getGeminiClient();
     if (ai) {
       try {
         const parts: any[] = [];
@@ -793,7 +669,7 @@ async function startServer() {
           }
         }
       } catch (e: any) {
-        if (!userGeminiKey && String(e?.message || '').includes('403')) {
+        if (String(e?.message || '').includes('403')) {
           envGeminiKeyDenied = true;
         }
       }
@@ -967,8 +843,8 @@ async function startServer() {
 
   // 4. Server-Side Audio Transcription Endpoint
   app.post('/api/ai/transcribe', async (req, res) => {
-    const { base64Audio, mimeType, userGeminiKey } = req.body || {};
-    const ai = getGeminiClient(userGeminiKey);
+    const { base64Audio, mimeType } = req.body || {};
+    const ai = getGeminiClient();
     if (!ai) {
       res.status(503).json({ error: 'Using browser speech engine' });
       return;
@@ -1002,7 +878,7 @@ async function startServer() {
         model: 'gemini-3-flash-preview',
       });
     } catch (err: any) {
-      if (!userGeminiKey && String(err?.message || '').includes('403')) {
+      if (String(err?.message || '').includes('403')) {
         envGeminiKeyDenied = true;
       }
       res.status(503).json({ error: 'Using browser speech engine' });

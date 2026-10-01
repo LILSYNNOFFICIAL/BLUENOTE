@@ -1,37 +1,40 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
-  Cloud,
   Mail,
   Lock,
   User as UserIcon,
+  ShieldCheck,
+  Cloud,
   LogOut,
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  ShieldCheck,
   Camera,
   Upload,
   Trash2,
-  Globe,
-  FileText,
   Briefcase,
-  Info,
+  FileText,
+  KeyRound,
 } from 'lucide-react';
 import {
   auth,
   googleProvider,
-  getFirebaseAuthDomain,
   signInWithPopup,
-  signInWithEmailAndPassword,
+  signInWithRedirect,
   createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile,
   signOut,
+  getFirebaseAuthDomain,
+  getDetectedHostname,
+  getDetectedAppUrl,
   User,
 } from '../firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
 
-interface AuthModalProps {
+export interface AuthModalProps {
   isOpen: boolean;
   currentUser: User | null;
   settings?: UserSettings;
@@ -54,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUpdateLocalProfileName,
   onUpdateProfileSettings,
 }) => {
-  const [mode, setMode] = useState<'signup' | 'signin'>('signup');
+  const [mode, setMode] = useState<'signup' | 'signin' | 'reset'>('signin');
   const [email, setEmail] = useState(settings?.email || '');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState(settings?.name || '');
@@ -62,11 +65,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [bio, setBio] = useState(settings?.bio || '');
   const [avatarUrl, setAvatarUrl] = useState(settings?.avatarUrl || '');
   const [authDomainAlias, setAuthDomainAlias] = useState(getFirebaseAuthDomain());
-  const [showDomainInfo, setShowDomainInfo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setAvatarUrl(settings?.avatarUrl || currentUser?.photoURL || '');
       setAuthDomainAlias(getFirebaseAuthDomain());
       setError(null);
+      setInfoMessage(null);
     }
   }, [isOpen, currentUser, settings]);
 
@@ -98,8 +101,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (onUpdateProfileSettings) {
         onUpdateProfileSettings({ avatarUrl: compressedDataUrl });
       }
-    } catch (err: any) {
-      setError(err?.message || 'Could not process photograph.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not process photograph.');
     } finally {
       setPhotoUploading(false);
       if (fileInputRef.current) {
@@ -122,8 +125,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const formatFirebaseAuthError = (err: unknown): string => {
+    const code = (err as { code?: string })?.code || '';
+    const message = err instanceof Error ? err.message : String(err || '');
+    const hostname = getDetectedHostname();
+    const appUrl = getDetectedAppUrl();
+
+    if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
+      return `Firebase Authentication rejected hostname "${hostname}" (deployed application URL: ${appUrl}). Firebase Authorized Domains uses the hostname only—never include the "/BLUENOTE/" path. To authorize this host: open Firebase Console (project: ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains, and add "${hostname}" (while keeping authDomain set to ai-studio-applet-webapp-d45ee.firebaseapp.com).`;
+    }
+    if (code === 'auth/popup-closed-by-user' || message.includes('popup-closed-by-user')) {
+      return 'Sign-in popup was closed before completing.';
+    }
+    if (code === 'auth/operation-not-allowed' || message.includes('PASSWORD_LOGIN_DISABLED')) {
+      return 'Email/Password sign-in is currently disabled in Firebase Console (Authentication → Sign-in method). Use "Continue with Google" or enable the Email/Password provider in Firebase Console.';
+    }
+    if (code === 'auth/email-already-in-use') {
+      return 'An account with this email already exists. Switch to "Sign In" above.';
+    }
+    if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+      return 'Invalid email or password. Please check your credentials and try again.';
+    }
+    if (code === 'auth/user-not-found') {
+      return 'No account found with this email. Switch to "Create Account (Sign Up)" above.';
+    }
+    return message || 'Authentication could not complete.';
+  };
+
   const handleGoogleSignIn = async () => {
     setError(null);
+    setInfoMessage(null);
     setLoading(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -145,12 +176,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       }
       onClose();
-    } catch (err: any) {
-      setError(
-        err?.message?.includes('popup-closed-by-user')
-          ? 'Sign-in popup was closed before completing.'
-          : err?.message || 'Google Sign-In could not complete in this preview frame.'
-      );
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+        try {
+          setInfoMessage('Redirecting to Google Sign-In...');
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: unknown) {
+          setError(formatFirebaseAuthError(redirectErr));
+          setLoading(false);
+          return;
+        }
+      }
+      setError(formatFirebaseAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -159,57 +198,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfoMessage(null);
     setLoading(true);
     try {
+      const cleanEmail = email.trim();
+      if (!cleanEmail) {
+        setError('Please enter your email address.');
+        setLoading(false);
+        return;
+      }
+
+      if (mode === 'reset') {
+        await sendPasswordResetEmail(auth, cleanEmail);
+        setInfoMessage(`Password reset instructions sent to ${cleanEmail}.`);
+        setLoading(false);
+        return;
+      }
+
       if (mode === 'signup') {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const finalName =
-          displayName.trim() || email.split('@')[0] || 'BlueNote User';
+          displayName.trim() || cleanEmail.split('@')[0] || 'BlueNote User';
         await updateProfile(cred.user, {
           displayName: finalName,
         });
-        syncProfileFields(finalName, cred.user.email || email.trim());
+        syncProfileFields(finalName, cred.user.email || cleanEmail);
       } else {
-        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
         const finalName =
           displayName.trim() ||
           cred.user.displayName ||
           cred.user.email?.split('@')[0] ||
           'BlueNote User';
-        syncProfileFields(finalName, cred.user.email || email.trim());
+        syncProfileFields(finalName, cred.user.email || cleanEmail);
       }
       onClose();
-    } catch (err: any) {
-      const code = err?.code || '';
-      if (code === 'auth/operation-not-allowed') {
-        // Fallback: save profile directly into BlueNote workspace if Email/Password provider is disabled in Firebase console
-        const fallbackName =
-          displayName.trim() || email.split('@')[0] || 'BlueNote User';
-        syncProfileFields(fallbackName, email.trim() || 'user@bluenote.local');
-        onClose();
-        return;
-      }
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'this site';
-      setError(
-        code === 'auth/unauthorized-domain'
-          ? `Firebase rejected ${hostname}. Add ${hostname} to Firebase Console → Authentication → Settings → Authorized domains, then reload BlueNote.`
-          : err?.message || 'Authentication failed. Check your email and password.'
-      );
+    } catch (err: unknown) {
+      setError(formatFirebaseAuthError(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveProfileOnly = () => {
-    const finalName =
-      displayName.trim() ||
-      currentUser?.displayName ||
-      email.split('@')[0] ||
-      'BlueNote User';
-    const finalEmail =
-      email.trim() || currentUser?.email || 'user@bluenote.local';
-    syncProfileFields(finalName, finalEmail);
-    onClose();
+  const handleSaveProfileOnly = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const finalName =
+        displayName.trim() ||
+        currentUser?.displayName ||
+        email.split('@')[0] ||
+        'BlueNote User';
+      const finalEmail =
+        email.trim() || currentUser?.email || 'user@bluenote.local';
+      if (currentUser && finalName !== currentUser.displayName) {
+        await updateProfile(currentUser, { displayName: finalName });
+      }
+      syncProfileFields(finalName, finalEmail);
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not save profile.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -217,8 +268,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       await signOut(auth);
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Error signing out');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error signing out.');
     } finally {
       setLoading(false);
     }
@@ -255,70 +306,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   ? 'Executive Profile, Bio & Cloud Sync'
                   : mode === 'signup'
                   ? 'Create a BlueNote account'
+                  : mode === 'reset'
+                  ? 'Reset Account Password'
                   : 'Sign in to BlueNote'}
               </h2>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto space-y-5">
-          {/* Domain Identity Banner & Info Toggle */}
-          <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                  Active App Domain:{' '}
-                  <span className="font-mono text-blue-600 dark:text-blue-400">
-                    {authDomainAlias}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDomainInfo((v) => !v)}
-                className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-slate-800 text-[11px] font-bold text-blue-600 dark:text-blue-300 border border-blue-500/20 flex items-center gap-1 shrink-0"
-              >
-                <Info className="w-3 h-3" />
-                {showDomainInfo ? 'Hide Domain Settings' : 'Configure Domain'}
-              </button>
-            </div>
-
-            {showDomainInfo && (
-              <div className="pt-2 border-t border-blue-500/20 space-y-2.5 text-[11px] text-slate-600 dark:text-slate-300">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    Firebase Authentication Domain
-                  </label>
-                  <input
-                    type="text"
-                    value={authDomainAlias}
-                    readOnly
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-xs font-mono font-bold text-blue-600 dark:text-blue-400"
-                  />
-                </div>
-                <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 space-y-1 leading-relaxed">
-                  <p className="font-bold text-slate-800 dark:text-slate-100">
-                    Why did Google Popup show &quot;ai-studio-applet-webapp-d45ee.firebaseapp.com&quot;?
-                  </p>
-                  <p>
-                    1. <strong>Direct Sign-Up Below (Recommended)</strong>: Creating your account with Email, Password, Bio &amp; Photo right in this modal uses <strong>{authDomainAlias}</strong> directly without opening the raw GCP popup.
-                  </p>
-                  <p>
-                    2. <strong>Google OAuth Popup</strong>: Google&apos;s external popup displays the underlying provisioned Firebase project host (<code className="font-mono">ai-studio-applet-webapp-d45ee.firebaseapp.com</code>) where <code className="font-mono">/__/auth/handler</code> is hosted. Firebase Authentication still requires the site hostname to be listed in Firebase Console → Authentication → Settings → Authorized domains.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Profile Photograph Upload + Bio Studio (Available during Sign-Up AND when Signed In) */}
+        {/* Scrollable Body */}
+        <div className="p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0">
+          {/* Profile Photograph, Name, Role & Bio Card */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-800 space-y-4">
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {/* Avatar Preview + Upload Trigger */}
@@ -470,6 +475,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={handleSaveProfileOnly}
+                  disabled={loading}
                   className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
                 >
                   <CheckCircle2 className="w-4 h-4" />
@@ -495,6 +501,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClick={() => {
                     setMode('signup');
                     setError(null);
+                    setInfoMessage(null);
                   }}
                   className={`py-2 rounded-lg text-xs font-bold transition-all ${
                     mode === 'signup'
@@ -509,6 +516,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClick={() => {
                     setMode('signin');
                     setError(null);
+                    setInfoMessage(null);
                   }}
                   className={`py-2 rounded-lg text-xs font-bold transition-all ${
                     mode === 'signin'
@@ -521,15 +529,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               {error && (
-                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 flex items-start gap-2 text-xs text-red-600 dark:text-red-300">
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 flex items-start gap-2 text-xs text-red-600 dark:text-red-300 leading-relaxed">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
 
-              {/* Direct Email + Password Sign Up / Sign In */}
+              {infoMessage && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-2 text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{infoMessage}</span>
+                </div>
+              )}
+
+              {/* Direct Email + Password Sign Up / Sign In / Reset */}
               <form onSubmit={handleEmailAuth} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className={mode === 'reset' ? 'space-y-2.5' : 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'}>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
@@ -541,19 +556,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
                     />
                   </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-                    <input
-                      type="password"
-                      required
-                      minLength={6}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password (6+ chars)"
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
-                    />
-                  </div>
+                  {mode !== 'reset' && (
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Password (6+ chars)"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  )}
                 </div>
+
+                {mode === 'signin' && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('reset');
+                        setError(null);
+                        setInfoMessage(null);
+                      }}
+                      className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Forgot password?
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -563,8 +597,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   {loading
                     ? 'Authenticating...'
                     : mode === 'signup'
-                    ? `Create Account`
-                    : `Sign In`}
+                    ? 'Create Account'
+                    : mode === 'reset'
+                    ? 'Send Password Reset Email'
+                    : 'Sign In'}
                 </button>
               </form>
 

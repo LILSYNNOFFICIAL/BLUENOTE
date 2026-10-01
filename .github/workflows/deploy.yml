@@ -31,10 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build production bundle
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      - name: Build production bundle (zero server secrets injected into client bundle)
         run: |
           npm run build
           cp dist/index.html dist/404.html

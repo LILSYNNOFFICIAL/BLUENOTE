@@ -32,6 +32,7 @@ import {
   compressImageFileToDataUrl,
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
+import { authorizeGmailWithFirebaseGoogle, getDetectedHostname, getDetectedAppUrl } from '../firebase';
 import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
 
 interface SettingsAndSystemViewProps {
@@ -67,6 +68,10 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
     'general' | 'ai' | 'emails' | 'automations' | 'export-recycle' | 'help'
   >(initialSection === 'help' ? 'help' : 'general');
   const [emailPreviewSent, setEmailPreviewSent] = useState(false);
+  const [gmailConnecting, setGmailConnecting] = useState(false);
+  const [gmailConnectedEmail, setGmailConnectedEmail] = useState<string | null>(null);
+  const [gmailSnippets, setGmailSnippets] = useState<{ id: string; snippet: string }[]>([]);
+  const [gmailError, setGmailError] = useState<string | null>(null);
   const [autoName, setAutoName] = useState('');
   const [autoTrigger, setAutoTrigger] = useState('');
   const [autoAction, setAutoAction] = useState('');
@@ -135,7 +140,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 Workspace Appearance, AI Behavior & System Control
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Configure your theme engine, accessibility scaling, Free AI & API keys, automated digests, and data vault.
+                Configure your theme engine, accessibility scaling, built-in AI behavior, automated digests, and data vault.
               </p>
             </div>
           </div>
@@ -146,8 +151,8 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               onClick={onOpenAIKeysModal}
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shrink-0 transition-all"
             >
-              <Key className="w-4 h-4" />
-              <span>Free AI & API Keys ({getActiveAIProviderBadge()})</span>
+              <Sparkles className="w-4 h-4" />
+              <span>AI Engine ({getActiveAIProviderBadge()})</span>
             </button>
           )}
         </div>
@@ -156,7 +161,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
           {(
             [
               ['general', 'Profile, Bio & 12 Themes', Palette],
-              ['ai', 'Free AI, API Keys & Memory', Sparkles],
+              ['ai', 'AI Personality & Memory', Sparkles],
               ['emails', 'Daily & Weekly Emails', Mail],
               ['automations', 'Automations', Zap],
               ['export-recycle', 'Export, Privacy & Recycle Bin', Download],
@@ -550,23 +555,22 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
         </div>
       )}
 
-      {/* TAB 2: AI PERSONALITY, FREE AI & API KEYS */}
+      {/* TAB 2: AI PERSONALITY & MEMORY */}
       {tab === 'ai' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 sm:p-6 shadow-2xs space-y-6">
-          {/* Free AI & API Keys Banner inside AI Settings Tab */}
           <div className="p-4 sm:p-5 rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/25 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                  <Key className="w-4 h-4 text-emerald-500" />
-                  Free AI Engine & Optional API Key Manager
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  Managed AI Infrastructure
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-600 text-white font-bold">
                   Active: {getActiveAIProviderBadge()}
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                BlueNote works out-of-the-box with <strong>100% Free Cloud & On-Device AI (Zero API Key Needed)</strong>, or you can connect free API keys from Groq (<code className="font-mono">console.groq.com/keys</code>), Google AI Studio (<code className="font-mono">aistudio.google.com/app/apikey</code>), OpenRouter (<code className="font-mono">openrouter.ai/keys</code>), or Hugging Face (<code className="font-mono">huggingface.co/settings/tokens</code>).
+                BlueNote works out-of-the-box with built-in cloud and on-device AI engines. No user API keys or developer credentials are required.
               </p>
             </div>
             {onOpenAIKeysModal && (
@@ -575,8 +579,8 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 onClick={onOpenAIKeysModal}
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-2 shrink-0 shadow-sm"
               >
-                <Key className="w-4 h-4" />
-                <span>Open Free AI & API Keys Popup</span>
+                <Sparkles className="w-4 h-4" />
+                <span>View AI Engine Status</span>
               </button>
             )}
           </div>
@@ -707,6 +711,73 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               <Check className="w-4 h-4" />
               {emailPreviewSent ? 'Test Daily Summary Queued!' : 'Send Test Daily Email Now'}
             </button>
+
+            {/* Firebase-Authenticated Google Access-Token Gmail Connection (Zero Developer Credentials) */}
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-blue-500" />
+                <span>Gmail Sync (Firebase Google Authorization)</span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Uses your signed-in Firebase Google account access token directly. No Google Client ID, Client Secret, or API keys are ever required.
+              </p>
+              <button
+                type="button"
+                disabled={gmailConnecting}
+                onClick={async () => {
+                  setGmailConnecting(true);
+                  setGmailError(null);
+                  try {
+                    const res = await authorizeGmailWithFirebaseGoogle();
+                    setGmailConnectedEmail(res.email || workspace.settings.email || 'Connected');
+                    setGmailSnippets(res.messagesPreview || []);
+                  } catch (err: unknown) {
+                    const code = (err as { code?: string })?.code || '';
+                    const msg = err instanceof Error ? err.message : String(err || '');
+                    if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
+                      const host = getDetectedHostname();
+                      setGmailError(
+                        `Firebase rejected hostname "${host}" (URL: ${getDetectedAppUrl()}). Add "${host}" under Firebase Console (ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains.`
+                      );
+                    } else {
+                      setGmailError(msg || 'Could not complete Firebase Google authorization.');
+                    }
+                  } finally {
+                    setGmailConnecting(false);
+                  }
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600" />
+                <span>
+                  {gmailConnecting
+                    ? 'Authorizing with Firebase Google...'
+                    : gmailConnectedEmail
+                    ? `Gmail Authorized (${gmailConnectedEmail})`
+                    : 'Connect Gmail with Google Sign-In'}
+                </span>
+              </button>
+              {gmailError && (
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/25 text-[11px] text-red-600 dark:text-red-300">
+                  {gmailError}
+                </div>
+              )}
+              {gmailSnippets.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Recent Gmail Messages (Read-Only Access Token):
+                  </div>
+                  {gmailSnippets.map((m) => (
+                    <div
+                      key={m.id}
+                      className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-[11px] text-slate-600 dark:text-slate-300 truncate"
+                    >
+                      {m.snippet}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">

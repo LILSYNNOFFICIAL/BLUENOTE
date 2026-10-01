@@ -66,8 +66,17 @@ public class MainActivity extends Activity {
                 if ("file".equals(scheme)) {
                     return false;
                 }
-                if (uri.getHost() != null && (uri.getHost().contains("localhost") || uri.getHost().contains("127.0.0.1"))) {
-                    return false;
+                if (uri.getHost() != null) {
+                    String host = uri.getHost().toLowerCase();
+                    if (host.contains("localhost")
+                            || host.contains("127.0.0.1")
+                            || host.endsWith("firebaseapp.com")
+                            || host.endsWith("web.app")
+                            || host.endsWith("google.com")
+                            || host.endsWith("googleapis.com")
+                            || host.endsWith("lilsynnofficial.github.io")) {
+                        return false;
+                    }
                 }
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW, uri);

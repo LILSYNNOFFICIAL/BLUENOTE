@@ -55,13 +55,10 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-
-            // Use the configured release keystore when supplied. For direct APK
-            // distribution, fall back to the standard Android debug keystore so
-            // the CI-produced APK is installable without Play/F-Droid signing.
             if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
                 signingConfig signingConfigs.release
             } else {
+                // Fallback to standard debug signing key so CI/GitHub Actions release APKs can be installed directly on Android devices
                 signingConfig signingConfigs.debug
             }
         }
@@ -75,17 +72,6 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-}
-
-// Keep transitive Kotlin runtime artifacts on one compatible version.
-// Some AndroidX dependencies otherwise pull legacy kotlin-stdlib-jdk7/jdk8 jars
-// alongside kotlin-stdlib, which AGP rejects as duplicate classes.
-configurations.configureEach {
-    resolutionStrategy.force(
-        "org.jetbrains.kotlin:kotlin-stdlib:1.8.22",
-        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22",
-        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
-    )
 }
 
 dependencies {
