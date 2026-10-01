@@ -63,6 +63,7 @@ import {
   formatBytes,
   generateStandalonePhotoAlbumHTML,
   organizeProjectDocumentsWithAI,
+  mergeProjectDocumentsByTopic,
   searchProjectKnowledge,
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
