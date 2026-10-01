@@ -1,11 +1,12 @@
 BlueNote — Remember everything. Organize anything. Focus on what matters.
 
-BlueNote is a complete, privacy-first Personal Organizer, Habit & Streak Analytics Tracker, Smart Note Editor, Personal CRM, Knowledge Graph, and On-Device AI Studio.
+BlueNote is a complete, privacy-first Personal Organizer, 10 GB AI Project Operating System (PROJECTS), Quiet Predictive Pattern Engine, Habit & Streak Analytics Tracker, Smart Note Editor, Personal CRM, Knowledge Graph, and On-Device AI Studio.
 
 KEY CAPABILITIES:
+• 100% Clean Zero-Demo Startup & 5-Step Onboarding: Starts with zero pre-filled demo clutter across all modules and guides you through a 5-step personalization & theme tutorial.
+• PROJECTS — 10 GB AI Project Operating System: 12-module workspace per project supporting 2 MB chunked & resumable document uploads (.txt, .md, .doc, .docx, .pdf), non-destructive version history (Original → Working → Edited → Final), side-by-side diffs, multi-document merge, standalone HTML photo album generator, and AI Sandbox Mode.
+• Quiet Predictive Pattern Engine: Learns your recurring shopping, household, and routine cycles with strict Hypothesis vs. Known Fact distinction and anti-nagging safeguards.
 • 100% On-Device AI (Zero API Keys Required): Natural language Brain Dump, priority synthesis, note summarization, procedural illustration/video synthesis, and ambient focus audio run locally on your device.
 • Weekly Habits & 30-Day Streak Analytics: Track daily habits on a 7-day rolling checkmark grid and analyze 30-day completion rates, rolling averages, and streak momentum.
-• Adaptive Energy Modes: Switch between Focused, Normal, Busy, Tired, or Vacation mode to automatically adapt your daily task load.
 • Universal Capture & OCR Scanner: Extract tasks, reminders, calendar events, contacts, and shopping items from natural language or scanned receipts and business cards.
 • Second Brain Knowledge Graph & Semantic Search: Explore an interactive node-and-edge network of your notes, tasks, projects, contacts, and files.
-• Clean Startup & Interactive Onboarding: Starts with zero pre-filled demo clutter and guides you through a 5-step personalization tutorial.

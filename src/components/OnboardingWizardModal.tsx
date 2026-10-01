@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Sparkles,
   CheckCircle2,
@@ -19,13 +19,22 @@ import {
   Sliders,
   Layers,
   Plus,
+  Upload,
+  FileText,
+  FolderKanban,
+  GitMerge,
+  HardDrive,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   AIPersonality,
   EnergyMode,
+  THEME_OPTIONS,
   ThemeMode,
   UserSettings,
+  compressImageFileToDataUrl,
 } from '../types/bluenote';
+import { ProjectTemplateType } from '../types/projectsOS';
 import { BlueNoteLogo } from './BlueNoteLogo';
 
 interface StarterHabitOption {
@@ -80,6 +89,8 @@ interface OnboardingWizardModalProps {
   onChangeTheme?: (theme: ThemeMode) => void;
   onCompleteOnboarding: (payload: {
     name: string;
+    bio?: string;
+    avatarUrl?: string;
     theme: ThemeMode;
     energyMode: EnergyMode;
     aiPersonality: AIPersonality;
@@ -87,6 +98,9 @@ interface OnboardingWizardModalProps {
     firstCaptureText: string;
     predictionStage?: number;
     suggestionBudgetMax?: number;
+    firstOSProjectName?: string;
+    firstOSProjectTemplate?: ProjectTemplateType;
+    launchSection?: 'dashboard' | 'projects-os';
   }) => void;
   onClose: () => void;
 }
@@ -98,18 +112,25 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
   onCompleteOnboarding,
   onClose,
 }) => {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [name, setName] = useState(settings.name || '');
+  const [bio, setBio] = useState(settings.bio || '');
+  const [avatarUrl, setAvatarUrl] = useState(settings.avatarUrl || '');
   const [theme, setTheme] = useState<ThemeMode>(settings.theme || 'light');
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
   const [energyMode, setEnergyMode] = useState<EnergyMode>(settings.energyMode || 'Normal');
   const [aiPersonality, setAiPersonality] = useState<AIPersonality>(
     settings.aiPersonality || 'Professional'
   );
-  // Zero demo clutter: starter habits are UNCHECKED by default so workspace starts 100% clean unless chosen
+  // Zero demo clutter: starter habits and starter project are blank/unchecked by default so workspace starts 100% clean
   const [selectedHabits, setSelectedHabits] = useState<string[]>([]);
   const [customHabitName, setCustomHabitName] = useState('');
   const [customHabits, setCustomHabits] = useState<StarterHabitOption[]>([]);
   const [firstCaptureText, setFirstCaptureText] = useState('');
+  const [firstOSProjectName, setFirstOSProjectName] = useState('');
+  const [firstOSProjectTemplate, setFirstOSProjectTemplate] =
+    useState<ProjectTemplateType>('Blank Project');
+  const [launchSection, setLaunchSection] = useState<'dashboard' | 'projects-os'>('dashboard');
   const [activeTourCard, setActiveTourCard] = useState<number>(0);
 
   // Personal Pattern Engine onboarding calibration
@@ -148,6 +169,8 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     );
     onCompleteOnboarding({
       name: name.trim() || 'Workspace Owner',
+      bio: bio.trim(),
+      avatarUrl,
       theme,
       energyMode,
       aiPersonality,
@@ -155,6 +178,9 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
       firstCaptureText: firstCaptureText.trim(),
       predictionStage,
       suggestionBudgetMax,
+      firstOSProjectName: firstOSProjectName.trim() || undefined,
+      firstOSProjectTemplate,
+      launchSection,
     });
   };
 
@@ -163,13 +189,21 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
       icon: Zap,
       badge: 'Pillar 1 • Natural Language Capture',
       title: 'Today Command Center & Omnibox Capture',
-      desc: 'Start from a clean, zero-clutter command center. Type naturally into the Omnibox at the top of your dashboard—BlueNote automatically classifies tasks, shopping items, reminders, contacts, calendar events, and notes.',
+      desc: 'Start from a 100% clean, zero-demo command center. Type naturally into the Omnibox at the top of your dashboard—BlueNote automatically classifies tasks, shopping items, reminders, contacts, calendar events, and notes.',
       tip: 'Switch your Energy State (High Energy, Normal, Low Energy / Overwhelmed, Focus Mode) anytime to dynamically adapt the dashboard.',
       color: 'from-blue-600 to-indigo-600',
     },
     {
+      icon: FolderKanban,
+      badge: 'Pillar 2 • AI Project Operating System',
+      title: 'PROJECTS — 10 GB Docs, Version Diffs & HTML Photo Albums',
+      desc: 'Create isolated Project Workspaces with 12 integrated modules: 10 GB chunked & resumable document uploads (.txt, .md, .doc, .docx, .pdf), non-destructive version history (Original → Working → Edited → Final), side-by-side diffs, multi-document merge, standalone HTML photo albums, and AI Sandbox Mode.',
+      tip: 'Press ⌘K and hit P from anywhere to jump straight into PROJECTS, or click "PROJECTS" in the main sidebar.',
+      color: 'from-blue-600 to-cyan-600',
+    },
+    {
       icon: Camera,
-      badge: 'Pillar 2 • Voice & Visual Intelligence',
+      badge: 'Pillar 3 • Voice & Visual Intelligence',
       title: 'AI Brain Dump & Multimodal OCR Vault',
       desc: 'Speak or paste an unstructured paragraph of thoughts, or upload a photo of a handwritten sticky note, business card, whiteboard, or receipt. BlueNote extracts every entity into an interactive AI Review Screen before saving.',
       tip: 'Use keyboard shortcut ⇧⌘B (or Ctrl+Shift+B) from anywhere in the app to launch AI Brain Dump.',
@@ -177,7 +211,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     },
     {
       icon: Sparkles,
-      badge: 'Pillar 3 • Quiet Predictive Architecture',
+      badge: 'Pillar 4 • Quiet Predictive Architecture',
       title: '🔮 Predictive Lists & Personal Pattern Engine',
       desc: 'BlueNote observes → learns → predicts → explains → asks → learns from your answer. Every prediction is treated strictly as a hypothesis backed by your real recurrence intervals—never a fact or false inventory claim.',
       tip: 'Predictions accumulate quietly in your Centralized Predictive Inbox with Approve, Edit, Snooze, Deny, and "Stop suggesting..." overrides.',
@@ -185,26 +219,26 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     },
     {
       icon: Calendar,
-      badge: 'Pillar 4 • Deep Execution & Notes',
-      title: 'Tasks, Projects, Split-Screen Notes & Pomodoro',
-      desc: 'Manage multi-priority tasks with subtasks, launch distraction-free Pomodoro Focus timers, write in the Split-Screen Markdown Note Editor with version history, or spin up 1-Click Project Templates.',
+      badge: 'Pillar 5 • Deep Execution & Notes',
+      title: 'Tasks, Split-Screen Notes, Calendar & Pomodoro',
+      desc: 'Manage multi-priority tasks with subtasks, launch distraction-free Pomodoro Focus timers, write in the Split-Screen Markdown Note Editor with version history, or schedule time-blocked deep work.',
       tip: 'Click the Focus button on any active task to enter a distraction-free Pomodoro countdown session.',
       color: 'from-sky-600 to-blue-600',
     },
     {
       icon: Flame,
-      badge: 'Pillar 5 • Behavioral Consistency',
-      title: '30-Day Habit Streak Heatmaps & Time-Blocking',
+      badge: 'Pillar 6 • Behavioral Consistency',
+      title: '30-Day Habit Streak Heatmaps & Analytics',
       desc: 'Track daily and weekday routines with interactive 30-day completion heatmaps right on your dashboard, and auto-schedule deep work blocks onto your daily timeline.',
       tip: 'Click any cell in the 30-day habit heatmap to toggle completion for that specific date.',
       color: 'from-emerald-600 to-teal-600',
     },
     {
       icon: Network,
-      badge: 'Pillar 6 • Connected Memory & Studio',
-      title: 'Second Brain Graph, Semantic Search & AI Studio',
+      badge: 'Pillar 7 • Connected Memory & Studio',
+      title: 'Second Brain Graph, Semantic Search & Local AI Studio',
       desc: 'Explore automatic relationships across your notes, projects, contacts, and files in the Second Brain Graph, search semantically with ⌘K, or synthesize visuals and ambient focus audio in the AI Studio Hub.',
-      tip: 'Press ⌘K (or Ctrl+K) anytime to jump to any tool, note, contact, or command.',
+      tip: 'Press ⌘K (or Ctrl+K) anytime to jump to any tool, note, project, contact, or command.',
       color: 'from-amber-500 to-orange-600',
     },
   ];
@@ -222,29 +256,30 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-blue-300">
                   <Sparkles className="w-3 h-3" />
-                  <span>Onboarding • Step {step + 1} of 4</span>
+                  <span>Zero-Demo Onboarding • Step {step + 1} of 5</span>
                 </div>
                 <h2 className="text-lg sm:text-2xl font-extrabold tracking-tight truncate">
                   Welcome to BlueNote
                 </h2>
                 <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5 line-clamp-1">
-                  AI Second Brain, Executive Organizer & Personal Pattern Engine
+                  AI Second Brain, 10 GB Projects Operating System &amp; Personal Pattern Engine
                 </p>
               </div>
             </div>
 
             {/* Step Progress Pills (Responsive Grid on Mobile) */}
-            <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2">
               {[
                 { idx: 0, label: '1. Theme' },
                 { idx: 1, label: '2. Pillars' },
-                { idx: 2, label: '3. Patterns' },
-                { idx: 3, label: '4. Launch' },
+                { idx: 2, label: '3. Projects OS' },
+                { idx: 3, label: '4. Patterns' },
+                { idx: 4, label: '5. Launch' },
               ].map((s) => (
                 <button
                   key={s.idx}
                   type="button"
-                  onClick={() => setStep(s.idx as 0 | 1 | 2 | 3)}
+                  onClick={() => setStep(s.idx as 0 | 1 | 2 | 3 | 4)}
                   className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all text-center ${
                     step === s.idx
                       ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/40'
@@ -277,88 +312,105 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* User Name */}
-                <div className="space-y-2">
+                {/* User Name & Photograph Upload */}
+                <div className="space-y-3">
                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-blue-600" />
-                    What should BlueNote call you?
+                    Your Name &amp; Profile Photograph
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative shrink-0">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={name || 'Profile'}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-blue-500 shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-base flex items-center justify-center border border-blue-400/30">
+                          {(name || 'BN').trim().slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-md border border-white dark:border-slate-900"
+                        title="Upload Profile Photograph"
+                      >
+                        <Upload className="w-3 h-3" />
+                      </button>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !file.type.startsWith('image/')) return;
+                          try {
+                            const compressed = await compressImageFileToDataUrl(file, 256, 0.85);
+                            setAvatarUrl(compressed);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your name (e.g., Jordan)..."
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        <Camera className="w-3 h-3" />
+                        {avatarUrl ? 'Change Photograph' : 'Upload Profile Photograph'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal Bio Input */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-blue-600" />
+                    Your Bio &amp; AI Assistant Personality
                   </label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your name (e.g., Jordan)..."
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Short bio or current focus (e.g., Building calm systems)..."
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
-                  <p className="text-[11px] text-slate-400">
-                    Used in your morning briefings and personalized workspace header.
-                  </p>
-                </div>
-
-                {/* AI Assistant Personality */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                    AI Assistant Personality
-                  </label>
                   <select
                     value={aiPersonality}
                     onChange={(e) => setAiPersonality(e.target.value as AIPersonality)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   >
-                    <option value="Professional">Professional — Clear, structured & analytical</option>
-                    <option value="Executive Assistant">Executive Assistant — Action-first & concise</option>
-                    <option value="Coach">Momentum Coach — Encouraging & streak-focused</option>
-                    <option value="Friendly">Friendly — Warm & conversational</option>
-                    <option value="Minimal">Minimal — Ultra-brief bullet points only</option>
+                    <option value="Professional">AI Tone: Professional — Structured &amp; analytical</option>
+                    <option value="Executive Assistant">AI Tone: Executive Assistant — Action-first</option>
+                    <option value="Motivational">AI Tone: Momentum Coach — Encouraging</option>
+                    <option value="Friendly">AI Tone: Friendly — Warm &amp; conversational</option>
+                    <option value="Minimal">AI Tone: Minimal — Ultra-brief bullets</option>
                   </select>
-                  <p className="text-[11px] text-slate-400">
-                    Shapes how BlueNote summarizes notes and synthesizes daily priorities.
-                  </p>
                 </div>
               </div>
 
-              {/* Theme Picker (Live Preview — Updated Signature Blue vs True Dark OLED) */}
+              {/* Theme Picker (All 12 Themes — Live Preview) */}
               <div className="space-y-2.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                   <Palette className="w-3.5 h-3.5 text-blue-600" />
-                  Choose Your Visual Theme (Click to Preview Live)
+                  Choose Your Visual Theme ({THEME_OPTIONS.length} Studio Themes — Click to Preview Live)
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                  {(
-                    [
-                      {
-                        id: 'light',
-                        label: 'Architectural White',
-                        desc: 'Default Studio White',
-                        swatch: 'bg-white border border-slate-300 shadow-2xs',
-                      },
-                      {
-                        id: 'dark',
-                        label: 'Obsidian Carbon',
-                        desc: 'OLED Black & White',
-                        swatch: 'bg-black border border-neutral-700',
-                      },
-                      {
-                        id: 'blue',
-                        label: 'Sapphire Executive',
-                        desc: 'Midnight Navy Slate',
-                        swatch: 'bg-[#0d1b36] border border-blue-500/50',
-                      },
-                      {
-                        id: 'emerald',
-                        label: 'Nordic Botanical',
-                        desc: 'Deep Pine & Sage',
-                        swatch: 'bg-emerald-950 border border-emerald-500/50',
-                      },
-                      {
-                        id: 'violet',
-                        label: 'Atelier Amethyst',
-                        desc: 'Cosmic Plum Studio',
-                        swatch: 'bg-violet-950 border border-violet-500/50',
-                      },
-                    ] as const
-                  ).map((t) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                  {THEME_OPTIONS.map((t) => (
                     <button
                       key={t.id}
                       type="button"
@@ -366,23 +418,27 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
                         setTheme(t.id);
                         onChangeTheme?.(t.id);
                       }}
-                      className={`p-3 rounded-2xl border text-left transition-all ${
+                      className={`p-2.5 rounded-2xl border text-left transition-all ${
                         theme === t.id
                           ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/50 ring-2 ring-blue-600/20'
                           : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className={`w-6 h-6 rounded-lg ${t.swatch} shadow-xs`} />
-                        {theme === t.id && (
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`w-5 h-5 rounded-lg ${t.swatch} shadow-xs`} />
+                        {theme === t.id ? (
                           <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <span className="text-[9px] font-mono text-slate-400">
+                            {t.isDark ? 'Dark' : 'Light'}
+                          </span>
                         )}
                       </div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
                         {t.label}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {t.desc}
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        {t.badge}
                       </div>
                     </button>
                   ))}
@@ -599,9 +655,109 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
           )}
 
           {/* =================================================================
-              STEP 2: 🔮 PERSONAL PATTERN ENGINE & SAFEGUARDS CALIBRATION
+              STEP 2: NEW PROJECTS — COMPLETE AI-POWERED PROJECT WORKSPACE
               ================================================================= */}
           {step === 2 && (
+            <div className="space-y-5">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300 mb-2">
+                  <FolderKanban className="w-3.5 h-3.5" />
+                  <span>New Top-Level Section • PROJECTS Operating System</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
+                  PROJECTS — Complete AI-Powered Project Workspace (10 GB Quota)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Every project is an isolated 12-module container for documents, files, notes, tasks, audio/video, standalone HTML photo albums, knowledge graphs, and non-destructive AI workflows.
+                </p>
+              </div>
+
+              {/* 4 Core Capabilities Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-1.5">
+                  <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-blue-600" />
+                    10 GB Chunked &amp; Resumable Uploads
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Streams `.txt`, `.md`, `.doc`, `.docx`, and `.pdf` files in 2 MB IndexedDB chunks with live speed/ETA telemetry, Pause/Resume/Cancel, and zero browser RAM spikes.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-1.5">
+                  <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <GitMerge className="w-4 h-4 text-indigo-600" />
+                    Non-Destructive Versions, Diffs &amp; Merge
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Never overwrites your original upload (`Original → Working → Edited → Final`). Compare versions side-by-side, detect near-duplicates, and merge multiple documents.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-1.5">
+                  <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-emerald-600" />
+                    Standalone HTML Photo Album Builder
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Upload JPG, PNG, WEBP, or GIF photos and generate a downloadable `My_Photo_Album.html` with Modern Grid, Masonry layout, Lightbox, and Fullscreen navigation.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-1.5">
+                  <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Wand2 className="w-4 h-4 text-violet-600" />
+                    AI Sandbox Mode &amp; 5-Mode Export Studio
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Run "ASK THIS PROJECT" and 10 AI actions in a safe Sandbox with side-by-side source comparison before committing, plus portable `Project_Manifest.json` backups.
+                  </p>
+                </div>
+              </div>
+
+              {/* Optional First Clean Project Container Creator */}
+              <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <FolderKanban className="w-4 h-4 text-blue-600" />
+                    Optional: Create Your First Clean Project Container (Starts Empty by Default)
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    0 Demo Projects Pre-Loaded
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <input
+                    type="text"
+                    value={firstOSProjectName}
+                    onChange={(e) => setFirstOSProjectName(e.target.value)}
+                    placeholder="Leave blank for 0 projects, or enter a project name..."
+                    className="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs font-semibold text-slate-900 dark:text-white"
+                  />
+                  <select
+                    value={firstOSProjectTemplate}
+                    onChange={(e) =>
+                      setFirstOSProjectTemplate(e.target.value as ProjectTemplateType)
+                    }
+                    className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs font-bold text-slate-900 dark:text-white"
+                  >
+                    <option value="Blank Project">Blank Project</option>
+                    <option value="Writing Project">Writing Project</option>
+                    <option value="Music Project">Music Project</option>
+                    <option value="Research Project">Research Project</option>
+                    <option value="Photo Project">Photo Project</option>
+                    <option value="Business Project">Business Project</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================================
+              STEP 3: 🔮 PERSONAL PATTERN ENGINE & SAFEGUARDS CALIBRATION
+              ================================================================= */}
+          {step === 3 && (
             <div className="space-y-6">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/25 text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-300 mb-2">
@@ -714,20 +870,56 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
           )}
 
           {/* =================================================================
-              STEP 3: CLEAN ZERO-DEMO LAUNCH (OPTIONAL HABITS & FIRST CAPTURE)
+              STEP 4: CLEAN ZERO-DEMO LAUNCH (OPTIONAL HABITS & FIRST CAPTURE)
               ================================================================= */}
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-6">
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <div className="font-extrabold text-slate-900 dark:text-white">
-                    100% Clean Zero-Demo Workspace Ready
+                    100% Clean Zero-Demo Workspace Verified
                   </div>
                   <p className="text-slate-600 dark:text-slate-300 mt-0.5">
-                    All demo tasks, notes, projects, contacts, and sample patterns have been removed. Leave the options below blank for a completely empty slate, or optionally pick habits and your first real item to start with.
+                    All demo tasks, notes, projects, documents, photo albums, contacts, and sample patterns have been completely removed. Leave the fields below blank for a completely empty slate, or optionally select habits and your launch destination.
                   </p>
                 </div>
+              </div>
+
+              {/* Choose Initial Destination on Launch */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setLaunchSection('dashboard')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    launchSection === 'dashboard'
+                      ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-600/20'
+                      : 'border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                    🚀 Open Today Command Center
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Start on your clean daily dashboard, Omnibox capture bar, and habit tracker.
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLaunchSection('projects-os')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all ${
+                    launchSection === 'projects-os'
+                      ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-2 ring-blue-600/20'
+                      : 'border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                    📂 Open PROJECTS AI Workspace
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Jump straight into the 12-module AI Project Operating System (10 GB Docs, Diffs &amp; Albums).
+                  </p>
+                </button>
               </div>
 
               {/* Optional Starter Habits */}
@@ -831,7 +1023,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
             {step > 0 ? (
               <button
                 type="button"
-                onClick={() => setStep((prev) => (prev - 1) as 0 | 1 | 2 | 3)}
+                onClick={() => setStep((prev) => (prev - 1) as 0 | 1 | 2 | 3 | 4)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -849,10 +1041,10 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5">
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 type="button"
-                onClick={() => setStep((prev) => (prev + 1) as 0 | 1 | 2 | 3)}
+                onClick={() => setStep((prev) => (prev + 1) as 0 | 1 | 2 | 3 | 4)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors"
               >
                 <span>Continue</span>

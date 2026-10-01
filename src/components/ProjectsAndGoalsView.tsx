@@ -33,6 +33,7 @@ interface ProjectsAndGoalsViewProps {
   onUpdateGoalProgress?: (goalId: string, progress: number) => void;
   onAddHabit?: (name: string, schedule: 'Daily' | 'Weekdays') => void;
   onDeleteHabit?: (habitId: string) => void;
+  onOpenProjectsOS?: () => void;
 }
 
 export const ProjectsAndGoalsView: React.FC<ProjectsAndGoalsViewProps> = ({
@@ -49,6 +50,7 @@ export const ProjectsAndGoalsView: React.FC<ProjectsAndGoalsViewProps> = ({
   onUpdateGoalProgress,
   onAddHabit,
   onDeleteHabit,
+  onOpenProjectsOS,
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
     workspace.projects[0]?.id || ''
@@ -100,12 +102,23 @@ export const ProjectsAndGoalsView: React.FC<ProjectsAndGoalsViewProps> = ({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowCustomForm(!showCustomForm)}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
-          >
-            <Plus className="w-4 h-4" /> New Custom Project
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onOpenProjectsOS && (
+              <button
+                type="button"
+                onClick={onOpenProjectsOS}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" /> Open PROJECTS (AI Workspace &amp; 10GB Docs)
+              </button>
+            )}
+            <button
+              onClick={() => setShowCustomForm(!showCustomForm)}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
+            >
+              <Plus className="w-4 h-4" /> New Custom Project
+            </button>
+          </div>
         </div>
 
         {showCustomForm && (

@@ -27,6 +27,10 @@ import {
   ListTodo,
   Wand2,
   CheckCheck,
+  BarChart3,
+  TrendingUp,
+  X,
+  Timer,
 } from 'lucide-react';
 import {
   EnergyMode,
@@ -596,9 +600,14 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
   );
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
   const [filterEnergy, setFilterEnergy] = useState<'ALL' | TaskEnergyLevel>('ALL');
+  const [quickViewFilter, setQuickViewFilter] = useState<
+    'all' | 'active' | 'completed' | 'high-priority'
+  >('all');
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [smartSortBannerMsg, setSmartSortBannerMsg] = useState<string | null>(null);
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
+  const [analyticsFilterTab, setAnalyticsFilterTab] = useState<'all' | 'completed' | 'active'>('all');
 
   useEffect(() => {
     setEnergyProfile(mapWorkspaceEnergyToProfile(workspace.settings?.energyMode));
@@ -651,8 +660,46 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
     return map;
   }, [workspace.tasks, energyProfile, todayStr]);
 
+  // Quick filter counts across all non-deleted, non-archived tasks
+  const quickFilterCounts = useMemo(() => {
+    const base = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Archived');
+    const activeCount = base.filter((t) => t.status !== 'Completed').length;
+    const completedCount = base.filter((t) => t.status === 'Completed').length;
+    const highPriorityCount = base.filter(
+      (t) => t.priority === 'High' || t.priority === 'Critical'
+    ).length;
+    const uncompletedSubtasksCount = base.reduce(
+      (sum, t) => sum + t.subtasks.filter((s) => !s.completed).length,
+      0
+    );
+    const uncompletedShoppingCount = workspace.shoppingLists.reduce(
+      (sum, l) => sum + l.items.filter((i) => !i.checked).length,
+      0
+    );
+    return {
+      all: base.length,
+      active: activeCount,
+      completed: completedCount,
+      highPriority: highPriorityCount,
+      uncompletedSubtasksCount,
+      uncompletedShoppingCount,
+      totalUncompletedEverything:
+        activeCount + uncompletedSubtasksCount + uncompletedShoppingCount,
+    };
+  }, [workspace.tasks, workspace.shoppingLists]);
+
   const activeTasks = useMemo(() => {
     let list = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Archived');
+
+    // Apply Quick View Filter ('Active', 'Completed', 'High Priority')
+    if (quickViewFilter === 'active') {
+      list = list.filter((t) => t.status !== 'Completed');
+    } else if (quickViewFilter === 'completed') {
+      list = list.filter((t) => t.status === 'Completed');
+    } else if (quickViewFilter === 'high-priority') {
+      list = list.filter((t) => t.priority === 'High' || t.priority === 'Critical');
+    }
+
     if (filterPriority !== 'ALL') {
       list = list.filter((t) => t.priority === filterPriority);
     }
@@ -679,7 +726,14 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
       if (sortBy === 'dueDate') return a.dueDate.localeCompare(b.dueDate);
       return a.estimatedMinutes - b.estimatedMinutes;
     });
-  }, [workspace.tasks, filterPriority, filterEnergy, sortBy, smartEvaluationsMap]);
+  }, [
+    workspace.tasks,
+    quickViewFilter,
+    filterPriority,
+    filterEnergy,
+    sortBy,
+    smartEvaluationsMap,
+  ]);
 
   const incompleteActiveTasks = useMemo(
     () => activeTasks.filter((t) => t.status !== 'Completed'),
@@ -699,6 +753,191 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
     const topEval = topTask ? smartEvaluationsMap.get(topTask.id) || null : null;
     return { urgentCount, energyMatchedCount, topTask, topEval };
   }, [incompleteActiveTasks, smartEvaluationsMap]);
+
+  // Task Analytics: Breakdown of completion time vs. initial estimates & productivity trends
+  const taskAnalytics = useMemo(() => {
+    const baseTasks = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Archived');
+    const rows = baseTasks.map((t) => {
+      const est = Math.max(5, Number(t.estimatedMinutes) || 15);
+      const energy = inferTaskEnergyLevel(t);
+      const isCompleted = t.status === 'Completed';
+      const hasLoggedActual = Number(t.actualMinutes) > 0;
+      const effectiveActual = hasLoggedActual
+        ? Number(t.actualMinutes)
+        : isCompleted
+        ? est
+        : t.completionPercentage > 0
+        ? Math.max(1, Math.round((t.completionPercentage / 100) * est))
+        : 0;
+
+      const comparisonActual = hasLoggedActual || isCompleted ? effectiveActual : est;
+      const deltaMins = comparisonActual - est;
+      const variancePct = Math.round((deltaMins / est) * 100);
+      const accuracyPct = Math.max(
+        0,
+        Math.min(100, Math.round(100 - (Math.abs(deltaMins) / est) * 100))
+      );
+
+      let paceStatus: 'faster' | 'on-track' | 'overrun' = 'on-track';
+      if (variancePct <= -10) paceStatus = 'faster';
+      else if (variancePct >= 15) paceStatus = 'overrun';
+
+      return {
+        task: t,
+        energy,
+        est,
+        loggedActual: Number(t.actualMinutes) || 0,
+        effectiveActual,
+        comparisonActual,
+        deltaMins,
+        variancePct,
+        accuracyPct,
+        paceStatus,
+        isCompleted,
+        hasLoggedActual,
+      };
+    });
+
+    const trackedRows = rows.filter((r) => r.isCompleted || r.hasLoggedActual);
+    const sampleRows = trackedRows.length > 0 ? trackedRows : rows;
+
+    const totalEstimated = sampleRows.reduce((sum, r) => sum + r.est, 0);
+    const totalActual = sampleRows.reduce((sum, r) => sum + r.comparisonActual, 0);
+    const netDeltaMins = totalActual - totalEstimated;
+    const avgAccuracyPct =
+      sampleRows.length > 0
+        ? Math.round(sampleRows.reduce((sum, r) => sum + r.accuracyPct, 0) / sampleRows.length)
+        : 100;
+
+    const fasterCount = sampleRows.filter((r) => r.paceStatus === 'faster').length;
+    const onTrackCount = sampleRows.filter((r) => r.paceStatus === 'on-track').length;
+    const overrunCount = sampleRows.filter((r) => r.paceStatus === 'overrun').length;
+
+    // Breakdown by Energy Level
+    const byEnergy = (['High', 'Medium', 'Low'] as TaskEnergyLevel[]).map((lvl) => {
+      const subset = rows.filter((r) => r.energy === lvl);
+      const sumEst = subset.reduce((s, r) => s + r.est, 0);
+      const sumAct = subset.reduce((s, r) => s + r.comparisonActual, 0);
+      const avgEst = subset.length > 0 ? Math.round(sumEst / subset.length) : 0;
+      const avgAct = subset.length > 0 ? Math.round(sumAct / subset.length) : 0;
+      const diffPct = sumEst > 0 ? Math.round(((sumAct - sumEst) / sumEst) * 100) : 0;
+      return {
+        level: lvl,
+        count: subset.length,
+        avgEst,
+        avgAct,
+        sumEst,
+        sumAct,
+        diffPct,
+      };
+    });
+
+    // Actionable Productivity Trends
+    const actionableTrends: {
+      title: string;
+      detail: string;
+      tone: 'emerald' | 'blue' | 'amber';
+    }[] = [];
+
+    const highEnergyStats = byEnergy.find((e) => e.level === 'High');
+    const lowEnergyStats = byEnergy.find((e) => e.level === 'Low');
+
+    if (highEnergyStats && highEnergyStats.count > 0) {
+      if (highEnergyStats.diffPct > 10) {
+        actionableTrends.push({
+          title: `High-Energy Deep Work Overruns (+${highEnergyStats.diffPct}%)`,
+          detail: `Deep-work tasks average ${highEnergyStats.avgAct}m actual vs. ${highEnergyStats.avgEst}m estimated. Add a +15% buffer or split descriptions into secondary sub-checklists.`,
+          tone: 'amber',
+        });
+      } else {
+        actionableTrends.push({
+          title: `Strong Deep-Work Estimation (${highEnergyStats.avgAct}m actual vs. ${highEnergyStats.avgEst}m est)`,
+          detail: `Your High-Energy tasks are finishing on pace. Schedule your top High-Energy pick during peak focus hours.`,
+          tone: 'emerald',
+        });
+      }
+    }
+
+    if (lowEnergyStats && lowEnergyStats.count > 0) {
+      if (lowEnergyStats.diffPct <= 0) {
+        actionableTrends.push({
+          title: `Quick-Win Velocity Advantage (${Math.abs(lowEnergyStats.diffPct)}% faster than est)`,
+          detail: `Low-Energy tasks average ${lowEnergyStats.avgAct}m vs. ${lowEnergyStats.avgEst}m estimated. Batch 2–3 Low-Energy tasks together during afternoon slumps.`,
+          tone: 'emerald',
+        });
+      } else {
+        actionableTrends.push({
+          title: `Low-Energy Scope Creep (+${lowEnergyStats.diffPct}%)`,
+          detail: `Quick admin tasks are taking ${lowEnergyStats.avgAct}m vs. ${lowEnergyStats.avgEst}m estimated. Cap quick tasks with a 15m Focus Timer.`,
+          tone: 'amber',
+        });
+      }
+    }
+
+    actionableTrends.push({
+      title:
+        netDeltaMins <= 0
+          ? `Net Time Saved: ${Math.abs(netDeltaMins)}m Under Initial Estimates`
+          : `Net Time Variance: +${netDeltaMins}m Over Initial Estimates`,
+      detail:
+        avgAccuracyPct >= 85
+          ? `Your overall estimation accuracy is ${avgAccuracyPct}% across ${sampleRows.length} task(s). Keep logging actual focus minutes to maintain calibration.`
+          : `Overall estimation accuracy is ${avgAccuracyPct}%. Use 'Auto-Calibrate Estimates' below to align active task estimates with your real completion pace.`,
+      tone: netDeltaMins <= 0 ? 'blue' : 'amber',
+    });
+
+    return {
+      rows,
+      trackedCount: trackedRows.length,
+      totalCount: rows.length,
+      totalEstimated,
+      totalActual,
+      netDeltaMins,
+      avgAccuracyPct,
+      fasterCount,
+      onTrackCount,
+      overrunCount,
+      byEnergy,
+      actionableTrends,
+    };
+  }, [workspace.tasks]);
+
+  // One-click calibration of task estimates based on observed completion trends
+  const handleCalibrateTaskEstimates = () => {
+    let calibratedCount = 0;
+    taskAnalytics.rows.forEach((r) => {
+      if (!r.isCompleted && r.hasLoggedActual && r.loggedActual > r.est) {
+        onUpdateTask(r.task.id, {
+          estimatedMinutes: Math.ceil(r.loggedActual / 5) * 5,
+        });
+        calibratedCount++;
+      } else if (r.isCompleted && !r.hasLoggedActual) {
+        onUpdateTask(r.task.id, {
+          actualMinutes: r.est,
+        });
+        calibratedCount++;
+      }
+    });
+
+    if (calibratedCount === 0 && incompleteActiveTasks.length > 0) {
+      incompleteActiveTasks.forEach((t) => {
+        const energy = inferTaskEnergyLevel(t);
+        if (energy === 'High') {
+          onUpdateTask(t.id, {
+            estimatedMinutes: Math.min(180, Math.round((t.estimatedMinutes * 1.15) / 5) * 5),
+          });
+          calibratedCount++;
+        }
+      });
+    }
+
+    setSmartSortBannerMsg(
+      calibratedCount > 0
+        ? `Task Analytics calibrated estimates & completion logs across ${calibratedCount} task(s).`
+        : 'All task estimates and completion logs are already calibrated.'
+    );
+    setTimeout(() => setSmartSortBannerMsg(null), 4000);
+  };
 
   const handleApplySmartPriorities = () => {
     let updatedCount = 0;
@@ -784,9 +1023,19 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
   };
 
   const handleBulkComplete = () => {
-    selectedTaskIds.forEach((id) =>
-      onUpdateTask(id, { status: 'Completed', completionPercentage: 100 })
-    );
+    const nowIso = new Date().toISOString();
+    selectedTaskIds.forEach((id) => {
+      const found = workspace.tasks.find((t) => t.id === id);
+      onUpdateTask(id, {
+        status: 'Completed',
+        completionPercentage: 100,
+        completedAt: nowIso,
+        actualMinutes:
+          found && found.actualMinutes > 0
+            ? found.actualMinutes
+            : found?.estimatedMinutes || 15,
+      });
+    });
     setSelectedTaskIds([]);
   };
 
@@ -798,6 +1047,55 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
   const handleBulkDelete = () => {
     onDeleteTasks(selectedTaskIds);
     setSelectedTaskIds([]);
+  };
+
+  // Finish all uncompleted tasks, secondary sub-checklist steps, and shopping/checklist items
+  const handleFinishAllUncompletedItems = () => {
+    const nowIso = new Date().toISOString();
+    let tasksFinished = 0;
+    let subtasksFinished = 0;
+    let checklistItemsFinished = 0;
+
+    const nonDeletedTasks = workspace.tasks.filter(
+      (t) => !t.deletedAt && t.status !== 'Archived'
+    );
+
+    nonDeletedTasks.forEach((t) => {
+      const hasOpenSubtasks = t.subtasks.some((s) => !s.completed);
+      const isTaskIncomplete = t.status !== 'Completed' || t.completionPercentage < 100;
+
+      if (isTaskIncomplete || hasOpenSubtasks) {
+        const openSteps = t.subtasks.filter((s) => !s.completed).length;
+        subtasksFinished += openSteps;
+        if (t.status !== 'Completed') {
+          tasksFinished++;
+        }
+        onUpdateTask(t.id, {
+          status: 'Completed',
+          completionPercentage: 100,
+          completedAt: nowIso,
+          actualMinutes: t.actualMinutes > 0 ? t.actualMinutes : t.estimatedMinutes,
+          subtasks: t.subtasks.map((s) => ({ ...s, completed: true })),
+        });
+      }
+    });
+
+    workspace.shoppingLists.forEach((list) => {
+      list.items.forEach((item) => {
+        if (!item.checked) {
+          checklistItemsFinished++;
+          onToggleShoppingItem(list.id, item.id);
+        }
+      });
+    });
+
+    setSelectedTaskIds([]);
+    setSmartSortBannerMsg(
+      tasksFinished + subtasksFinished + checklistItemsFinished > 0
+        ? `Finished all uncompleted items: ${tasksFinished} task(s), ${subtasksFinished} sub-checklist step(s), and ${checklistItemsFinished} checklist item(s) marked complete.`
+        : 'All tasks, sub-checklists, and checklist items are already completed!'
+    );
+    setTimeout(() => setSmartSortBannerMsg(null), 4500);
   };
 
   // Convert a task's description (or title) into secondary sub-checklist items with automatic progress tracking
@@ -962,6 +1260,19 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAnalyticsModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              title="Open Task Analytics Modal: Completion Time vs. Initial Estimates & Productivity Trends"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Task Analytics</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-900/70 text-indigo-700 dark:text-indigo-300 font-extrabold">
+                {taskAnalytics.avgAccuracyPct}% Acc
+              </span>
+            </button>
+
             <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
               <button
                 onClick={() => setViewMode('list')}
@@ -1212,89 +1523,194 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
 
         {/* Filter, Sort & Bulk Action Bar */}
         {viewMode !== 'shopping' && (
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500">Sort by:</span>
-              {(
-                [
-                  ['smart', '✨ Smart Sort (Deadline + Energy)'],
-                  ['priority', 'Priority'],
-                  ['dueDate', 'Due Date'],
-                  ['estimated', 'Shortest Time'],
-                ] as const
-              ).map(([k, label]) => (
-                <button
-                  key={k}
-                  onClick={() => setSortBy(k)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    sortBy === k
-                      ? 'bg-blue-600 text-white font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-
-              <span className="text-slate-300 dark:text-slate-700 mx-1">|</span>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5 text-slate-400" />
-                  <select
-                    value={filterPriority}
-                    onChange={(e) => setFilterPriority(e.target.value)}
-                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
-                    title="Filter by Priority"
-                  >
-                    <option value="ALL">All Priorities</option>
-                    <option value="Critical">Critical Only</option>
-                    <option value="High">High Only</option>
-                    <option value="Medium">Medium Only</option>
-                    <option value="Low">Low Only</option>
-                    <option value="Someday">Someday Only</option>
-                  </select>
-                </div>
-
-                <select
-                  value={filterEnergy}
-                  onChange={(e) => setFilterEnergy(e.target.value as 'ALL' | TaskEnergyLevel)}
-                  className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
-                  title="Filter by Required Energy"
-                >
-                  <option value="ALL">All Energy Levels</option>
-                  <option value="High">⚡ High Energy Only</option>
-                  <option value="Medium">⚖️ Medium Energy Only</option>
-                  <option value="Low">🔋 Low Energy Only</option>
-                </select>
-              </div>
-            </div>
-
-            {selectedTaskIds.length > 0 && (
-              <div className="flex items-center gap-2 bg-blue-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-slate-700">
-                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                  {selectedTaskIds.length} Selected:
+          <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            {/* Quick View State Filter Buttons: All, Active, Completed, High Priority + Finish All Uncompleted */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">
+                  Quick Filter:
                 </span>
                 <button
-                  onClick={handleBulkComplete}
-                  className="text-xs font-semibold text-emerald-700 hover:underline"
+                  type="button"
+                  onClick={() => setQuickViewFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    quickViewFilter === 'all'
+                      ? 'bg-slate-900 dark:bg-blue-600 text-white border-slate-900 dark:border-blue-600 shadow-2xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
                 >
-                  Complete
+                  <span>All</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/10 dark:bg-white/10">
+                    {quickFilterCounts.all}
+                  </span>
                 </button>
+
                 <button
-                  onClick={handleBulkArchive}
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:underline flex items-center gap-1"
+                  type="button"
+                  onClick={() =>
+                    setQuickViewFilter((prev) => (prev === 'active' ? 'all' : 'active'))
+                  }
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    quickViewFilter === 'active'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                  }`}
+                  title="Show only Active (uncompleted) tasks"
                 >
-                  <Archive className="w-3 h-3" /> Archive
+                  <Circle className="w-3 h-3" />
+                  <span>Active</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/10 dark:bg-white/10">
+                    {quickFilterCounts.active}
+                  </span>
                 </button>
+
                 <button
-                  onClick={handleBulkDelete}
-                  className="text-xs font-semibold text-red-600 hover:underline flex items-center gap-1"
+                  type="button"
+                  onClick={() =>
+                    setQuickViewFilter((prev) => (prev === 'completed' ? 'all' : 'completed'))
+                  }
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    quickViewFilter === 'completed'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                  title="Show only Completed tasks"
                 >
-                  <Trash2 className="w-3 h-3" /> Delete
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Completed</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/10 dark:bg-white/10">
+                    {quickFilterCounts.completed}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuickViewFilter((prev) =>
+                      prev === 'high-priority' ? 'all' : 'high-priority'
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    quickViewFilter === 'high-priority'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-rose-400'
+                  }`}
+                  title="Show only High & Critical priority tasks"
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>High Priority</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/10 dark:bg-white/10">
+                    {quickFilterCounts.highPriority}
+                  </span>
                 </button>
               </div>
-            )}
+
+              {/* Finish All Uncompleted Items Action Button */}
+              <button
+                type="button"
+                onClick={handleFinishAllUncompletedItems}
+                disabled={quickFilterCounts.totalUncompletedEverything === 0}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                  quickFilterCounts.totalUncompletedEverything > 0
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-2xs cursor-pointer'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed'
+                }`}
+                title="Mark all uncompleted tasks, secondary sub-checklist steps, and checklist items as completed"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>
+                  Finish All Uncompleted Items
+                  {quickFilterCounts.totalUncompletedEverything > 0
+                    ? ` (${quickFilterCounts.totalUncompletedEverything})`
+                    : ''}
+                </span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">Sort by:</span>
+                {(
+                  [
+                    ['smart', '✨ Smart Sort (Deadline + Energy)'],
+                    ['priority', 'Priority'],
+                    ['dueDate', 'Due Date'],
+                    ['estimated', 'Shortest Time'],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button
+                    key={k}
+                    onClick={() => setSortBy(k)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      sortBy === k
+                        ? 'bg-blue-600 text-white font-semibold shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+
+                <span className="text-slate-300 dark:text-slate-700 mx-1">|</span>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-slate-400" />
+                    <select
+                      value={filterPriority}
+                      onChange={(e) => setFilterPriority(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                      title="Filter by Priority"
+                    >
+                      <option value="ALL">All Priorities</option>
+                      <option value="Critical">Critical Only</option>
+                      <option value="High">High Only</option>
+                      <option value="Medium">Medium Only</option>
+                      <option value="Low">Low Only</option>
+                      <option value="Someday">Someday Only</option>
+                    </select>
+                  </div>
+
+                  <select
+                    value={filterEnergy}
+                    onChange={(e) => setFilterEnergy(e.target.value as 'ALL' | TaskEnergyLevel)}
+                    className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
+                    title="Filter by Required Energy"
+                  >
+                    <option value="ALL">All Energy Levels</option>
+                    <option value="High">⚡ High Energy Only</option>
+                    <option value="Medium">⚖️ Medium Energy Only</option>
+                    <option value="Low">🔋 Low Energy Only</option>
+                  </select>
+                </div>
+              </div>
+
+              {selectedTaskIds.length > 0 && (
+                <div className="flex items-center gap-2 bg-blue-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-slate-700">
+                  <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
+                    {selectedTaskIds.length} Selected:
+                  </span>
+                  <button
+                    onClick={handleBulkComplete}
+                    className="text-xs font-semibold text-emerald-700 hover:underline"
+                  >
+                    Complete
+                  </button>
+                  <button
+                    onClick={handleBulkArchive}
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300 hover:underline flex items-center gap-1"
+                  >
+                    <Archive className="w-3 h-3" /> Archive
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="text-xs font-semibold text-red-600 hover:underline flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1313,10 +1729,13 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                   Reset your priority or energy filters, or add a new task above.
                 </p>
               </div>
-              {(filterPriority !== 'ALL' || filterEnergy !== 'ALL') && (
+              {(quickViewFilter !== 'all' ||
+                filterPriority !== 'ALL' ||
+                filterEnergy !== 'ALL') && (
                 <button
                   type="button"
                   onClick={() => {
+                    setQuickViewFilter('all');
                     setFilterPriority('ALL');
                     setFilterEnergy('ALL');
                   }}
@@ -1361,12 +1780,18 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                     />
 
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        const nextDone = task.status !== 'Completed';
                         onUpdateTask(task.id, {
-                          status: task.status === 'Completed' ? 'Not Started' : 'Completed',
-                          completionPercentage: task.status === 'Completed' ? 0 : 100,
-                        })
-                      }
+                          status: nextDone ? 'Completed' : 'Not Started',
+                          completionPercentage: nextDone ? 100 : 0,
+                          completedAt: nextDone ? new Date().toISOString() : undefined,
+                          actualMinutes:
+                            nextDone && (!task.actualMinutes || task.actualMinutes === 0)
+                              ? task.estimatedMinutes
+                              : task.actualMinutes,
+                        });
+                      }}
                       className="mt-0.5 text-slate-400 hover:text-blue-600 transition-colors"
                     >
                       {task.status === 'Completed' ? (
@@ -1463,7 +1888,8 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                           }`}
                         >
                           <Clock className="w-3 h-3" />
-                          {smartEval ? smartEval.urgencyLabel : `Due ${task.dueDate}`} ({task.estimatedMinutes}m)
+                          {smartEval ? smartEval.urgencyLabel : `Due ${task.dueDate}`} (Est {task.estimatedMinutes}m
+                          {task.actualMinutes > 0 ? ` • Actual ${task.actualMinutes}m` : ''})
                         </span>
 
                         {linkedProject && (
@@ -1699,20 +2125,38 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                              Estimated Mins
+                              Estimated vs Actual (Mins)
                             </label>
-                            <input
-                              type="number"
-                              min={5}
-                              step={5}
-                              value={task.estimatedMinutes}
-                              onChange={(e) =>
-                                onUpdateTask(task.id, {
-                                  estimatedMinutes: Math.max(5, Number(e.target.value) || 15),
-                                })
-                              }
-                              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
-                            />
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <input
+                                type="number"
+                                min={5}
+                                step={5}
+                                value={task.estimatedMinutes}
+                                onChange={(e) =>
+                                  onUpdateTask(task.id, {
+                                    estimatedMinutes: Math.max(5, Number(e.target.value) || 15),
+                                  })
+                                }
+                                title="Initial Estimated Minutes"
+                                placeholder="Est (m)"
+                                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 text-xs font-mono"
+                              />
+                              <input
+                                type="number"
+                                min={0}
+                                step={5}
+                                value={task.actualMinutes || 0}
+                                onChange={(e) =>
+                                  onUpdateTask(task.id, {
+                                    actualMinutes: Math.max(0, Number(e.target.value) || 0),
+                                  })
+                                }
+                                title="Actual Completion Minutes"
+                                placeholder="Actual (m)"
+                                className="w-full rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/40 px-2 py-1.5 text-xs font-mono text-indigo-700 dark:text-indigo-300"
+                              />
+                            </div>
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
@@ -2226,6 +2670,22 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                         <span className="text-xs font-mono font-semibold text-blue-600">
                           {list.items.filter((i) => i.checked).length}/{list.items.length} Checked
                         </span>
+                        {list.items.some((i) => !i.checked) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              list.items.forEach((item) => {
+                                if (!item.checked) {
+                                  onToggleShoppingItem(list.id, item.id);
+                                }
+                              });
+                            }}
+                            className="text-[11px] font-semibold text-emerald-600 hover:underline flex items-center gap-1"
+                            title="Check all uncompleted items in this list"
+                          >
+                            <CheckCheck className="w-3 h-3" /> Finish All
+                          </button>
+                        )}
                         {onClearCheckedShoppingItems && list.items.some((i) => i.checked) && (
                           <button
                             type="button"
@@ -2363,6 +2823,394 @@ export const TasksAndChecklistsView: React.FC<TasksAndChecklistsViewProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* TASK ANALYTICS MODAL: Completion Time vs. Initial Estimates & Productivity Trends */}
+      {isAnalyticsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4"
+          onClick={() => setIsAnalyticsModalOpen(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 bg-gradient-to-r from-indigo-50/70 via-blue-50/40 to-white dark:from-slate-900 dark:via-indigo-950/30 dark:to-slate-900">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Task Analytics • Completion vs. Estimates</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-extrabold">
+                      {taskAnalytics.avgAccuracyPct}% Accuracy
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Compare actual completion time against initial estimates to calibrate your daily planning.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAnalyticsModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Close Task Analytics"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-5">
+              {/* Top KPI Summary Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <span>Initial Estimates vs. Actual</span>
+                    <Timer className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <div className="text-lg font-extrabold font-mono text-slate-900 dark:text-white">
+                    {taskAnalytics.totalActual}m{' '}
+                    <span className="text-xs font-normal text-slate-400">
+                      / {taskAnalytics.totalEstimated}m est
+                    </span>
+                  </div>
+                  <div
+                    className={`text-[11px] font-bold ${
+                      taskAnalytics.netDeltaMins <= 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {taskAnalytics.netDeltaMins <= 0
+                      ? `${Math.abs(taskAnalytics.netDeltaMins)}m faster than estimated`
+                      : `+${taskAnalytics.netDeltaMins}m over initial estimates`}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <span>Estimation Calibration</span>
+                    <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <div className="text-lg font-extrabold font-mono text-indigo-600 dark:text-indigo-400">
+                    {taskAnalytics.avgAccuracyPct}%
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {taskAnalytics.fasterCount} early • {taskAnalytics.onTrackCount} on target •{' '}
+                    {taskAnalytics.overrunCount} overrun
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    <span>Completion Velocity</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
+                  <div className="text-lg font-extrabold font-mono text-slate-900 dark:text-white">
+                    {quickFilterCounts.completed}/{quickFilterCounts.all}{' '}
+                    <span className="text-xs font-normal text-slate-400">tasks done</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {taskAnalytics.trackedCount} task(s) with logged/completed time
+                  </div>
+                </div>
+              </div>
+
+              {/* Energy Tier Time Breakdown (Actual vs. Estimate by Energy Level) */}
+              <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Avg Completion Time vs. Initial Estimate by Energy Level
+                  </h3>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Actual vs. Est (mins)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {taskAnalytics.byEnergy.map((tier) => (
+                    <div
+                      key={tier.level}
+                      className="rounded-xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 p-3 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-slate-800 dark:text-slate-200">
+                          {tier.level === 'High'
+                            ? '⚡ High Energy'
+                            : tier.level === 'Medium'
+                            ? '⚖️ Med Energy'
+                            : '🔋 Low Energy'}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {tier.count} task{tier.count === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between font-mono text-xs">
+                        <span className="font-extrabold text-slate-900 dark:text-white">
+                          {tier.avgAct}m actual
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          vs {tier.avgEst}m est
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            tier.diffPct > 12
+                              ? 'bg-amber-500'
+                              : tier.diffPct < -5
+                              ? 'bg-emerald-500'
+                              : 'bg-blue-600'
+                          }`}
+                          style={{
+                            width: `${
+                              tier.avgEst > 0
+                                ? Math.min(100, Math.round((tier.avgAct / tier.avgEst) * 75))
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actionable Productivity Trends */}
+              <div className="rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Actionable Productivity Trends & Insights
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleCalibrateTaskEstimates}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-colors shadow-2xs cursor-pointer"
+                    title="Automatically calibrate task estimates and log completion durations"
+                  >
+                    Auto-Calibrate Estimates
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {taskAnalytics.actionableTrends.map((trend, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg bg-white/90 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800 px-3 py-2 text-xs space-y-0.5"
+                    >
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            trend.tone === 'emerald'
+                              ? 'bg-emerald-500'
+                              : trend.tone === 'amber'
+                              ? 'bg-amber-500'
+                              : 'bg-blue-600'
+                          }`}
+                        />
+                        <span>{trend.title}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 pl-3.5">
+                        {trend.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Per-Task Completion Time vs. Initial Estimate Breakdown */}
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    Task-by-Task Time Breakdown (Adjust Actual Mins Inline)
+                  </h3>
+                  <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 text-[11px]">
+                    {(
+                      [
+                        ['all', `All (${taskAnalytics.rows.length})`],
+                        [
+                          'completed',
+                          `Completed (${
+                            taskAnalytics.rows.filter((r) => r.isCompleted).length
+                          })`,
+                        ],
+                        [
+                          'active',
+                          `Active (${
+                            taskAnalytics.rows.filter((r) => !r.isCompleted).length
+                          })`,
+                        ],
+                      ] as const
+                    ).map(([tabKey, tabLabel]) => (
+                      <button
+                        key={tabKey}
+                        type="button"
+                        onClick={() => setAnalyticsFilterTab(tabKey)}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                          analyticsFilterTab === tabKey
+                            ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-2xs'
+                            : 'text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {tabLabel}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {taskAnalytics.rows.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-500">
+                    No tasks in your workspace yet. Add a task to track estimated vs. actual completion times.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {taskAnalytics.rows
+                      .filter((r) =>
+                        analyticsFilterTab === 'completed'
+                          ? r.isCompleted
+                          : analyticsFilterTab === 'active'
+                          ? !r.isCompleted
+                          : true
+                      )
+                      .map((r) => {
+                        const maxBar = Math.max(r.est, r.comparisonActual, 30);
+                        const estWidth = Math.min(100, Math.round((r.est / maxBar) * 100));
+                        const actWidth = Math.min(
+                          100,
+                          Math.round((r.comparisonActual / maxBar) * 100)
+                        );
+                        return (
+                          <div
+                            key={r.task.id}
+                            className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-2"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className={`text-xs font-bold truncate ${
+                                    r.isCompleted
+                                      ? 'line-through text-slate-400'
+                                      : 'text-slate-900 dark:text-white'
+                                  }`}
+                                >
+                                  {r.task.title}
+                                </span>
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                  {r.energy} Energy
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                    r.deltaMins < 0
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                                      : r.deltaMins === 0
+                                      ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+                                      : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                                  }`}
+                                >
+                                  {r.deltaMins === 0
+                                    ? 'On Estimate'
+                                    : r.deltaMins < 0
+                                    ? `${r.deltaMins}m (${r.variancePct}%)`
+                                    : `+${r.deltaMins}m (+${r.variancePct}%)`}
+                                </span>
+
+                                {/* Inline Actual Time Quick Stepper */}
+                                <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg px-1.5 py-0.5 text-[11px] font-mono">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onUpdateTask(r.task.id, {
+                                        actualMinutes: Math.max(
+                                          0,
+                                          (r.loggedActual || r.comparisonActual) - 5
+                                        ),
+                                      })
+                                    }
+                                    className="px-1 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold"
+                                    title="Subtract 5m from actual time"
+                                  >
+                                    -5m
+                                  </button>
+                                  <span className="font-bold text-indigo-600 dark:text-indigo-400 px-1">
+                                    {r.comparisonActual}m actual
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onUpdateTask(r.task.id, {
+                                        actualMinutes:
+                                          (r.loggedActual || r.comparisonActual) + 5,
+                                      })
+                                    }
+                                    className="px-1 text-slate-500 hover:text-slate-900 dark:hover:text-white font-bold"
+                                    title="Add 5m to actual time"
+                                  >
+                                    +5m
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dual Bar: Initial Estimate vs. Actual Completion Time */}
+                            <div className="space-y-1 text-[10px] font-mono">
+                              <div className="flex items-center gap-2">
+                                <span className="w-16 text-slate-400">Estimate:</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-slate-400 dark:bg-slate-500"
+                                    style={{ width: `${estWidth}%` }}
+                                  />
+                                </div>
+                                <span className="w-10 text-right text-slate-500">{r.est}m</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-16 text-slate-400">Actual:</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      r.deltaMins <= 0
+                                        ? 'bg-emerald-500'
+                                        : r.variancePct <= 15
+                                        ? 'bg-blue-600'
+                                        : 'bg-amber-500'
+                                    }`}
+                                    style={{ width: `${actWidth}%` }}
+                                  />
+                                </div>
+                                <span className="w-10 text-right font-bold text-slate-700 dark:text-slate-200">
+                                  {r.comparisonActual}m
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                Tip: Use the Focus Timer or inline <strong>-5m / +5m</strong> controls to log exact actual completion times.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAnalyticsModalOpen(false)}
+                className="px-4 py-1.5 rounded-xl bg-slate-900 dark:bg-blue-600 text-white text-xs font-bold hover:opacity-90 transition-opacity"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

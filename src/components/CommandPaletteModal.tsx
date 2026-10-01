@@ -71,6 +71,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   const quickActions = [
     {
+      label: 'Open PROJECTS — AI-Powered Project Workspace (10GB Docs, Diffs, Photo Albums)',
+      icon: FolderKanban,
+      shortcut: 'P',
+      action: () => {
+        onClose();
+        onNavigate('projects-os');
+      },
+    },
+    {
       label: 'Brain Dump — Speak or type everything on your mind',
       icon: Sparkles,
       shortcut: 'B',

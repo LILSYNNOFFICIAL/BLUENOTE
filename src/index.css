@@ -404,6 +404,390 @@ html.theme-violet select {
 }
 
 /* ============================================================================
+   6. CRIMSON VELVET THEME (theme-rose) — Deep Bordeaux & Rose Quartz
+   ============================================================================ */
+html.theme-rose body,
+html.theme-rose .bn-app-shell {
+  background: radial-gradient(120% 90% at 85% 0%, #4c0519 0%, #230612 54%, #110209 100%) !important;
+  color: #fff1f2 !important;
+}
+
+html.theme-rose aside.bn-sidebar {
+  background: rgba(24, 4, 13, 0.95) !important;
+  border-right: 1px solid rgba(251, 113, 133, 0.18) !important;
+  color: #fff1f2 !important;
+}
+
+html.theme-rose header.bn-header {
+  background: rgba(31, 5, 17, 0.88) !important;
+  border-bottom: 1px solid rgba(251, 113, 133, 0.18) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+html.theme-rose main .bg-white,
+html.theme-rose main .dark\:bg-slate-900,
+html.theme-rose .bn-card,
+html.theme-rose .fixed .bg-white,
+html.theme-rose .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(54, 10, 28, 0.95) 0%, rgba(33, 6, 17, 0.98) 100%) !important;
+  border: 1px solid rgba(251, 113, 133, 0.2) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(12, 1, 6, 0.85),
+    inset 0 1px 0 0 rgba(254, 205, 211, 0.1) !important;
+}
+
+html.theme-rose main .bg-slate-50,
+html.theme-rose main .bg-slate-50\/90,
+html.theme-rose main .bg-slate-50\/80,
+html.theme-rose main .bg-slate-50\/70,
+html.theme-rose main .bg-slate-50\/50,
+html.theme-rose main .dark\:bg-slate-800,
+html.theme-rose main .dark\:bg-slate-800\/90,
+html.theme-rose main .dark\:bg-slate-800\/80,
+html.theme-rose main .dark\:bg-slate-800\/60,
+html.theme-rose main .dark\:bg-slate-800\/50,
+html.theme-rose main .dark\:bg-slate-800\/40 {
+  background-color: rgba(76, 5, 25, 0.55) !important;
+  border-color: rgba(251, 113, 133, 0.22) !important;
+}
+
+html.theme-rose input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-rose textarea,
+html.theme-rose select {
+  background-color: rgba(22, 3, 11, 0.9) !important;
+  border-color: rgba(251, 113, 133, 0.26) !important;
+  color: #fff1f2 !important;
+}
+
+/* ============================================================================
+   7. SOLARIS GOLD THEME (theme-amber) — Warm Espresso & Sunlit Amber
+   ============================================================================ */
+html.theme-amber body,
+html.theme-amber .bn-app-shell {
+  background: radial-gradient(120% 90% at 85% 0%, #451a03 0%, #1e1003 54%, #0f0701 100%) !important;
+  color: #fffbeb !important;
+}
+
+html.theme-amber aside.bn-sidebar {
+  background: rgba(23, 11, 2, 0.95) !important;
+  border-right: 1px solid rgba(251, 191, 36, 0.18) !important;
+  color: #fffbeb !important;
+}
+
+html.theme-amber header.bn-header {
+  background: rgba(28, 14, 3, 0.88) !important;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.18) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+html.theme-amber main .bg-white,
+html.theme-amber main .dark\:bg-slate-900,
+html.theme-amber .bn-card,
+html.theme-amber .fixed .bg-white,
+html.theme-amber .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(48, 24, 6, 0.95) 0%, rgba(29, 14, 3, 0.98) 100%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.2) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(10, 4, 0, 0.85),
+    inset 0 1px 0 0 rgba(253, 230, 138, 0.1) !important;
+}
+
+html.theme-amber main .bg-slate-50,
+html.theme-amber main .bg-slate-50\/90,
+html.theme-amber main .bg-slate-50\/80,
+html.theme-amber main .bg-slate-50\/70,
+html.theme-amber main .bg-slate-50\/50,
+html.theme-amber main .dark\:bg-slate-800,
+html.theme-amber main .dark\:bg-slate-800\/90,
+html.theme-amber main .dark\:bg-slate-800\/80,
+html.theme-amber main .dark\:bg-slate-800\/60,
+html.theme-amber main .dark\:bg-slate-800\/50,
+html.theme-amber main .dark\:bg-slate-800\/40 {
+  background-color: rgba(69, 26, 3, 0.55) !important;
+  border-color: rgba(251, 191, 36, 0.22) !important;
+}
+
+html.theme-amber input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-amber textarea,
+html.theme-amber select {
+  background-color: rgba(19, 9, 2, 0.9) !important;
+  border-color: rgba(251, 191, 36, 0.26) !important;
+  color: #fffbeb !important;
+}
+
+/* ============================================================================
+   8. CYBERPUNK NEON THEME (theme-cyber) — Synthwave Indigo & Electric Cyan
+   ============================================================================ */
+html.theme-cyber body,
+html.theme-cyber .bn-app-shell {
+  background: radial-gradient(120% 90% at 80% 0%, #1e0b4b 0%, #090320 55%, #040111 100%) !important;
+  color: #ecfeff !important;
+}
+
+html.theme-cyber aside.bn-sidebar {
+  background: rgba(8, 3, 28, 0.96) !important;
+  border-right: 1px solid rgba(34, 211, 238, 0.24) !important;
+  color: #ecfeff !important;
+}
+
+html.theme-cyber header.bn-header {
+  background: rgba(11, 4, 36, 0.88) !important;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.24) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+}
+
+html.theme-cyber main .bg-white,
+html.theme-cyber main .dark\:bg-slate-900,
+html.theme-cyber .bn-card,
+html.theme-cyber .fixed .bg-white,
+html.theme-cyber .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(20, 9, 56, 0.95) 0%, rgba(11, 4, 34, 0.98) 100%) !important;
+  border: 1px solid rgba(34, 211, 238, 0.26) !important;
+  box-shadow:
+    0 14px 36px -12px rgba(2, 0, 10, 0.9),
+    0 0 18px -6px rgba(34, 211, 238, 0.14),
+    inset 0 1px 0 0 rgba(165, 243, 252, 0.14) !important;
+}
+
+html.theme-cyber main .bg-slate-50,
+html.theme-cyber main .bg-slate-50\/90,
+html.theme-cyber main .bg-slate-50\/80,
+html.theme-cyber main .bg-slate-50\/70,
+html.theme-cyber main .bg-slate-50\/50,
+html.theme-cyber main .dark\:bg-slate-800,
+html.theme-cyber main .dark\:bg-slate-800\/90,
+html.theme-cyber main .dark\:bg-slate-800\/80,
+html.theme-cyber main .dark\:bg-slate-800\/60,
+html.theme-cyber main .dark\:bg-slate-800\/50,
+html.theme-cyber main .dark\:bg-slate-800\/40 {
+  background-color: rgba(30, 12, 78, 0.62) !important;
+  border-color: rgba(34, 211, 238, 0.24) !important;
+}
+
+html.theme-cyber input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-cyber textarea,
+html.theme-cyber select {
+  background-color: rgba(7, 2, 24, 0.92) !important;
+  border-color: rgba(34, 211, 238, 0.3) !important;
+  color: #ecfeff !important;
+}
+
+/* ============================================================================
+   9. ABYSSAL TEAL THEME (theme-ocean) — Mariana Trench & Bioluminescent Aqua
+   ============================================================================ */
+html.theme-ocean body,
+html.theme-ocean .bn-app-shell {
+  background: radial-gradient(120% 90% at 85% 0%, #083344 0%, #04242c 54%, #021318 100%) !important;
+  color: #f0fdfa !important;
+}
+
+html.theme-ocean aside.bn-sidebar {
+  background: rgba(3, 24, 31, 0.95) !important;
+  border-right: 1px solid rgba(45, 212, 191, 0.18) !important;
+  color: #f0fdfa !important;
+}
+
+html.theme-ocean header.bn-header {
+  background: rgba(5, 31, 39, 0.88) !important;
+  border-bottom: 1px solid rgba(45, 212, 191, 0.18) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+html.theme-ocean main .bg-white,
+html.theme-ocean main .dark\:bg-slate-900,
+html.theme-ocean .bn-card,
+html.theme-ocean .fixed .bg-white,
+html.theme-ocean .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(9, 49, 61, 0.95) 0%, rgba(5, 32, 40, 0.98) 100%) !important;
+  border: 1px solid rgba(45, 212, 191, 0.2) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(1, 10, 14, 0.85),
+    inset 0 1px 0 0 rgba(153, 246, 228, 0.1) !important;
+}
+
+html.theme-ocean main .bg-slate-50,
+html.theme-ocean main .bg-slate-50\/90,
+html.theme-ocean main .bg-slate-50\/80,
+html.theme-ocean main .bg-slate-50\/70,
+html.theme-ocean main .bg-slate-50\/50,
+html.theme-ocean main .dark\:bg-slate-800,
+html.theme-ocean main .dark\:bg-slate-800\/90,
+html.theme-ocean main .dark\:bg-slate-800\/80,
+html.theme-ocean main .dark\:bg-slate-800\/60,
+html.theme-ocean main .dark\:bg-slate-800\/50,
+html.theme-ocean main .dark\:bg-slate-800\/40 {
+  background-color: rgba(13, 66, 80, 0.55) !important;
+  border-color: rgba(45, 212, 191, 0.22) !important;
+}
+
+html.theme-ocean input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-ocean textarea,
+html.theme-ocean select {
+  background-color: rgba(3, 20, 26, 0.9) !important;
+  border-color: rgba(45, 212, 191, 0.26) !important;
+  color: #f0fdfa !important;
+}
+
+/* ============================================================================
+   10. DUSK HORIZON THEME (theme-sunset) — Twilight Plum & Warm Coral
+   ============================================================================ */
+html.theme-sunset body,
+html.theme-sunset .bn-app-shell {
+  background: radial-gradient(120% 90% at 85% 0%, #4a153b 0%, #240b24 54%, #120414 100%) !important;
+  color: #fff7ed !important;
+}
+
+html.theme-sunset aside.bn-sidebar {
+  background: rgba(25, 7, 25, 0.95) !important;
+  border-right: 1px solid rgba(251, 146, 60, 0.18) !important;
+  color: #fff7ed !important;
+}
+
+html.theme-sunset header.bn-header {
+  background: rgba(32, 9, 32, 0.88) !important;
+  border-bottom: 1px solid rgba(251, 146, 60, 0.18) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+html.theme-sunset main .bg-white,
+html.theme-sunset main .dark\:bg-slate-900,
+html.theme-sunset .bn-card,
+html.theme-sunset .fixed .bg-white,
+html.theme-sunset .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(180deg, rgba(56, 17, 48, 0.95) 0%, rgba(34, 10, 32, 0.98) 100%) !important;
+  border: 1px solid rgba(251, 146, 60, 0.22) !important;
+  box-shadow:
+    0 14px 34px -12px rgba(10, 2, 10, 0.85),
+    inset 0 1px 0 0 rgba(254, 215, 170, 0.1) !important;
+}
+
+html.theme-sunset main .bg-slate-50,
+html.theme-sunset main .bg-slate-50\/90,
+html.theme-sunset main .bg-slate-50\/80,
+html.theme-sunset main .bg-slate-50\/70,
+html.theme-sunset main .bg-slate-50\/50,
+html.theme-sunset main .dark\:bg-slate-800,
+html.theme-sunset main .dark\:bg-slate-800\/90,
+html.theme-sunset main .dark\:bg-slate-800\/80,
+html.theme-sunset main .dark\:bg-slate-800\/60,
+html.theme-sunset main .dark\:bg-slate-800\/50,
+html.theme-sunset main .dark\:bg-slate-800\/40 {
+  background-color: rgba(74, 21, 59, 0.55) !important;
+  border-color: rgba(251, 146, 60, 0.22) !important;
+}
+
+html.theme-sunset input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-sunset textarea,
+html.theme-sunset select {
+  background-color: rgba(21, 5, 22, 0.9) !important;
+  border-color: rgba(251, 146, 60, 0.28) !important;
+  color: #fff7ed !important;
+}
+
+/* ============================================================================
+   11. WARM PARCHMENT THEME (theme-sepia) — Editorial Cream & Espresso Ink
+   ============================================================================ */
+html.theme-sepia body,
+html.theme-sepia .bn-app-shell {
+  background-color: #f4ece0 !important;
+  background-image: radial-gradient(at 80% 0%, #fbf7ef 0%, #f4ece0 65%, #ebe0cf 100%) !important;
+  color: #2b1f14 !important;
+}
+
+html.theme-sepia aside.bn-sidebar {
+  background-color: #faf5eb !important;
+  border-right: 1px solid #dfd1bc !important;
+  color: #2b1f14 !important;
+}
+
+html.theme-sepia header.bn-header {
+  background-color: rgba(250, 245, 235, 0.92) !important;
+  border-bottom: 1px solid #dfd1bc !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+
+html.theme-sepia main .bg-white,
+html.theme-sepia .bn-card,
+html.theme-sepia .fixed .bg-white {
+  background-color: #fdfaf3 !important;
+  border: 1px solid #dfd1bc !important;
+  box-shadow: 0 4px 18px -6px rgba(68, 46, 23, 0.08) !important;
+}
+
+html.theme-sepia main .bg-slate-50,
+html.theme-sepia main .bg-slate-50\/90,
+html.theme-sepia main .bg-slate-50\/80,
+html.theme-sepia main .bg-slate-50\/70,
+html.theme-sepia main .bg-slate-50\/50,
+html.theme-sepia main .bg-slate-100 {
+  background-color: #f3eadb !important;
+  border-color: #dccab0 !important;
+}
+
+html.theme-sepia input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-sepia textarea,
+html.theme-sepia select {
+  background-color: #fcf8ef !important;
+  border-color: #d6c3a5 !important;
+  color: #2b1f14 !important;
+}
+
+/* ============================================================================
+   12. ARCTIC FROST THEME (theme-nord) — Scandinavian Ice Blue & Polar Slate
+   ============================================================================ */
+html.theme-nord body,
+html.theme-nord .bn-app-shell {
+  background-color: #e8f1f8 !important;
+  background-image: radial-gradient(at 85% 0%, #f4f9fd 0%, #e8f1f8 62%, #dce8f3 100%) !important;
+  color: #0f172a !important;
+}
+
+html.theme-nord aside.bn-sidebar {
+  background-color: #f4f9fd !important;
+  border-right: 1px solid #cbdcf0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-nord header.bn-header {
+  background-color: rgba(244, 249, 253, 0.92) !important;
+  border-bottom: 1px solid #cbdcf0 !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+}
+
+html.theme-nord main .bg-white,
+html.theme-nord .bn-card,
+html.theme-nord .fixed .bg-white {
+  background-color: #f9fcff !important;
+  border: 1px solid #cce0f5 !important;
+  box-shadow: 0 4px 18px -6px rgba(14, 116, 144, 0.08) !important;
+}
+
+html.theme-nord main .bg-slate-50,
+html.theme-nord main .bg-slate-50\/90,
+html.theme-nord main .bg-slate-50\/80,
+html.theme-nord main .bg-slate-50\/70,
+html.theme-nord main .bg-slate-50\/50,
+html.theme-nord main .bg-slate-100 {
+  background-color: #eaf3fb !important;
+  border-color: #c5dcf2 !important;
+}
+
+html.theme-nord input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-nord textarea,
+html.theme-nord select {
+  background-color: #ffffff !important;
+  border-color: #b9d5ee !important;
+  color: #0f172a !important;
+}
+
+/* ============================================================================
    ACCESSIBILITY MODIFIERS & SCROLLBARS
    ============================================================================ */
 html.bn-large-text {

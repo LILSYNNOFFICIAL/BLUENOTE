@@ -9,6 +9,10 @@ export const initialWorkspace: WorkspaceState = {
   settings: {
     name: '',
     email: '',
+    avatarUrl: '',
+    bio: '',
+    roleTitle: '',
+    authDomainAlias: 'BLUENOTE-AI-APP.firebase.com',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
     language: 'English (US)',
     timeFormat: '12h',

@@ -52,6 +52,7 @@ import {
   Reminder,
   SavedLink,
   SuggestedAction,
+  THEME_OPTIONS,
   Task,
   UserSettings,
   WorkspaceFile,
@@ -80,6 +81,11 @@ import { UniversalInboxView } from './components/UniversalInboxView';
 import { TasksAndChecklistsView } from './components/TasksAndChecklistsView';
 import { NotesEditorView } from './components/NotesEditorView';
 import { ProjectsAndGoalsView } from './components/ProjectsAndGoalsView';
+import { ProjectsOSView } from './components/ProjectsOSView';
+import {
+  createProjectFromTemplate,
+  stripLegacyDemoOSProjects,
+} from './services/projectsOSService';
 import { CalendarAndPlannerView } from './components/CalendarAndPlannerView';
 import { ContactsLinksFilesView } from './components/ContactsLinksFilesView';
 import { SecondBrainGraphView } from './components/SecondBrainGraphView';
@@ -206,6 +212,7 @@ function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
     automations: filterById(ws.automations),
     personalPatterns: filterById(ws.personalPatterns),
     patternObservations: filterById(ws.patternObservations),
+    osProjects: stripLegacyDemoOSProjects(ws.osProjects),
     shoppingLists: Array.isArray(ws.shoppingLists)
       ? ws.shoppingLists.map((list) => ({
           ...list,
@@ -481,20 +488,15 @@ export default function App() {
 
   // Apply Theme & Accessibility classes to root container and <html> element (Default: Architectural White 'light')
   const activeTheme = workspace.settings.theme || 'light';
-  const isDark =
-    activeTheme === 'dark' ||
-    activeTheme === 'blue' ||
-    activeTheme === 'emerald' ||
-    activeTheme === 'violet';
+  const activeThemeMeta =
+    THEME_OPTIONS.find((t) => t.id === activeTheme) || THEME_OPTIONS[0];
+  const isDark = activeThemeMeta.isDark;
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove(
-      'theme-blue',
-      'theme-dark',
-      'theme-light',
-      'theme-emerald',
-      'theme-violet',
+      ...THEME_OPTIONS.map((t) => `theme-${t.id}`),
+      'theme-system',
       'dark'
     );
     root.classList.add(`theme-${activeTheme}`);
@@ -508,20 +510,11 @@ export default function App() {
     // Sync Android status bar theme-color meta tag
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) {
-      const themeHex =
-        activeTheme === 'light'
-          ? '#ffffff'
-          : activeTheme === 'dark'
-          ? '#050507'
-          : activeTheme === 'emerald'
-          ? '#03221a'
-          : activeTheme === 'violet'
-          ? '#13072b'
-          : '#071226';
-      metaTheme.setAttribute('content', themeHex);
+      metaTheme.setAttribute('content', activeThemeMeta.themeColorHex);
     }
   }, [
     activeTheme,
+    activeThemeMeta.themeColorHex,
     isDark,
     workspace.settings.largeText,
     workspace.settings.highContrast,
@@ -1103,6 +1096,7 @@ export default function App() {
     group: 'core' | 'knowledge' | 'ai';
   }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core' },
+    { id: 'projects-os', label: 'PROJECTS', icon: FolderKanban, group: 'core' },
     { id: 'inbox', label: 'Universal Inbox', icon: Inbox, badge: pendingInboxCount || undefined, group: 'core' },
     { id: 'predictive', label: '🔮 Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
     { id: 'tasks', label: 'Tasks & Lists', icon: CheckSquare, badge: activeTasksCount || undefined, group: 'core' },
@@ -1248,8 +1242,49 @@ export default function App() {
             </nav>
           </div>
 
-          {/* Bottom System & Settings Links */}
+          {/* Bottom System, Profile Card & Settings Links */}
           <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1.5">
+            {/* Executive Profile, Photograph & Bio Card */}
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              title="Edit Profile, Bio, Photograph & BLUENOTE-AI-APP.firebase.com Identity"
+              className="w-full p-2.5 mb-2 rounded-2xl bg-slate-50 dark:bg-slate-800/70 hover:bg-blue-50/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5 text-left transition-all group"
+            >
+              {workspace.settings.avatarUrl ? (
+                <img
+                  src={workspace.settings.avatarUrl}
+                  alt={workspace.settings.name || 'User'}
+                  className="w-9 h-9 rounded-xl object-cover border border-blue-500 shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
+                  {(workspace.settings.name || currentUser?.displayName || 'BN')
+                    .trim()
+                    .split(/\s+/)
+                    .map((w) => w[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </div>
+              )}
+              {!sidebarCollapsed && (
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-extrabold text-slate-900 dark:text-white truncate">
+                    {workspace.settings.name ||
+                      currentUser?.displayName ||
+                      'Set Name, Bio & Photo'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    {workspace.settings.bio ||
+                      workspace.settings.roleTitle ||
+                      workspace.settings.authDomainAlias ||
+                      'BLUENOTE-AI-APP.firebase.com'}
+                  </div>
+                </div>
+              )}
+            </button>
+
             <button
               onClick={() => setAiKeysModalOpen(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-extrabold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition-colors"
@@ -1417,21 +1452,13 @@ export default function App() {
                 <span className="hidden 2xl:inline">OCR</span>
               </button>
 
-              {/* Interactive 5-Theme Switcher Bar (Default: White 'light') */}
+              {/* Interactive 12-Theme Switcher Bar (Default: White 'light') */}
               <div
-                className="hidden md:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700"
+                className="hidden md:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 max-w-[360px] xl:max-w-[520px] overflow-x-auto no-scrollbar"
                 role="group"
-                aria-label="Quick Theme Switcher"
+                aria-label="Quick 12-Theme Switcher"
               >
-                {(
-                  [
-                    { id: 'light', label: 'White', dot: 'bg-white border border-slate-400', title: 'Architectural White Theme (Default)' },
-                    { id: 'dark', label: 'Dark', dot: 'bg-black border border-white/60', title: 'Obsidian Carbon (OLED Dark)' },
-                    { id: 'blue', label: 'Blue', dot: 'bg-blue-500', title: 'Sapphire Executive (Midnight Navy)' },
-                    { id: 'emerald', label: 'Emerald', dot: 'bg-emerald-500', title: 'Nordic Botanical (Emerald)' },
-                    { id: 'violet', label: 'Violet', dot: 'bg-violet-500', title: 'Atelier Amethyst (Violet)' },
-                  ] as const
-                ).map((t) => {
+                {THEME_OPTIONS.map((t) => {
                   const active = activeTheme === t.id;
                   return (
                     <button
@@ -1445,42 +1472,48 @@ export default function App() {
                         showToast(`Theme switched to ${t.title}`);
                       }}
                       title={t.title}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all ${
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 transition-all ${
                         active
                           ? 'bg-blue-600 text-white shadow-2xs'
                           : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      <span className={`w-2 h-2 rounded-full ${t.dot}`} />
-                      <span className="hidden xl:inline">{t.label}</span>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${t.dot}`} />
+                      <span className="hidden 2xl:inline">{t.shortLabel}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Cloud Sync & Auth Status Button */}
+              {/* Cloud Sync, Profile Photo & Auth Status Button */}
               <button
                 onClick={() => setAuthModalOpen(true)}
-                className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                   currentUser
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-400'
                 }`}
-                title="Cloud Account & Real-time Sync"
+                title={`Profile, Bio, Photo & Cloud Sync (${
+                  workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
+                })`}
               >
-                {currentUser ? (
-                  <>
-                    <Cloud className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="hidden sm:inline max-w-[90px] truncate">
-                      {currentUser.displayName || currentUser.email?.split('@')[0] || 'Synced'}
-                    </span>
-                  </>
+                {workspace.settings.avatarUrl ? (
+                  <img
+                    src={workspace.settings.avatarUrl}
+                    alt={workspace.settings.name || 'Profile'}
+                    className="w-5 h-5 rounded-full object-cover border border-blue-500 shrink-0"
+                  />
+                ) : currentUser ? (
+                  <Cloud className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 ) : (
-                  <>
-                    <UserIcon className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="hidden sm:inline">Sign In</span>
-                  </>
+                  <UserIcon className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                 )}
+                <span className="hidden sm:inline max-w-[105px] truncate">
+                  {workspace.settings.name ||
+                    currentUser?.displayName ||
+                    currentUser?.email?.split('@')[0] ||
+                    'Sign Up / Profile'}
+                </span>
               </button>
 
               {/* Collapsible AI Assistant Panel Toggle */}
@@ -1554,16 +1587,8 @@ export default function App() {
               </form>
 
               <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                <div className="flex items-center gap-1 overflow-x-auto">
-                  {(
-                    [
-                      { id: 'light', label: 'White', dot: 'bg-white border border-slate-400' },
-                      { id: 'dark', label: 'Dark', dot: 'bg-black border border-white/50' },
-                      { id: 'blue', label: 'Blue', dot: 'bg-blue-500' },
-                      { id: 'emerald', label: 'Pine', dot: 'bg-emerald-500' },
-                      { id: 'violet', label: 'Plum', dot: 'bg-violet-500' },
-                    ] as const
-                  ).map((t) => (
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                  {THEME_OPTIONS.map((t) => (
                     <button
                       key={t.id}
                       type="button"
@@ -1580,7 +1605,7 @@ export default function App() {
                       }`}
                     >
                       <span className={`w-2 h-2 rounded-full ${t.dot}`} />
-                      <span>{t.label}</span>
+                      <span>{t.shortLabel}</span>
                     </button>
                   ))}
                 </div>
@@ -2308,9 +2333,43 @@ export default function App() {
               />
             )}
 
+            {activeSection === 'projects-os' && (
+              <ProjectsOSView
+                initialProjects={workspace.osProjects}
+                onSyncProjectsToWorkspace={(nextProjects) => {
+                  setWorkspace((prev) => ({
+                    ...prev,
+                    osProjects: nextProjects,
+                  }));
+                }}
+                onCreateGlobalTask={(params) => {
+                  handleAddTask({
+                    title: params.title,
+                    description: params.description,
+                    priority: params.priority,
+                    status: 'Not Started',
+                    dueDate: params.dueDate,
+                    estimatedMinutes: 30,
+                    actualMinutes: 0,
+                    completionPercentage: 0,
+                    category: 'Project',
+                    tags: ['PROJECTS-OS', 'Synced'],
+                    subtasks: params.subChecklist.map((c) => ({
+                      id: c.id,
+                      title: c.text,
+                      completed: c.completed,
+                    })),
+                    linkedItems: [],
+                  });
+                }}
+                showToast={showToast}
+              />
+            )}
+
             {activeSection === 'projects' && (
               <ProjectsAndGoalsView
                 workspace={workspace}
+                onOpenProjectsOS={() => setActiveSection('projects-os')}
                 onCreateProjectFromTemplate={(tpl) => {
                   const now = new Date().toISOString();
                   const deadline = new Date(Date.now() + 21 * 86400000)
@@ -3018,6 +3077,12 @@ export default function App() {
                   showToast('Recycle Bin permanently emptied');
                 }}
                 onResetDemoWorkspace={() => {
+                  try {
+                    localStorage.removeItem('bluenote_ai_projects_os_v1');
+                    localStorage.removeItem('bluenote_ai_projects_os_clean_v2');
+                  } catch {
+                    // ignore
+                  }
                   setWorkspace(initialWorkspace);
                   setOnboardingModalOpen(true);
                   showToast('Workspace cleared — starting fresh onboarding tutorial');
@@ -3125,21 +3190,13 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Mobile 5-Theme Selector */}
+                {/* Mobile 12-Theme Selector */}
                 <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 space-y-1.5">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Workspace Theme
+                    Workspace Theme ({THEME_OPTIONS.length} Studio Themes)
                   </div>
-                  <div className="grid grid-cols-5 gap-1">
-                    {(
-                      [
-                        { id: 'light', label: 'White', dot: 'bg-white border border-slate-300' },
-                        { id: 'dark', label: 'Dark', dot: 'bg-black border border-white/40' },
-                        { id: 'blue', label: 'Blue', dot: 'bg-blue-500' },
-                        { id: 'emerald', label: 'Pine', dot: 'bg-emerald-500' },
-                        { id: 'violet', label: 'Plum', dot: 'bg-violet-500' },
-                      ] as const
-                    ).map((t) => (
+                  <div className="grid grid-cols-4 gap-1">
+                    {THEME_OPTIONS.map((t) => (
                       <button
                         key={t.id}
                         type="button"
@@ -3156,7 +3213,7 @@ export default function App() {
                         }`}
                       >
                         <span className={`w-2.5 h-2.5 rounded-full ${t.dot}`} />
-                        <span>{t.label}</span>
+                        <span>{t.shortLabel}</span>
                       </button>
                     ))}
                   </div>
@@ -3243,9 +3300,9 @@ export default function App() {
         <nav className="md:hidden bn-safe-bottom-nav fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200/90 dark:border-slate-800 px-1 py-1.5 grid grid-cols-6 gap-0.5 shadow-lg">
           {[
             { id: 'dashboard' as ActiveSection, label: 'Today', icon: LayoutDashboard },
+            { id: 'projects-os' as ActiveSection, label: 'Projects', icon: FolderKanban },
             { id: 'tasks' as ActiveSection, label: 'Tasks', icon: CheckSquare },
             { id: 'notes' as ActiveSection, label: 'Notes', icon: FileText },
-            { id: 'ai-studio' as ActiveSection, label: 'Studio', icon: Wand2 },
           ].map((m) => {
             const Icon = m.icon;
             const active = activeSection === m.id;
@@ -3371,13 +3428,21 @@ export default function App() {
         <AuthModal
           isOpen={authModalOpen}
           currentUser={currentUser}
+          settings={workspace.settings}
           onClose={() => setAuthModalOpen(false)}
           onUpdateLocalProfileName={(name, email) => {
             setWorkspace((prev) => ({
               ...prev,
               settings: { ...prev.settings, name, email },
             }));
-            showToast(`Signed in as ${name || 'BlueNote User'}`);
+            showToast(`Signed in as ${name || 'BlueNote User'} on ${workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}`);
+          }}
+          onUpdateProfileSettings={(updates) => {
+            setWorkspace((prev) => ({
+              ...prev,
+              settings: { ...prev.settings, ...updates },
+            }));
+            showToast('Updated profile, bio & photograph');
           }}
         />
 
@@ -3417,6 +3482,8 @@ export default function App() {
           }}
           onCompleteOnboarding={({
             name,
+            bio,
+            avatarUrl,
             theme,
             energyMode,
             aiPersonality,
@@ -3424,8 +3491,32 @@ export default function App() {
             firstCaptureText,
             predictionStage,
             suggestionBudgetMax,
+            firstOSProjectName,
+            firstOSProjectTemplate,
+            launchSection,
           }) => {
             const today = new Date().toISOString().split('T')[0];
+
+            let createdProj: ReturnType<typeof createProjectFromTemplate> | null = null;
+            if (firstOSProjectName && firstOSProjectName.trim()) {
+              try {
+                createdProj = createProjectFromTemplate({
+                  name: firstOSProjectName.trim(),
+                  description: `${firstOSProjectTemplate || 'Blank Project'} workspace created during onboarding`,
+                  template: firstOSProjectTemplate || 'Blank Project',
+                  color: '#2563eb',
+                  icon: 'FolderKanban',
+                  tags: [],
+                });
+                localStorage.setItem(
+                  'bluenote_ai_projects_os_clean_v2',
+                  JSON.stringify([createdProj])
+                );
+              } catch {
+                // ignore quota errors
+              }
+            }
+
             setWorkspace((prev) => {
               const createdHabits = starterHabits.map((sh, idx) => ({
                 id: `hab-init-${Date.now()}-${idx}`,
@@ -3444,6 +3535,8 @@ export default function App() {
                 settings: {
                   ...prev.settings,
                   name,
+                  bio: bio ?? prev.settings.bio,
+                  avatarUrl: avatarUrl ?? prev.settings.avatarUrl,
                   theme,
                   energyMode,
                   aiPersonality,
@@ -3460,11 +3553,16 @@ export default function App() {
                       DEFAULT_PREDICTION_SAFEGUARDS.suggestionBudgetMax),
                 },
                 habits: createdHabits.length > 0 ? createdHabits : prev.habits,
+                osProjects: createdProj ? [createdProj] : prev.osProjects || [],
               };
             });
 
             if (firstCaptureText) {
               setTimeout(() => handleQuickCapture(firstCaptureText), 120);
+            }
+
+            if (launchSection) {
+              setActiveSection(launchSection);
             }
 
             setOnboardingModalOpen(false);

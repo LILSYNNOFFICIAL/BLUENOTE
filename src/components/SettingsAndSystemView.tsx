@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Settings,
   Palette,
@@ -16,13 +16,20 @@ import {
   ExternalLink,
   Plus,
   Upload,
+  Camera,
+  User as UserIcon,
+  Briefcase,
+  FileText,
+  Globe,
 } from 'lucide-react';
 import {
   AIConfirmationMode,
   AIPersonality,
+  THEME_OPTIONS,
   ThemeMode,
   UserSettings,
   WorkspaceState,
+  compressImageFileToDataUrl,
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
 import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
@@ -63,6 +70,40 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
   const [autoName, setAutoName] = useState('');
   const [autoTrigger, setAutoTrigger] = useState('');
   const [autoAction, setAutoAction] = useState('');
+  const [themeCategoryFilter, setThemeCategoryFilter] = useState<'all' | 'light' | 'dark'>('all');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    setPhotoUploading(true);
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file, 256, 0.85);
+      onUpdateSettings({ avatarUrl: dataUrl });
+    } catch (err) {
+      console.warn('Photo upload error:', err);
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) {
+        photoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const profileInitials = (workspace.settings.name || workspace.settings.email || 'BN')
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const filteredThemes = THEME_OPTIONS.filter((t) => {
+    if (themeCategoryFilter === 'light') return !t.isDark;
+    if (themeCategoryFilter === 'dark') return t.isDark;
+    return true;
+  });
 
   React.useEffect(() => {
     if (initialSection === 'help') setTab('help');
@@ -114,7 +155,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
         <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
           {(
             [
-              ['general', 'Appearance & Accessibility', Palette],
+              ['general', 'Profile, Bio & 12 Themes', Palette],
               ['ai', 'Free AI, API Keys & Memory', Sparkles],
               ['emails', 'Daily & Weekly Emails', Mail],
               ['automations', 'Automations', Zap],
@@ -137,123 +178,252 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
         </div>
       </div>
 
-      {/* TAB 1: GENERAL, APPEARANCE & ACCESSIBILITY */}
+      {/* TAB 1: PROFILE, BIO, PHOTOGRAPH & 12-THEME STUDIO */}
       {tab === 'general' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="space-y-6">
+          {/* Executive Profile, Bio & Photograph Upload Studio */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Palette className="w-4 h-4 text-blue-500" />
-                  Theme Engine & Workspace Identity
+                  <UserIcon className="w-4 h-4 text-blue-500" />
+                  Executive Profile, Bio &amp; Photograph
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Select a live workspace theme. Blue is our rich Midnight Navy Slate, and Dark is True Pitch Black (#000000) with crisp white text.
+                  Upload your profile photograph, customize your personal bio, and manage your BLUENOTE-AI-APP.firebase.com cloud identity.
                 </p>
               </div>
+              <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 self-start sm:self-auto">
+                <Globe className="w-3.5 h-3.5" />
+                {workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}
+              </span>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Your Display Name
-                </label>
-                <input
-                  type="text"
-                  value={workspace.settings.name}
-                  onChange={(e) => onUpdateSettings({ name: e.target.value })}
-                  className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Photograph Upload Card */}
+              <div className="lg:col-span-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-col items-center text-center space-y-3">
+                <div className="relative group">
+                  {workspace.settings.avatarUrl ? (
+                    <img
+                      src={workspace.settings.avatarUrl}
+                      alt={workspace.settings.name || 'User Photograph'}
+                      className="w-28 h-28 rounded-3xl object-cover border-2 border-blue-500 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600 text-white font-extrabold text-3xl flex items-center justify-center border-2 border-blue-400/40 shadow-lg">
+                      {profileInitials}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="absolute -bottom-2 -right-2 p-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg border-2 border-white dark:border-slate-900 transition-transform hover:scale-105"
+                    title="Upload Photograph"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+
+                <div>
+                  <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    {workspace.settings.name || 'Workspace Owner'}
+                  </div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                    {workspace.settings.roleTitle || 'Executive Second Brain'}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={photoUploading}
+                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {photoUploading
+                      ? 'Uploading...'
+                      : workspace.settings.avatarUrl
+                      ? 'Change Photo'
+                      : 'Upload Photograph'}
+                  </button>
+                  {workspace.settings.avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateSettings({ avatarUrl: '' })}
+                      className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Supports JPG, PNG &amp; WebP. Automatically cropped &amp; compressed for instant cloud sync.
+                </p>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Color Theme Selection
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+              {/* Right Column: Name, Role, Domain Alias & Bio */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <UserIcon className="w-3.5 h-3.5 text-blue-500" />
+                      Your Display Name
+                    </label>
+                    <input
+                      type="text"
+                      value={workspace.settings.name}
+                      onChange={(e) => onUpdateSettings({ name: e.target.value })}
+                      placeholder="Enter your full name..."
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                      Role / Headline
+                    </label>
+                    <input
+                      type="text"
+                      value={workspace.settings.roleTitle || ''}
+                      onChange={(e) => onUpdateSettings({ roleTitle: e.target.value })}
+                      placeholder="e.g., Founder & Systems Architect"
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-blue-500" />
+                      Account Email
+                    </label>
+                    <input
+                      type="email"
+                      value={workspace.settings.email || ''}
+                      onChange={(e) => onUpdateSettings({ email: e.target.value })}
+                      placeholder="you@bluenote-ai-app.firebase.com"
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-blue-500" />
+                      Sign-Up / Cloud Auth Domain Label
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
+                      }
+                      onChange={(e) => onUpdateSettings({ authDomainAlias: e.target.value })}
+                      placeholder="BLUENOTE-AI-APP.firebase.com"
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-500" />
+                      Personal Bio &amp; Executive Focus Statement
+                    </label>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {(workspace.settings.bio || '').length}/280
+                    </span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    maxLength={280}
+                    value={workspace.settings.bio || ''}
+                    onChange={(e) => onUpdateSettings({ bio: e.target.value })}
+                    placeholder="Write your bio, personal mission, or what you're currently building..."
+                    className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-xs leading-relaxed text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-blue-500" />
+                    12-Theme Studio Gallery
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Choose from 12 handcrafted light, OLED dark, and atmospheric studio themes with instant live preview.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
                   {(
                     [
-                      {
-                        id: 'light' as ThemeMode,
-                        title: 'Architectural White (Default)',
-                        desc: 'Pure #FFFFFF elevated studio cards with subtle slate hairlines & ambient shadows',
-                        bgPreview: 'bg-slate-100',
-                        cardPreview: 'bg-white border-slate-200',
-                        accentDot: 'bg-blue-600',
-                        textPreview: 'text-slate-900',
-                        badge: 'Default White',
-                      },
-                      {
-                        id: 'dark' as ThemeMode,
-                        title: 'Obsidian Carbon (OLED Dark)',
-                        desc: 'Precision #050507 carbon surfaces with high-contrast #FAFAFA typography',
-                        bgPreview: 'bg-black',
-                        cardPreview: 'bg-[#09090b] border-zinc-700',
-                        accentDot: 'bg-white',
-                        textPreview: 'text-white',
-                        badge: 'Pure Dark',
-                      },
-                      {
-                        id: 'blue' as ThemeMode,
-                        title: 'Sapphire Executive (Navy)',
-                        desc: 'Deep architectural navy & sapphire slate surfaces with cobalt highlights',
-                        bgPreview: 'bg-[#091326]',
-                        cardPreview: 'bg-[#0f1b33] border-[#1e3a8a]',
-                        accentDot: 'bg-blue-500',
-                        textPreview: 'text-blue-100',
-                        badge: 'Executive Navy',
-                      },
-                      {
-                        id: 'emerald' as ThemeMode,
-                        title: 'Nordic Botanical (Emerald)',
-                        desc: 'Deep pine studio canvas with luminous sage & emerald accents',
-                        bgPreview: 'bg-[#022c22]',
-                        cardPreview: 'bg-[#042f24] border-emerald-700',
-                        accentDot: 'bg-emerald-400',
-                        textPreview: 'text-emerald-100',
-                        badge: 'Botanical',
-                      },
-                      {
-                        id: 'violet' as ThemeMode,
-                        title: 'Atelier Amethyst (Violet)',
-                        desc: 'Deep obsidian plum canvas with refined violet specular accents',
-                        bgPreview: 'bg-[#170736]',
-                        cardPreview: 'bg-[#1b093b] border-purple-700',
-                        accentDot: 'bg-purple-400',
-                        textPreview: 'text-purple-100',
-                        badge: 'Atelier',
-                      },
-                    ]
-                  ).map((t) => {
+                      ['all', `All (${THEME_OPTIONS.length})`],
+                      ['light', `Light (${THEME_OPTIONS.filter((t) => !t.isDark).length})`],
+                      ['dark', `Dark (${THEME_OPTIONS.filter((t) => t.isDark).length})`],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setThemeCategoryFilter(id)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        themeCategoryFilter === id
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {filteredThemes.map((t) => {
                     const isSelected = workspace.settings.theme === t.id;
                     return (
                       <button
                         key={t.id}
                         type="button"
                         onClick={() => onUpdateSettings({ theme: t.id })}
-                        className={`group relative p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 ${
+                        className={`group relative p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between gap-2.5 ${
                           isSelected
                             ? 'border-blue-500 ring-2 ring-blue-500/30 bg-blue-500/5 dark:bg-blue-500/10'
                             : 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-slate-600 bg-slate-50/70 dark:bg-slate-800/40'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2 w-full">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-1.5 w-full">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className={`w-3 h-3 rounded-full ${t.accentDot} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ${
+                              className={`w-3 h-3 rounded-full shrink-0 ${t.accentDot} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 ${
                                 isSelected ? 'ring-blue-500' : 'ring-transparent'
                               }`}
                             />
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">
-                              {t.title}
+                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {t.label}
                             </span>
                           </div>
                           {isSelected ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Active
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-600 text-white flex items-center gap-1 shrink-0">
+                              <Check className="w-2.5 h-2.5" /> Active
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
                               {t.badge}
                             </span>
                           )}
@@ -261,16 +431,16 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
 
                         {/* Mini UI Swatch Preview */}
                         <div
-                          className={`w-full h-12 rounded-xl ${t.bgPreview} p-2 flex items-center gap-2 border border-black/10 dark:border-white/10 overflow-hidden`}
+                          className={`w-full h-11 rounded-xl ${t.bgPreview} p-2 flex items-center gap-2 border border-black/10 dark:border-white/10 overflow-hidden`}
                         >
-                          <div className={`w-8 h-full rounded-lg ${t.cardPreview} border shrink-0`} />
+                          <div className={`w-7 h-full rounded-lg ${t.cardPreview} border shrink-0`} />
                           <div className={`flex-1 h-full rounded-lg ${t.cardPreview} border px-2 flex items-center justify-between`}>
                             <div className="space-y-1">
-                              <div className={`h-1.5 w-14 rounded-full ${t.accentDot}`} />
-                              <div className="h-1 w-20 rounded-full bg-current opacity-30" />
+                              <div className={`h-1.5 w-12 rounded-full ${t.accentDot}`} />
+                              <div className="h-1 w-16 rounded-full bg-current opacity-30" />
                             </div>
                             <span className={`text-[9px] font-mono font-bold ${t.textPreview}`}>
-                              Aa
+                              {t.isDark ? 'DARK' : 'LIGHT'}
                             </span>
                           </div>
                         </div>
@@ -282,36 +452,35 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                     );
                   })}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Work Hours Start
-                  </label>
-                  <input
-                    type="time"
-                    value={workspace.settings.workHoursStart}
-                    onChange={(e) => onUpdateSettings({ workHoursStart: e.target.value })}
-                    className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Work Hours End
-                  </label>
-                  <input
-                    type="time"
-                    value={workspace.settings.workHoursEnd}
-                    onChange={(e) => onUpdateSettings({ workHoursEnd: e.target.value })}
-                    className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white"
-                  />
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Work Hours Start
+                    </label>
+                    <input
+                      type="time"
+                      value={workspace.settings.workHoursStart}
+                      onChange={(e) => onUpdateSettings({ workHoursStart: e.target.value })}
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Work Hours End
+                    </label>
+                    <input
+                      type="time"
+                      value={workspace.settings.workHoursEnd}
+                      onChange={(e) => onUpdateSettings({ workHoursEnd: e.target.value })}
+                      className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-4">
+            <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-4">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Eye className="w-5 h-5 text-blue-500" />
@@ -376,6 +545,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 );
               })}
             </div>
+          </div>
           </div>
         </div>
       )}
@@ -861,17 +1031,24 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
       {/* TAB 6: HELP & KEYBOARD SHORTCUTS */}
       {tab === 'help' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            Getting Started & Keyboard Shortcuts
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Getting Started, Zero-Demo Architecture &amp; Keyboard Shortcuts
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                BlueNote starts 100% clean with zero demo clutter. Use these shortcuts to navigate Today, PROJECTS (10 GB AI Workspace), and your Second Brain.
+              </p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             {[
-              ['Ctrl + K', 'Open Command Palette & Global Search'],
-              ['/', 'Focus Instant Global Search'],
-              ['Ctrl + B', 'Launch AI Brain Dump & Voice Dictation'],
+              ['Ctrl / ⌘ + K', 'Open Command Palette & Semantic Search'],
+              ['⌘K → P', 'Jump to PROJECTS (10 GB AI Project Workspace)'],
+              ['/', 'Focus Instant Global Omnibox Capture'],
+              ['Ctrl / ⌘ + B', 'Launch AI Brain Dump & Voice Dictation'],
               ['Ctrl + Z', 'Undo Last Workspace Change'],
-              ['Ctrl + Shift + Z', 'Redo Workspace Change'],
-              ['Esc', 'Close Active Modal or Drawer'],
+              ['Esc', 'Close Active Modal, Lightbox, or Drawer'],
             ].map(([key, desc]) => (
               <div
                 key={key}

@@ -20,10 +20,10 @@ interface MagicParticle {
 }
 
 const BOOT_STEPS = [
-  { label: 'Sketching Second Brain Neural Canvas...', icon: Cpu },
-  { label: 'Igniting On-Device AI & OCR Vault...', icon: ShieldCheck },
-  { label: 'Harmonizing Knowledge Graph & Habit Streaks...', icon: Network },
-  { label: 'BlueNote Ready', icon: Sparkles },
+  { label: 'Sketching Zero-Demo Second Brain Canvas...', icon: Cpu },
+  { label: 'Initializing PROJECTS (10 GB Chunked Docs & AI Sandbox)...', icon: ShieldCheck },
+  { label: 'Harmonizing Knowledge Graph & Pattern Engine...', icon: Network },
+  { label: 'BlueNote Clean Workspace Ready', icon: Sparkles },
 ];
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {

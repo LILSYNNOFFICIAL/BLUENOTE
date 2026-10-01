@@ -290,6 +290,52 @@ export function semanticWorkspaceSearch(
     }
   }
 
+  // Also index AI Project Operating System (osProjects) documents, notes & projects
+  if (Array.isArray(workspace.osProjects)) {
+    for (const osp of workspace.osProjects) {
+      if (filterType === 'all' || filterType === 'project') {
+        const { score, matchedVia } = scoreItem(
+          osp.name,
+          `${osp.description} ${osp.template}`,
+          osp.tags
+        );
+        if (score > 0) {
+          hits.push({
+            id: osp.id,
+            type: 'project',
+            title: `${osp.name} (PROJECTS OS)`,
+            subtitle: `${osp.template} · ${osp.documents.length} docs · ${osp.tasks.length} tasks`,
+            snippet: osp.description,
+            tags: osp.tags,
+            score,
+            matchedVia,
+          });
+        }
+      }
+      if (filterType === 'all' || filterType === 'file' || filterType === 'note') {
+        for (const doc of osp.documents) {
+          const { score, matchedVia } = scoreItem(
+            doc.filename,
+            `${doc.aiSummary} ${doc.finalContent}`,
+            doc.tags
+          );
+          if (score > 0) {
+            hits.push({
+              id: doc.id,
+              type: 'project',
+              title: `${doc.filename} (${osp.name})`,
+              subtitle: `PROJECTS Document · v${doc.versions.length} · ${doc.wordCount} words`,
+              snippet: doc.aiSummary,
+              tags: doc.tags,
+              score,
+              matchedVia,
+            });
+          }
+        }
+      }
+    }
+  }
+
   return hits.sort((a, b) => b.score - a.score);
 }
 
