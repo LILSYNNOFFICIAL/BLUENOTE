@@ -5,12 +5,9 @@
 [![Live on GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-lilsynnofficial.github.io%2FBLUENOTE-2563eb?style=for-the-badge&logo=github)](https://lilsynnofficial.github.io/BLUENOTE/)
 [![Repository](https://img.shields.io/badge/Repo-LILSYNNOFFICIAL%2FBLUENOTE-0f172a?style=for-the-badge&logo=github)](https://github.com/LILSYNNOFFICIAL/BLUENOTE)
 [![Android Direct APK](https://img.shields.io/badge/Android-Direct%20APK%20Download-059669?style=for-the-badge&logo=android)](#android-application--direct-apk-download)
-[![100% Local AI](https://img.shields.io/badge/AI%20Engine-100%25%20On--Device%20%E2%80%A2%20Zero%20API%20Keys-059669?style=for-the-badge)](#10-100-local-multimodal-ai-studio-zero-api-keys-required)
-[![Built with React 19 & Vite](https://img.shields.io/badge/Stack-React%2019%20%E2%80%A2%20TypeScript%20%E2%80%A2%20Tailwind%204-4f46e5?style=for-the-badge)](#tech-stack--architecture)
-
 **BlueNote** is a comprehensive, local-first **Personal Organizer, AI-Powered Project Operating System (`PROJECTS`), Quiet Predictive Pattern Engine, Habit & Streak Analytics Tracker, Smart Note Editor, Personal CRM, Knowledge Graph, and Multimodal AI Studio**.
 
-Designed to start **100% clean with zero pre-loaded demo clutter**, BlueNote features an animated startup splash screen and a **5-Step Interactive Onboarding Wizard**, runs its entire AI suite **100% locally in your browser with zero external API keys required** (plus optional BYOK/Cloud AI providers), and supports real-time cloud synchronization via Firebase Authentication & Firestore.
+Designed to start **100% clean with zero pre-loaded demo clutter**, BlueNote features an animated startup splash screen and a **5-Step Interactive Onboarding Wizard**, uses a local-first core with keyless free-cloud fallbacks and optional BYOK/Cloud AI providers (plus optional BYOK/Cloud AI providers), and supports real-time cloud synchronization via Firebase Authentication & Firestore.
 
 ---
 
@@ -32,7 +29,7 @@ Designed to start **100% clean with zero pre-loaded demo clutter**, BlueNote fea
 - **Interactive 5-Step Onboarding Wizard (`OnboardingWizardModal.tsx`):**
   1. **Step 1 — Profile, 12 Live Studio Themes & Energy Calibration:** Set your display name, profile photograph, bio, AI assistant personality, default energy mode (*High Energy*, *Balanced Flow*, *Low Energy / Overwhelmed*), and preview all **12 Studio Themes** live.
   2. **Step 2 — 7 Core Architectural Pillars Tour:** Interactive walkthrough covering Omnibox Capture, the **PROJECTS AI Operating System**, AI Brain Dump & OCR Vault, the Quiet Predictive Pattern Engine, Deep Execution & Pomodoro, 30-Day Habit Heatmaps, and the Second Brain Graph.
-  3. **Step 3 — PROJECTS AI Operating System Setup:** Explore the 12-module Project Workspace (10 GB chunked uploads, non-destructive version diffs, HTML photo albums, and AI Sandbox) and optionally create your first clean project container (blank by default).
+  3. **Step 3 — PROJECTS AI Operating System Setup:** Explore the 12-module Project Workspace (large-file chunked uploads, non-destructive version diffs, HTML photo albums, and AI Sandbox) and optionally create your first clean project container (blank by default).
   4. **Step 4 — Personal Pattern Engine & Anti-Nagging Safeguards:** Calibrate your predictive rollout stage (*Stage 3 Shopping MVP*, *Stage 5 + Tasks & Reminders*, or *Stage 7 Cross-System Prep*) and Centralized Predictive Inbox suggestion budget.
   5. **Step 5 — Clean Zero-Demo Launch:** Choose your initial destination (**Today Command Center** or **PROJECTS AI Workspace**), optionally select daily habits (`0` selected by default), or capture your first real task/note.
 
@@ -43,7 +40,7 @@ Accessible from the top-level **PROJECTS** item in the main sidebar, the Dashboa
 
 - **Projects Home & Isolated Containers (`ProjectsOSView.tsx`):**
   - Create, open, rename, duplicate, archive/restore, delete, search, sort, and filter projects (*Active*, *Recently Opened*, *Recently Modified*, *Archived*).
-  - Built-in project templates (*Blank Project*, *Writing Project*, *Music Project*, *Research Project*, *Photo Project*, *Business Project*, *Custom*) — each initialized as a clean, zero-demo container with a **10 GB storage quota**.
+  - Built-in project templates (*Blank Project*, *Writing Project*, *Music Project*, *Research Project*, *Photo Project*, *Business Project*, *Custom*) — each initialized as a clean, zero-demo container with a **project storage quota**.
 - **12 Integrated Workspace Modules per Project:**
   1. **Overview Dashboard:** Quick actions (`[ UPLOAD ]`, `[ NEW DOCUMENT ]`, `[ NEW NOTE ]`, `[ NEW TASK ]`, `[ ASK AI ]`, `[ MERGE DOCUMENTS ]`, `[ PHOTO ALBUM ]`), live project metrics, recent document versions, open tasks, and AI activity feed.
   2. **Documents & 10 GB Chunked Upload Engine (`ProjectsOSDocumentsSubView.tsx`):**
@@ -91,7 +88,7 @@ Accessible from the top-level **PROJECTS** item in the main sidebar, the Dashboa
 ### 5. Universal Capture, AI Brain Dump & Multimodal OCR Scanner
 - **Global Omnibox Quick Capture:** Type natural sentences anywhere in the header or Dashboard (e.g., *"Remind me Friday at 2pm to call Alex"*, *"Buy oat milk and coffee beans"*) for instant classification.
 - **Multi-Intent Brain Dump Modal (`BrainDumpModal.tsx`):** Paste unstructured paragraphs or dictate via voice; BlueNote extracts separate Tasks, Reminders, Calendar Events, Contacts, Saved Links, Shopping Items, and Smart Notes into an interactive review screen.
-- **On-Device OCR Scanner:** Extract text, line items, and contact details from Receipts, Business Cards, Handwritten Sticky Notes, and Whiteboards.
+- **Keyless OCR Scanner:** Uses local browser OCR (Tesseract.js) with no API key; configured vision providers can still be used for richer multimodal extraction.
 
 ---
 
@@ -103,8 +100,8 @@ Accessible from the top-level **PROJECTS** item in the main sidebar, the Dashboa
 
 ---
 
-### 7. 100% Local Multimodal AI Studio & Optional Free/BYOK AI Providers
-- **Works 100% Out-of-the-Box with Zero API Keys:** Built-in local engines for HD Canvas Image Synthesis, Animated Video Stream Recording, Web Audio PCM `.wav` Ambient/Lo-Fi Music Synthesis, and Web Speech Voice Transcription.
+### 7. Local-First AI Studio & Optional Free/BYOK AI Providers
+- **Works out-of-the-box without API keys:** Built-in local engines for core productivity fallbacks, plus experimental media generation. Free cloud AI is best-effort and provider availability/rate limits can vary.
 - **Optional Free & BYOK AI Provider Hub (`AIKeysAndFreeAIModal.tsx`):** Connect Google Gemini, OpenRouter (free models), Groq, Mistral, Cohere, HuggingFace, or local Ollama/LM Studio endpoints anytime.
 
 ---
@@ -234,3 +231,12 @@ BlueNote is **not currently published on Google Play**. The project may retain P
 ## 📄 License
 
 SPDX-License-Identifier: Apache-2.0
+
+
+### 🔐 Production reliability notes
+
+- **AI:** BlueNote's core organizer does not require a user API key. Free cloud AI is best-effort; API keys remain optional advanced configuration.
+- **OCR:** Image OCR has a keyless browser fallback using Tesseract.js; richer vision extraction can use a configured provider.
+- **Project files:** Chunked browser storage is local persistence, not guaranteed 10 GB cloud storage; object storage is still required for a true large-file cloud quota.
+- **Gmail automation:** Automatic unattended Gmail sending requires Google OAuth with offline refresh-token storage. The permission should be limited to the gmail.send scope rather than asking users for an API key.
+- **Android signing:** Current release automation still needs a stable production keystore/secret before publishing an upgrade that must install over an earlier production-signed APK.
