@@ -21,6 +21,7 @@ import {
 import {
   auth,
   googleProvider,
+  getFirebaseAuthDomain,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -60,9 +61,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [roleTitle, setRoleTitle] = useState(settings?.roleTitle || '');
   const [bio, setBio] = useState(settings?.bio || '');
   const [avatarUrl, setAvatarUrl] = useState(settings?.avatarUrl || '');
-  const [authDomainAlias, setAuthDomainAlias] = useState(
-    settings?.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
-  );
+  const [authDomainAlias, setAuthDomainAlias] = useState(getFirebaseAuthDomain());
   const [showDomainInfo, setShowDomainInfo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -77,7 +76,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setRoleTitle(settings?.roleTitle || '');
       setBio(settings?.bio || '');
       setAvatarUrl(settings?.avatarUrl || currentUser?.photoURL || '');
-      setAuthDomainAlias(settings?.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com');
+      setAuthDomainAlias(getFirebaseAuthDomain());
       setError(null);
     }
   }, [isOpen, currentUser, settings]);
@@ -118,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         roleTitle: roleTitle.trim(),
         bio: bio.trim(),
         avatarUrl,
-        authDomainAlias: authDomainAlias.trim() || 'BLUENOTE-AI-APP.firebase.com',
+        authDomainAlias: getFirebaseAuthDomain(),
       });
     }
   };
@@ -141,7 +140,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             roleTitle: roleTitle.trim(),
             bio: bio.trim(),
             avatarUrl: finalAvatar,
-            authDomainAlias: authDomainAlias.trim() || 'BLUENOTE-AI-APP.firebase.com',
+            authDomainAlias: getFirebaseAuthDomain(),
           });
         }
       }
@@ -186,11 +185,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         // Fallback: save profile directly into BlueNote workspace if Email/Password provider is disabled in Firebase console
         const fallbackName =
           displayName.trim() || email.split('@')[0] || 'BlueNote User';
-        syncProfileFields(fallbackName, email.trim() || 'user@bluenote-ai-app.firebase.com');
+        syncProfileFields(fallbackName, email.trim() || 'user@bluenote.local');
         onClose();
         return;
       }
-      setError(err?.message || 'Authentication failed. Check your email and password.');
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'this site';
+      setError(
+        code === 'auth/unauthorized-domain'
+          ? `Firebase rejected ${hostname}. Add ${hostname} to Firebase Console → Authentication → Settings → Authorized domains, then reload BlueNote.`
+          : err?.message || 'Authentication failed. Check your email and password.'
+      );
     } finally {
       setLoading(false);
     }
@@ -203,7 +207,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email.split('@')[0] ||
       'BlueNote User';
     const finalEmail =
-      email.trim() || currentUser?.email || 'user@bluenote-ai-app.firebase.com';
+      email.trim() || currentUser?.email || 'user@bluenote.local';
     syncProfileFields(finalName, finalEmail);
     onClose();
   };
@@ -250,8 +254,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {currentUser
                   ? 'Executive Profile, Bio & Cloud Sync'
                   : mode === 'signup'
-                  ? 'Sign Up to BLUENOTE-AI-APP.firebase.com'
-                  : 'Sign In to BLUENOTE-AI-APP.firebase.com'}
+                  ? 'Create a BlueNote account'
+                  : 'Sign in to BlueNote'}
               </h2>
             </div>
           </div>
@@ -290,14 +294,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="pt-2 border-t border-blue-500/20 space-y-2.5 text-[11px] text-slate-600 dark:text-slate-300">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                    Custom Workspace Auth Domain Label
+                    Firebase Authentication Domain
                   </label>
                   <input
                     type="text"
                     value={authDomainAlias}
-                    onChange={(e) => setAuthDomainAlias(e.target.value)}
-                    placeholder="BLUENOTE-AI-APP.firebase.com"
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-mono font-bold text-blue-600 dark:text-blue-400"
+                    readOnly
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-xs font-mono font-bold text-blue-600 dark:text-blue-400"
                   />
                 </div>
                 <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 space-y-1 leading-relaxed">
@@ -308,7 +311,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     1. <strong>Direct Sign-Up Below (Recommended)</strong>: Creating your account with Email, Password, Bio &amp; Photo right in this modal uses <strong>{authDomainAlias}</strong> directly without opening the raw GCP popup.
                   </p>
                   <p>
-                    2. <strong>Google OAuth Popup</strong>: Google&apos;s external popup displays the underlying provisioned Firebase project host (<code className="font-mono">ai-studio-applet-webapp-d45ee.firebaseapp.com</code>) where <code className="font-mono">/__/auth/handler</code> is hosted. To change that external Google popup label to <strong>BLUENOTE-AI-APP</strong>, open <em>Google Cloud Console → APIs &amp; Services → OAuth consent screen</em> and set <strong>App Name</strong> to <code className="font-mono">BLUENOTE-AI-APP</code>.
+                    2. <strong>Google OAuth Popup</strong>: Google&apos;s external popup displays the underlying provisioned Firebase project host (<code className="font-mono">ai-studio-applet-webapp-d45ee.firebaseapp.com</code>) where <code className="font-mono">/__/auth/handler</code> is hosted. Firebase Authentication still requires the site hostname to be listed in Firebase Console → Authentication → Settings → Authorized domains.
                   </p>
                 </div>
               </div>
@@ -524,7 +527,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {/* Direct Email + Password Sign Up / Sign In on BLUENOTE-AI-APP.firebase.com */}
+              {/* Direct Email + Password Sign Up / Sign In */}
               <form onSubmit={handleEmailAuth} className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="relative">
@@ -558,10 +561,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition-colors shadow-sm"
                 >
                   {loading
-                    ? 'Authenticating with BLUENOTE-AI-APP...'
+                    ? 'Authenticating...'
                     : mode === 'signup'
-                    ? `Create Account on ${authDomainAlias}`
-                    : `Sign In to ${authDomainAlias}`}
+                    ? `Create Account`
+                    : `Sign In`}
                 </button>
               </form>
 
