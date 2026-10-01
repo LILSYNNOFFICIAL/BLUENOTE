@@ -128,7 +128,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
     setConfig(cleared);
     setTestResult({
       ok: true,
-      provider: '100% Free Cloud AI (No Key Needed)',
+      provider: 'Free Cloud AI (No Key Needed)',
       message: 'Cleared custom keys — switched back to 100% Free Cloud AI mode.',
     });
     onConfigSaved?.(cleared);
@@ -148,17 +148,17 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
-                  Free AI Engine & API Key Setup
+                  Free AI Engine & Optional Advanced API Keys
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-blue-200 border border-white/15 truncate">
                   Active: {activeBadge}
                 </span>
               </div>
               <h2 className="text-base sm:text-xl font-extrabold tracking-tight mt-0.5">
-                Use 100% Free AI or Connect Your Own Free API Keys
+                Use Free AI First — API Keys Are Optional
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
-                Choose zero-key Free Cloud AI immediately, or follow the step-by-step instructions below to get free API keys.
+                BlueNote works without an API key. API keys are an advanced option for users who want a specific provider.
               </p>
             </div>
           </div>
@@ -190,14 +190,14 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
                     <Sparkles className="w-4 h-4 text-emerald-500" />
-                    Option 1: 100% Free Cloud & On-Device AI (No API Key Needed)
+                    Default: Free Cloud AI (No API Key Needed)
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500 text-white">
-                    Recommended • $0.00 Forever
+                    No Key Required
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Works out-of-the-box with <strong>zero sign-up and zero API keys</strong>. Uses free open cloud inference (Pollinations OpenAI-compatible text + Flux HD image generation) paired with BlueNote’s 44.1kHz Stereo Song Studio, Web Speech Voice, and 60FPS Video Engine.
+                  Works out-of-the-box without an API key. Free cloud providers are best-effort and may have rate limits or quality differences; BlueNote also keeps local fallbacks for core productivity features.
                 </p>
               </div>
               <button
@@ -206,7 +206,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm shrink-0 transition-all"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Use 100% Free AI (No Key)</span>
+                <span>Use Free AI (No Key)</span>
               </button>
             </div>
           </div>
@@ -260,10 +260,10 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <HelpCircle className="w-4 h-4 text-blue-600" />
-                Where & How to Obtain Free API Keys (Step-by-Step Guide)
+                Advanced: Connect Your Own AI Providers
               </h3>
               <span className="text-[11px] text-slate-500 hidden sm:inline">
-                All keys are stored privately on your device
+                Keys are stored locally on this device; only use keys you understand and trust
               </span>
             </div>
 
@@ -654,7 +654,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
               onClick={handleUse100PercentFreeAI}
               className="px-3.5 py-2 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-colors"
             >
-              Skip Keys (Use 100% Free AI)
+              Skip Keys — Use Free Mode
             </button>
             <button
               type="button"
