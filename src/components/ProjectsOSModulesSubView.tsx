@@ -63,6 +63,7 @@ import {
   formatBytes,
   generateStandalonePhotoAlbumHTML,
   organizeProjectDocumentsWithAI,
+  mergeProjectDocumentsByTopic,
   searchProjectKnowledge,
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
@@ -156,6 +157,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   const [customOrganizePrompt, setCustomOrganizePrompt] = useState(
     'Look through all uploaded documents, pull out all song lyrics, group related sections, remove duplicates, and organize everything into a clean markdown file.'
   );
+  const [projectMergeTopic, setProjectMergeTopic] = useState('');
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('songs about losing someone');

@@ -893,6 +893,149 @@ export function searchProjectKnowledge(params: {
 }
 
 /**
+ * Topic-driven multi-document merge.
+ *
+ * This is intentionally local-first: it does not require an API key or send
+ * project documents to a cloud model. It scores document blocks against the
+ * user's topic and preserves source provenance in the merged Markdown.
+ */
+export function mergeProjectDocumentsByTopic(
+  documents: ProjectDocument[],
+  topic: string
+): {
+  title: string;
+  markdownContent: string;
+  sourceFiles: string[];
+  sectionsFound: number;
+  duplicatesRemoved: number;
+} {
+  const rawTopic = topic.trim();
+  if (!rawTopic) {
+    return organizeProjectDocumentsWithAI(documents, 'Merge all uploaded documents');
+  }
+
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\\s]/g, ' ')
+      .replace(/\\s+/g, ' ')
+      .trim();
+
+  const tokens = normalize(rawTopic)
+    .split(' ')
+    .filter((token) => token.length > 2);
+
+  const expanded = new Set(tokens);
+  tokens.forEach((token) => {
+    const mapped = CONCEPTUAL_SEMANTIC_MAP[token];
+    mapped?.forEach((term) => expanded.add(normalize(term)));
+    if (token.endsWith('ing') && token.length > 5) expanded.add(token.slice(0, -3));
+    if (token.endsWith('er') && token.length > 4) expanded.add(token.slice(0, -2));
+    if (token.endsWith('s') && token.length > 4) expanded.add(token.slice(0, -1));
+  });
+
+  // Common structural terms make requests such as "lyrics" useful even when
+  // the exact word is absent from a section.
+  if (/\\blyrics?\\b/i.test(rawTopic)) {
+    ['verse', 'chorus', 'pre chorus', 'bridge', 'intro', 'outro', 'hook', 'lyrics'].forEach((x) =>
+      expanded.add(x)
+    );
+  }
+
+  const selected: {
+    filename: string;
+    block: string;
+    score: number;
+  }[] = [];
+
+  documents.forEach((doc) => {
+    const filename = normalize(doc.filename);
+    const blocks = doc.finalContent
+      .split(/\\n\\s*\\n/)
+      .map((block) => block.trim())
+      .filter((block) => block.length >= 12);
+
+    blocks.forEach((block) => {
+      const text = normalize(block);
+      let score = 0;
+
+      if (filename.includes(normalize(rawTopic))) score += 45;
+      if (text.includes(normalize(rawTopic))) score += 60;
+
+      expanded.forEach((term) => {
+        if (term.length > 2 && text.includes(term)) score += 12;
+      });
+
+      const matchedTokens = tokens.filter((token) => text.includes(token)).length;
+      score += matchedTokens * 8;
+
+      if (score >= 24) {
+        selected.push({ filename: doc.filename, block, score });
+      }
+    });
+  });
+
+  selected.sort((a, b) => b.score - a.score);
+
+  const seen = new Set<string>();
+  const deduped = selected.filter((item) => {
+    const key = normalize(item.block);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const grouped = new Map<string, typeof deduped>();
+  deduped.forEach((item) => {
+    const existing = grouped.get(item.filename) || [];
+    existing.push(item);
+    grouped.set(item.filename, existing);
+  });
+
+  const safeTitle = rawTopic
+    .replace(/[^a-z0-9\\s_-]/gi, '')
+    .trim()
+    .replace(/\\s+/g, '_')
+    .slice(0, 50) || 'Topic';
+
+  const lines = [
+    '# BlueNote Topic Merge',
+    '',
+    `> **Topic:** ${rawTopic}`,
+    `> **Source documents:** ${documents.length}`,
+    `> **Relevant sections:** ${deduped.length}`,
+    `> **Duplicate passages removed:** ${selected.length - deduped.length}`,
+    '',
+    '---',
+    '',
+  ];
+
+  if (deduped.length === 0) {
+    lines.push(
+      `No sufficiently relevant passages were found for **"${rawTopic}"**. Try a broader topic such as "roof", "contractor", "lyrics", or "taxes".`
+    );
+  } else {
+    let sectionNumber = 0;
+    grouped.forEach((items, filename) => {
+      sectionNumber += 1;
+      lines.push(`## ${sectionNumber}. ${filename}`, '');
+      items.forEach((item) => {
+        lines.push(item.block, '');
+      });
+      lines.push('---', '');
+    });
+  }
+
+  return {
+    title: `Merged_${safeTitle}.md`,
+    markdownContent: lines.join('\\n'),
+    sourceFiles: Array.from(new Set(deduped.map((item) => item.filename))),
+    sectionsFound: deduped.length,
+    duplicatesRemoved: selected.length - deduped.length,
+  };
+}
+
+/**
  * AI Lyric & Document Organization Engine (Section 42)
  * Pulls lyrics/thematic passages from documents, groups related sections, removes duplicates,
  * preserves source references, and outputs a clean Markdown document.
