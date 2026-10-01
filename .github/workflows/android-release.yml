@@ -46,7 +46,7 @@ jobs:
 
       - name: Install dependencies & sync Android WebView bundle (zero server secrets injected)
         run: |
-          npm install --no-fund --no-audit
+          npm install --legacy-peer-deps --no-fund --no-audit
           npm run android:sync
 
       - name: Build Android APK & Play Store AAB via Gradle
