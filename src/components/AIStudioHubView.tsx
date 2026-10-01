@@ -570,19 +570,19 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   }[] = [
     {
       id: 'image-studio',
-      label: 'Create & Edit Images',
+      label: 'Create & Edit Images · Experimental',
       modelBadge: 'FLUX.1-schnell / 8K HD',
       icon: ImageIcon,
     },
     {
       id: 'veo-video',
-      label: 'LTX & Veo Video Studio',
+      label: 'Video Studio · Experimental',
       modelBadge: 'LTX-Video MP4 / 8Mbps',
       icon: Film,
     },
     {
       id: 'lyria-music',
-      label: 'Studio Music & Song AI',
+      label: 'Music & Song AI · Experimental',
       modelBadge: 'Studio MP3 / 48kHz FM',
       icon: Music,
     },
@@ -619,10 +619,10 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            BlueNote AI Studio Lab
+            BlueNote AI Studio Lab · Experimental
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Generate & edit HD artwork, render 60FPS animated scenes & videos, compose stereo 44.1kHz songs with lyrics & vocals, transcribe voice notes, and research with Google Search & Maps Grounding.
+            Experimental media lab for artwork, video, music, voice tools, and research. Core BlueNote organization does not depend on these generators.
           </p>
         </div>
 
