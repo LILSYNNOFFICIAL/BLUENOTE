@@ -53,6 +53,16 @@ export function hasCustomFirebaseConfig(): boolean {
   return Boolean(localStorage.getItem(CUSTOM_FIREBASE_CONFIG_KEY));
 }
 
+/**
+ * Returns the actual Firebase Authentication domain used by the initialized app.
+ * This is intentionally read from the effective Firebase config instead of a
+ * user-editable profile label, so the UI cannot imply that changing a label
+ * changes Firebase Authentication configuration.
+ */
+export function getFirebaseAuthDomain(): string {
+  return String(getEffectiveFirebaseConfig().authDomain || firebaseConfig.authDomain || '').trim();
+}
+
 const activeConfig = getEffectiveFirebaseConfig();
 const app = initializeApp(activeConfig);
 export const auth = getAuth(app);
