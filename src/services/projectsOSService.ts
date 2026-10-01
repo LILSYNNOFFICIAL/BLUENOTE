@@ -1044,6 +1044,23 @@ export function organizeProjectDocumentsWithAI(
   documents: ProjectDocument[],
   customInstruction?: string
 ): {
+  // If the user supplied a topic-focused instruction, use the local topic
+  // merger instead of pretending a generic instruction was AI-understood.
+  // This keeps the workflow keyless and preserves source provenance.
+  if (customInstruction && !/\\blyrics?\\b/i.test(customInstruction)) {
+    const topicMatch = customInstruction.match(
+      /(?:about|regarding|related to|focused on|for|on)\\s+["']?([^.,;:]+)["']?/i
+    );
+    const requestedTopic = topicMatch?.[1]?.trim() || customInstruction
+      .replace(/^(look through|search|find|pull out|give me|merge|combine|organize)\\s+/i, '')
+      .trim();
+
+    if (requestedTopic && requestedTopic.length >= 3) {
+      return mergeProjectDocumentsByTopic(documents, requestedTopic);
+    }
+  }
+
+
   title: string;
   markdownContent: string;
   sourceFiles: string[];
