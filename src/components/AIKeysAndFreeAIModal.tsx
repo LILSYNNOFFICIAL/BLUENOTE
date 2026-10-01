@@ -129,7 +129,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
     setTestResult({
       ok: true,
       provider: 'Free Cloud AI (No Key Needed)',
-      message: 'Cleared custom keys — switched back to 100% Free Cloud AI mode.',
+      message: 'Cleared custom keys — switched back to Free Cloud AI mode.',
     });
     onConfigSaved?.(cleared);
   };
@@ -177,7 +177,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5">
-          {/* OPTION 1: 100% FREE CLOUD AI (RECOMMENDED - ZERO API KEYS REQUIRED) */}
+          {/* OPTION 1: FREE CLOUD AI (RECOMMENDED - ZERO API KEYS REQUIRED) */}
           <div
             className={`p-4 sm:p-5 rounded-2xl border-2 transition-all ${
               config.preferredProvider === 'free-cloud'
@@ -219,7 +219,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {(
                 [
-                  { id: 'free-cloud', label: '100% Free AI', sub: 'No Key Required' },
+                  { id: 'free-cloud', label: 'Free AI', sub: 'No Key Required' },
                   { id: 'groq', label: 'Groq Free API', sub: 'Llama 3.3 70B' },
                   { id: 'gemini', label: 'Google Gemini', sub: 'Free Tier Key' },
                   { id: 'openrouter', label: 'OpenRouter', sub: '25+ :free Models' },
