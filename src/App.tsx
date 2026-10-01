@@ -1300,7 +1300,7 @@ export default function App() {
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
             >
               <Smartphone className="w-4 h-4 shrink-0" />
-              {!sidebarCollapsed && <span>Android / F-Droid / Play</span>}
+              {!sidebarCollapsed && <span>Android APK</span>}
             </button>
             <button
               onClick={() => setOnboardingModalOpen(true)}
@@ -1424,7 +1424,7 @@ export default function App() {
               ) : (
                 <button
                   onClick={() => setAndroidModalOpen(true)}
-                  title="Android APK, F-Droid & Google Play Store Hub"
+                  title="Android APK Download"
                   className="hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
                 >
                   <Smartphone className="w-4 h-4" />
@@ -3502,7 +3502,7 @@ export default function App() {
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>Android / F-Droid / Play Store</span>
+                  <span>Android APK</span>
                 </button>
                 <button
                   type="button"
