@@ -70,7 +70,7 @@ import {
   handleFirestoreError,
   OperationType,
   User,
-} from './firebase';
+} from '@/firebase';
 import {
   BrainDumpExtractedItem,
   getActiveAIProviderBadge,
