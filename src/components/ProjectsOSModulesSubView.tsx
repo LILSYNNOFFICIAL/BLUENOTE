@@ -903,7 +903,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                 Audio, Video &amp; Transcript Intelligence
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Search spoken words, vocal takes, video scenes, or generate crisp Studio MP3 Music &amp; LTX-Video MP4 clips directly into this project.
+                Search spoken words, transcripts, audio, and imported video scenes directly in this project.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -931,49 +931,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
             </div>
           </div>
 
-          {/* Built-in AI Studio Music (.MP3) & LTX-Video (.MP4) Generator Bar */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-violet-600/10 border border-blue-500/25 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
-              <Sparkles className="w-4 h-4" />
-              <span>AI Studio Generator:</span>
-            </div>
-            <input
-              type="text"
-              value={aiMediaPrompt}
-              onChange={(e) => setAiMediaPrompt(e.target.value)}
-              placeholder={`Describe a song or video scene for "${project.name}"...`}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
-            />
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                disabled={aiMediaGenerating !== null}
-                onClick={handleGenerateAIMusicForProject}
-                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
-              >
-                {aiMediaGenerating === 'music' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Music className="w-3.5 h-3.5" />
-                )}
-                <span>Compose Studio MP3</span>
-              </button>
-              <button
-                type="button"
-                disabled={aiMediaGenerating !== null}
-                onClick={handleGenerateAIVideoForProject}
-                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
-              >
-                {aiMediaGenerating === 'video' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Video className="w-3.5 h-3.5" />
-                )}
-                <span>Generate LTX AI Video</span>
-              </button>
-            </div>
-          </div>
-        </div>
+/div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredMedia.map((item) => (
