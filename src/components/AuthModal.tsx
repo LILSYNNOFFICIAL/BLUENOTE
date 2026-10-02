@@ -31,7 +31,7 @@ import {
   getDetectedHostname,
   getDetectedAppUrl,
   User,
-} from '../firebase';
+} from '@/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
 
 export interface AuthModalProps {
