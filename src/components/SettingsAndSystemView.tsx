@@ -32,7 +32,7 @@ import {
   compressImageFileToDataUrl,
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
-import { authorizeGmailWithFirebaseGoogle, getDetectedHostname, getDetectedAppUrl } from '@/firebase';
+import { authorizeGmailWithFirebaseGoogle, getDetectedHostname, getDetectedAppUrl } from '@/src/firebase';
 import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
 
 interface SettingsAndSystemViewProps {
