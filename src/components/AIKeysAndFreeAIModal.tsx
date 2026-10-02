@@ -7,8 +7,6 @@ import {
   Loader2,
   Cpu,
   Image as ImageIcon,
-  Mic,
-  Globe,
   FileText,
 } from 'lucide-react';
 import {
@@ -90,7 +88,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
                 </span>
               </div>
               <h2 className="text-base sm:text-xl font-extrabold tracking-tight mt-0.5">
-                Built-In Cloud &amp; On-Device AI Engines
+                Built-In AI Engine
               </h2>
               <p className="text-[11px] sm:text-xs text-slate-300 mt-0.5">
                 All AI capabilities are pre-configured and managed by the application infrastructure. No user API keys or credentials are required.
@@ -120,7 +118,7 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              BlueNote handles all AI model routing automatically through server-side infrastructure and built-in neural/synthesis engines. Normal users never need to enter developer API keys or OAuth secrets.
+              BlueNote handles supported AI model routing automatically through the application infrastructure. Normal users never need to enter developer API keys or OAuth secrets.
             </p>
           </div>
 
@@ -132,26 +130,6 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                 Generates ultra-crisp 8K artwork via Black Forest Labs FLUX.1-schnell &amp; FLUX.1-Merged with built-in 3×3 Unsharp Mask micro-contrast enhancement.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
-              <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Mic className="w-4 h-4 text-indigo-500" />
-                Audio Transcription &amp; Live Voice
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Transcribes microphone voice notes and uploaded audio files into clean Smart Notes, plus low-latency Live Voice conversation sessions.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
-              <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Globe className="w-4 h-4 text-emerald-500" />
-                Google Search &amp; Maps Grounding
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Delivers real-time web research and spatial place discovery with verified source links that can be saved directly to your Links organizer.
               </p>
             </div>
 

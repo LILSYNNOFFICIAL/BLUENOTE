@@ -1,12 +1,19 @@
 BlueNote — Remember everything. Organize anything. Focus on what matters.
 
-BlueNote is a complete, privacy-first Personal Organizer, 10 GB AI Project Operating System (PROJECTS), Quiet Predictive Pattern Engine, Habit & Streak Analytics Tracker, Smart Note Editor, Personal CRM, Knowledge Graph, and On-Device AI Studio.
+BlueNote is a local-first Personal Organizer and Second Brain for notes, tasks, habits, projects, calendar planning, contacts, OCR capture, and knowledge organization.
 
 KEY CAPABILITIES:
-• 100% Clean Zero-Demo Startup & 5-Step Onboarding: Starts with zero pre-filled demo clutter across all modules and guides you through a 5-step personalization & theme tutorial.
-• PROJECTS — 10 GB AI Project Operating System: 12-module workspace per project supporting 2 MB chunked & resumable document uploads (.txt, .md, .doc, .docx, .pdf), non-destructive version history (Original → Working → Edited → Final), side-by-side diffs, multi-document merge, standalone HTML photo album generator, and AI Sandbox Mode.
-• Quiet Predictive Pattern Engine: Learns your recurring shopping, household, and routine cycles with strict Hypothesis vs. Known Fact distinction and anti-nagging safeguards.
-• 100% On-Device AI (Zero API Keys Required): Natural language Brain Dump, priority synthesis, note summarization, procedural illustration/video synthesis, and ambient focus audio run locally on your device.
-• Weekly Habits & 30-Day Streak Analytics: Track daily habits on a 7-day rolling checkmark grid and analyze 30-day completion rates, rolling averages, and streak momentum.
-• Universal Capture & OCR Scanner: Extract tasks, reminders, calendar events, contacts, and shopping items from natural language or scanned receipts and business cards.
-• Second Brain Knowledge Graph & Semantic Search: Explore an interactive node-and-edge network of your notes, tasks, projects, contacts, and files.
+• Local-first workspace: core notes, tasks, habits, projects, calendar data and settings work without an account.
+• Brain Dump & Quick Capture: turn natural-language input into organized tasks, notes, reminders, links and other items using local parsing.
+• OCR Scanner: process receipts, business cards and handwritten notes with a keyless local OCR path.
+• PROJECTS OS: organize project documents, tasks, versions, tags and research in structured workspaces.
+• Weekly Habits & Streak Analytics: track habits and review completion trends.
+• Second Brain Knowledge Graph: explore relationships between notes, tasks, projects, contacts and files.
+• Personal CRM: maintain contacts, links and supporting information in one workspace.
+• Focus tools: use focus sessions, reminders, dashboards and energy modes without requiring an online account.
+
+F-DROID BUILD:
+The F-Droid variant is a dedicated local-only distribution flavor. It excludes the Firebase web SDK, cloud authentication and cloud workspace synchronization. The app remains useful without an account or cloud service.
+
+PRIVACY:
+BlueNote is open source and local-first. Optional online integrations are separated from the core local workflow. See PRIVACY_POLICY.md and the source repository for implementation details.

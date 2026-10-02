@@ -44,15 +44,22 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Install dependencies & sync Android WebView bundle (zero server secrets injected)
-        run: |
-          npm install --legacy-peer-deps --no-fund --no-audit
-          npm run android:sync
+      - name: Install dependencies (zero server secrets injected)
+        run: npm install --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build Android APK & Play Store AAB via Gradle
+      - name: Build Play Store web bundle
+        run: npm run android:sync
+
+      - name: Build Play Store AAB and debug APK
         working-directory: ./android
-        run: |
-          gradle assembleFdroidRelease assemblePlaystoreRelease assembleDebug bundlePlaystoreRelease --no-daemon
+        run: gradle assemblePlaystoreRelease assembleDebug bundlePlaystoreRelease --no-daemon
+
+      - name: Build F-Droid local-only web bundle
+        run: npm run android:sync:fdroid
+
+      - name: Build F-Droid APK
+        working-directory: ./android
+        run: gradle assembleFdroidRelease --no-daemon
 
       - name: Prepare direct install APK
         run: |
