@@ -91,7 +91,7 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Install F-Droid dependency set without optional Firebase
+      - name: Install F-Droid dependency set
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
       - name: Build F-Droid web bundle
