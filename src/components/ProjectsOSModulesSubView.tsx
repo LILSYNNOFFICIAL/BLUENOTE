@@ -68,11 +68,8 @@ import {
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
 import {
-  downloadVeoVideoBlobUrl,
-  generateMusicWithLyria,
   generateOrEditImage,
   sharpenAndEnhanceImageDataUrl,
-  startVeoVideoGeneration,
 } from '../services/aiService';
 
 interface ProjectsOSModulesSubViewProps {
@@ -118,8 +115,6 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   const [mediaPlaybackRate, setMediaPlaybackRate] = useState<Record<string, number>>({});
   const [mediaLoopActive, setMediaLoopActive] = useState<Record<string, boolean>>({});
   const [mediaCurrentTime, setMediaCurrentTime] = useState<Record<string, number>>({});
-  const [aiMediaPrompt, setAiMediaPrompt] = useState('');
-  const [aiMediaGenerating, setAiMediaGenerating] = useState<'music' | 'video' | null>(null);
 
   // Photo Album state
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -897,124 +892,6 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
         m.tags.some((t) => t.toLowerCase().includes(q))
       );
     });
-
-    const handleGenerateAIMusicForProject = async () => {
-      if (aiMediaGenerating) return;
-      const prompt =
-        aiMediaPrompt.trim() ||
-        `${project.name} — studio master instrumental with warm chords and crisp percussion`;
-      setAiMediaGenerating('music');
-      try {
-        const res = await generateMusicWithLyria({
-          prompt,
-          model: 'lyria-3-pro-preview',
-        });
-        const now = new Date().toISOString();
-        const isMp3 = res.audioUrl.includes('/api/ai/music-stream');
-        const ext = isMp3 ? 'mp3' : 'wav';
-        const cleanName = prompt
-          .replace(/[^\w\s-]/g, '')
-          .trim()
-          .split(/\s+/)
-          .slice(0, 5)
-          .join('_') || 'AI_Studio_Track';
-        const newMedia: ProjectMediaItem = {
-          id: `pmed-ai-${Date.now()}`,
-          projectId: project.id,
-          filename: `${cleanName}.${ext}`,
-          mediaType: 'audio',
-          mimeType: isMp3 ? 'audio/mpeg' : 'audio/wav',
-          sizeBytes: 2680000,
-          durationSeconds: 28,
-          transcriptOrCaptions: res.lyrics,
-          sceneInfo: `AI Studio Master (${res.model})`,
-          tags: ['AI-Music', isMp3 ? 'Studio-MP3' : '48kHz-Stereo', project.name],
-          dataUrl: res.audioUrl,
-          uploadedAt: now,
-        };
-        onUpdateProject((prev) => ({
-          ...prev,
-          updatedAt: now,
-          media: [newMedia, ...prev.media],
-          timeline: [
-            {
-              id: `tl-${Date.now()}`,
-              projectId: prev.id,
-              timestamp: now,
-              category: 'ai',
-              title: `Composed AI Studio Track "${newMedia.filename}"`,
-              subtitle: `Engine: ${res.model}`,
-            },
-            ...prev.timeline,
-          ],
-        }));
-        setAiMediaPrompt('');
-        showToast(`Composed "${newMedia.filename}" (${res.model}) into Project Media!`);
-      } catch {
-        showToast('Could not generate AI music track.');
-      } finally {
-        setAiMediaGenerating(null);
-      }
-    };
-
-    const handleGenerateAIVideoForProject = async () => {
-      if (aiMediaGenerating) return;
-      const prompt =
-        aiMediaPrompt.trim() ||
-        `Cinematic 4K showcase for ${project.name}, golden hour lighting, smooth camera motion`;
-      setAiMediaGenerating('video');
-      try {
-        const { operationName, model } = await startVeoVideoGeneration({
-          prompt,
-          aspectRatio: '16:9',
-        });
-        const blobUrl = await downloadVeoVideoBlobUrl(operationName);
-        const now = new Date().toISOString();
-        const isMp4 = (model || '').includes('MP4');
-        const cleanName = prompt
-          .replace(/[^\w\s-]/g, '')
-          .trim()
-          .split(/\s+/)
-          .slice(0, 5)
-          .join('_') || 'AI_Cinema_Video';
-        const newMedia: ProjectMediaItem = {
-          id: `pmed-vid-${Date.now()}`,
-          projectId: project.id,
-          filename: `${cleanName}.${isMp4 ? 'mp4' : 'webm'}`,
-          mediaType: 'video',
-          mimeType: isMp4 ? 'video/mp4' : 'video/webm',
-          sizeBytes: 3400000,
-          durationSeconds: 6,
-          transcriptOrCaptions: `[00:00] AI Video Scene: "${prompt}"\n[00:03] Rendered via ${model || 'LTX-Video-Distilled & FLUX.1 HD'}`,
-          sceneInfo: `AI Video (${model || 'LTX-Video MP4 / 8Mbps HD'})`,
-          tags: ['AI-Video', isMp4 ? 'LTX-MP4' : '8Mbps-HD', project.name],
-          dataUrl: blobUrl,
-          uploadedAt: now,
-        };
-        onUpdateProject((prev) => ({
-          ...prev,
-          updatedAt: now,
-          media: [newMedia, ...prev.media],
-          timeline: [
-            {
-              id: `tl-${Date.now()}`,
-              projectId: prev.id,
-              timestamp: now,
-              category: 'ai',
-              title: `Generated AI Video "${newMedia.filename}"`,
-              subtitle: `Engine: ${model || 'LTX-Video MP4'}`,
-            },
-            ...prev.timeline,
-          ],
-        }));
-        setAiMediaPrompt('');
-        showToast(`Generated "${newMedia.filename}" into Project Media!`);
-      } catch {
-        showToast('Could not generate AI video.');
-      } finally {
-        setAiMediaGenerating(null);
-      }
-    };
 
     return (
       <div className="space-y-5">
