@@ -297,7 +297,7 @@ async function startServer() {
     res.status(503).json({ error: 'Using on-device neural engine' });
   });
 
-  // Helper: Call Zero-Key Public Hugging Face Gradio 5 FLUX.1 Spaces (FLUX.1-schnell & FLUX.1-merged)
+    // Helper: Call Zero-Key Public Hugging Face Gradio 5 FLUX.1 Spaces (FLUX.1-schnell & FLUX.1-merged)
   async function generateGradioFluxImage(
     visualPrompt: string,
     width: number,
@@ -460,7 +460,7 @@ async function startServer() {
     }
   }
 
-  // 3. Server-Side Multi-Engine Image Generation Endpoint
+// 3. Server-Side Multi-Engine Image Generation Endpoint
   // Supports: Google Gemini Image -> Zero-Key Gradio 5 FLUX.1-schnell & FLUX.1-Merged -> Pollinations -> Openverse & Wikimedia HD
   app.post('/api/ai/image', async (req, res) => {
     const {
@@ -493,7 +493,7 @@ async function startServer() {
         parts.push({ text: visualPrompt });
 
         const imgResp = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-3.1-flash-image',
           contents: { parts },
           config: {
             imageConfig: {
@@ -508,7 +508,7 @@ async function startServer() {
             res.json({
               imageUrl: `data:${outMime};base64,${part.inlineData.data}`,
               caption: `Generated with Gemini Image (${aspectRatio || '16:9'}) — Subject: "${visualPrompt}"`,
-              model: 'gemini-2.5-flash-image',
+              model: 'gemini-3.1-flash-image',
             });
             return;
           }
