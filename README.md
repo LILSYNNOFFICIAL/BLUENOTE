@@ -39,13 +39,13 @@ The F-Droid build uses package ID:
 
 The current F-Droid release configuration is:
 
-- **Version:** `1.0.0-fdroid`
-- **Version code:** `1`
+- **Version:** `1.0.1-fdroid`
+- **Version code:** `2`
 - **Gradle flavor:** `fdroid`
-- **Release tag:** `v1.0.0-fdroid-immutable`
-- **Release commit:** `7b5f3656876fb8da04b0f21e0ee2e6c4b640835a`
+- **Release tag:** pending next immutable GitHub release
+- **Release commit:** will be the immutable commit used for the F-Droid submission
 
-The release tag is published as an **immutable GitHub release**. The immutable tag points directly to the release commit above.
+The previous `1.0.0-fdroid` immutable release is superseded by this release because the AI video-generation and AI music/song-generation features have been removed from the project. The retained AI capability is image generation/editing.
 
 ---
 
@@ -261,6 +261,6 @@ See [LICENSE](LICENSE).
 
 ## ⚠️ Current Release Notes
 
-BlueNote is actively developed. The F-Droid flavor is intended to provide a free-software Android distribution of the local-first core.
+BlueNote is actively developed. Version `1.0.1` streamlines the experimental AI Studio by retaining image generation/editing while removing AI video generation and AI music/song generation. The F-Droid flavor is intended to provide a free-software Android distribution of the local-first core.
 
 The F-Droid repository performs its own independent review and build process. Presence of F-Droid configuration in this upstream repository does not by itself mean that the application has been accepted into the official F-Droid repository.
