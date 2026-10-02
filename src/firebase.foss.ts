@@ -80,7 +80,7 @@ export function doc(_db: typeof db, collection: string, id: string) {
   return { collection, id };
 }
 
-export async function setDoc(): Promise<void> {
+export async function setDoc(..._args: unknown[]): Promise<void> {
   return undefined;
 }
 
@@ -96,23 +96,23 @@ function unavailable(): never {
   throw new Error('Cloud accounts and cloud sync are disabled in the F-Droid build. BlueNote remains fully usable locally.');
 }
 
-export async function signInWithPopup(): Promise<AuthResult> {
+export async function signInWithPopup(..._args: unknown[]): Promise<AuthResult> {
   return unavailable();
 }
 
-export async function signInWithRedirect(): Promise<never> {
+export async function signInWithRedirect(..._args: unknown[]): Promise<never> {
   return unavailable();
 }
 
-export async function createUserWithEmailAndPassword(): Promise<AuthResult> {
+export async function createUserWithEmailAndPassword(..._args: unknown[]): Promise<AuthResult> {
   return unavailable();
 }
 
-export async function signInWithEmailAndPassword(): Promise<AuthResult> {
+export async function signInWithEmailAndPassword(..._args: unknown[]): Promise<AuthResult> {
   return unavailable();
 }
 
-export async function sendPasswordResetEmail(): Promise<void> {
+export async function sendPasswordResetEmail(..._args: unknown[]): Promise<void> {
   return unavailable();
 }
 
@@ -120,6 +120,6 @@ export async function updateProfile(_user: User, _profile: { displayName?: strin
   return undefined;
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(..._args: unknown[]): Promise<void> {
   return undefined;
 }
