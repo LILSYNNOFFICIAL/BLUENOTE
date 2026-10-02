@@ -26,7 +26,10 @@ android {
                 storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                // The release keystore is PKCS12. PKCS12 uses the store password
+                // to protect the private key, so no separate key-password secret is needed.
+                storeType "PKCS12"
+                keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
             }
         }
     }
@@ -60,7 +63,7 @@ android {
             } else {
                 // Never ship a release APK with the debug certificate. Release signing is mandatory.
                 throw new GradleException(
-                    "Release signing is required. Configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+                    "Release signing is required. Configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, and ANDROID_KEY_ALIAS."
                 )
             }
         }
