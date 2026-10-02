@@ -1839,6 +1839,235 @@ function drawForegroundSubject(
 }
 
 // Draw a rich, gallery-grade scene onto a 2D canvas (supports static and animated frame `t` in [0,1])
+// Draw a rich, gallery-grade scene onto a 2D canvas (supports deterministic static image rendering)
+export function renderImageSceneToCanvas(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  prompt: string,
+  t = 0,
+  bgImg?: HTMLImageElement | null
+) {
+  const cleanSubject = cleanImagePromptSubject(prompt);
+  const palette = selectPaletteFromPrompt(cleanSubject);
+
+  if (bgImg) {
+    const scale = 1.02 + Math.sin(t * Math.PI * 2) * 0.05;
+    const panX = Math.cos(t * Math.PI * 2) * (width * 0.022);
+    const panY = Math.sin(t * Math.PI * 2) * (height * 0.015);
+    ctx.save();
+    ctx.filter = 'contrast(1.08) saturate(1.16)';
+    ctx.translate(width / 2 + panX, height / 2 + panY);
+    ctx.scale(scale, scale);
+    ctx.drawImage(bgImg, -width / 2, -height / 2, width, height);
+    ctx.restore();
+
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, `${palette.skyMid}38`);
+    grad.addColorStop(1, `${palette.accent}28`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+    return;
+  }
+
+  // 1. Multi-stop atmospheric backdrop gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+  skyGrad.addColorStop(0, palette.skyTop);
+  skyGrad.addColorStop(0.55, palette.skyMid);
+  skyGrad.addColorStop(1, palette.skyBottom);
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, width, height);
+
+  let seed = 0;
+  for (let i = 0; i < cleanSubject.length; i++) {
+    seed = (seed * 31 + cleanSubject.charCodeAt(i)) % 100000;
+  }
+
+  // 2. Soft Studio Depth-of-Field Bokeh Orbs
+  const sunX = width * (0.56 + Math.sin(t * Math.PI * 2) * 0.07);
+  const sunY = height * (0.37 - Math.sin(t * Math.PI) * 0.08);
+  const sunRadius = Math.min(width, height) * 0.16;
+
+  const sunGlow = ctx.createRadialGradient(
+    sunX,
+    sunY,
+    sunRadius * 0.08,
+    sunX,
+    sunY,
+    sunRadius * 2.8
+  );
+  sunGlow.addColorStop(0, `${palette.sunColor}cc`);
+  sunGlow.addColorStop(0.4, `${palette.accent}66`);
+  sunGlow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sunGlow;
+  ctx.beginPath();
+  ctx.arc(sunX, sunY, sunRadius * 2.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Only draw mountains if the prompt explicitly asks for mountains, peaks, hills, cliffs, or landscapes!
+  const wantsMountains =
+    /\b(mountain|mountains|peak|peaks|alp|alps|hill|hills|ridge|canyon|valley|cliff|landscape|horizon)\b/i.test(
+      cleanSubject
+    );
+
+  if (wantsMountains) {
+    const drawRidge = (
+      baseY: number,
+      amplitude: number,
+      freq: number,
+      phase: number,
+      fill: string
+    ) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(0, height);
+      for (let x = 0; x <= width; x += 14) {
+        const nx = x / width;
+        const y =
+          height * baseY -
+          Math.sin(nx * freq + phase + t * Math.PI * 2) * (height * amplitude) -
+          Math.cos(nx * freq * 2.1 - phase + t * Math.PI * 2) * (height * amplitude * 0.45);
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(width, height);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    drawRidge(0.68, 0.06, 5.2, (seed % 10) * 0.4, `${palette.mountainFar}aa`);
+    drawRidge(0.76, 0.05, 6.8, (seed % 7) * 0.7, palette.mountainNear);
+  } else {
+    // Soft out-of-focus studio bokeh circles so the foreground subject is the unmistakable hero
+    for (let b = 0; b < 14; b++) {
+      const bx = ((seed + b * 211) % width);
+      const by = ((seed + b * 139) % height);
+      const br = Math.min(width, height) * (0.04 + (b % 4) * 0.025);
+      ctx.fillStyle = b % 2 === 0 ? `${palette.sunColor}22` : `${palette.accent}22`;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 3. Render Foreground Subject Matching Prompt (Bird, Cat, Dog, Flower, Car, Robot, Coffee, House, Butterfly, Fish, etc.)
+  drawForegroundSubject(ctx, width, height, cleanSubject, t);
+
+  // 4. Floating Atmospheric Light Motes
+  ctx.fillStyle = 'rgba(255, 250, 235, 0.65)';
+  for (let p = 0; p < 18; p++) {
+    const px = (p * 137 + Math.floor(t * width * 0.28) + seed) % width;
+    const py =
+      (p * 83 + Math.sin(t * Math.PI * 2 + p) * 28 + height) %
+      Math.floor(height * 0.85);
+    ctx.beginPath();
+    ctx.arc(px, py, (p % 3) + 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+async function rasterizeSvgToPngDataUrl(
+  rawSvg: string,
+  width: number,
+  height: number
+): Promise<string | null> {
+  let svg = rawSvg.trim();
+  const svgStart = svg.indexOf('<svg');
+  const svgEnd = svg.lastIndexOf('</svg>');
+  if (svgStart === -1 || svgEnd === -1) return null;
+  svg = svg.slice(svgStart, svgEnd + 6);
+  if (!svg.includes('xmlns=')) {
+    svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+
+  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  return new Promise<string | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = width;
+      c.height = height;
+      const cx = c.getContext('2d')!;
+      cx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(svgUrl);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(svgUrl);
+      resolve(null);
+    };
+    img.src = svgUrl;
+  });
+}
+
+// Helper: Direct Client-Side Gradio 5 FLUX.1-schnell & FLUX.1-Merged caller (Zero API Key)
+async function callClientGradioFluxImage(
+  visualPrompt: string,
+  width: number,
+  height: number
+): Promise<{ dataUrl: string; modelName: string } | null> {
+  const crispPrompt = `${visualPrompt}, ultra-crisp 8k UHD resolution, razor-sharp focus, intricate micro-details, professional studio lighting, DSLR masterpiece`;
+  const clampedW = Math.min(1280, Math.max(512, Math.round(width / 32) * 32));
+  const clampedH = Math.min(1280, Math.max(512, Math.round(height / 32) * 32));
+
+  const spaces = [
+    {
+      name: 'FLUX.1-schnell (Black Forest Labs HD)',
+      baseUrl: 'https://black-forest-labs-flux-1-schnell.hf.space',
+      data: [crispPrompt, 0, true, clampedW, clampedH, 4],
+    },
+    {
+      name: 'FLUX.1-Merged (8-Step Crisp HD)',
+      baseUrl: 'https://multimodalart-flux-1-merged.hf.space',
+      data: [crispPrompt, 0, true, clampedW, clampedH, 3.5, 8],
+    },
+  ];
+
+  for (const sp of spaces) {
+    try {
+      const postResp = await fetch(`${sp.baseUrl}/gradio_api/call/infer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: sp.data }),
+      });
+      if (!postResp.ok) continue;
+      const postJson = await postResp.json();
+      if (!postJson?.event_id) continue;
+
+      const sseResp = await fetch(
+        `${sp.baseUrl}/gradio_api/call/infer/${postJson.event_id}`
+      );
+      const sseText = await sseResp.text();
+      const dataLine = sseText
+        .split('\n')
+        .find((l) => l.startsWith('data: ') && l.includes('"url"'));
+      if (!dataLine) continue;
+
+      const parsed = JSON.parse(dataLine.slice(6));
+      const item = Array.isArray(parsed) ? parsed[0] : parsed;
+      const fileUrl =
+        item?.url ||
+        (item?.path ? `${sp.baseUrl}/gradio_api/file=${item.path}` : null);
+      if (!fileUrl) continue;
+
+      const imgResp = await fetch(fileUrl);
+      if (!imgResp.ok) continue;
+      const blob = await imgResp.blob();
+      if (blob.size < 4096) continue;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      if (dataUrl.startsWith('data:image')) {
+        return { dataUrl, modelName: sp.name };
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function sharpenAndEnhanceImageDataUrl(
   sourceUrl: string,
   targetWidth?: number,
@@ -2000,7 +2229,7 @@ export async function generateOrEditImage(params: {
     });
   }
 
-  renderSceneFrameToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
+  renderImageSceneToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
 
   return {
     imageUrl: canvas.toDataURL('image/png'),
@@ -2009,7 +2238,6 @@ export async function generateOrEditImage(params: {
   };
 }
 
-// Store generated video blob URLs and metadata by operationName
 // 3. Audio Transcription (Server Gemini 3 Flash + Client Gemini Key + Web Speech Fallback)
 export async function transcribeAudioWithGemini(
   input: { base64Audio: string; mimeType: string } | string,
