@@ -114,7 +114,6 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
   useEffect(() => {
     return () => {
       stopLiveConversation();
-      stopVocalPerformance();
     };
   }, []);
 
