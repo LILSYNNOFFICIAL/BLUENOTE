@@ -36,7 +36,8 @@ android {
 
     flavorDimensions = ["distribution"]
     productFlavors {
-        // 1. F-Droid Flavor: 100% FOSS, zero proprietary blobs, reproducible APK
+        // 1. F-Droid Flavor: 100% FOSS, zero proprietary blobs, reproducible APK.
+        // F-Droid must receive an unsigned release APK and sign it itself.
         fdroid {
             dimension "distribution"
             versionNameSuffix "-fdroid"
@@ -58,12 +59,20 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
+
+            // The Firebase/Play Store variant is signed with the persistent release
+            // keystore. The F-Droid variant is deliberately left unsigned so F-Droid
+            // can apply its own reproducible signing process.
+            def requestedTasks = gradle.startParameter.taskNames*.toLowerCase()
+            def buildingFdroid = requestedTasks.any { it.contains("fdroid") }
+
+            if (buildingFdroid) {
+                // No signingConfig: F-Droid signs the release APK.
+            } else if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
                 signingConfig signingConfigs.release
             } else {
-                // Never ship a release APK with the debug certificate. Release signing is mandatory.
                 throw new GradleException(
-                    "Release signing is required. Configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, and ANDROID_KEY_ALIAS."
+                    "Play Store release signing is required. Configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, and ANDROID_KEY_ALIAS."
                 )
             }
         }
