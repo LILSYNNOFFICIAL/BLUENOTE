@@ -58,3 +58,51 @@ jobs:
       - name: Build Android validation APK
         working-directory: ./android
         run: gradle assembleFdroidRelease --no-daemon
+
+  validate-fdroid:
+    name: validate-fdroid-local-only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK packages
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Install F-Droid dependency set without optional Firebase
+        run: npm install --legacy-peer-deps --no-fund --no-audit --omit=optional
+
+      - name: Build F-Droid web bundle
+        run: F_DROID_BUILD=true npm run build
+
+      - name: Sync F-Droid WebView assets
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          rm -rf android/app/src/main/assets/public/*
+          cp -r dist/* android/app/src/main/assets/public/
+
+      - name: Build F-Droid validation APK
+        working-directory: ./android
+        run: gradle assembleFdroidRelease --no-daemon
