@@ -58,8 +58,10 @@ android {
             if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
                 signingConfig signingConfigs.release
             } else {
-                // Fallback to standard debug signing key so CI/GitHub Actions release APKs can be installed directly on Android devices
-                signingConfig signingConfigs.debug
+                // Never ship a release APK with the debug certificate. Release signing is mandatory.
+                throw new GradleException(
+                    "Release signing is required. Configure ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD."
+                )
             }
         }
     }
