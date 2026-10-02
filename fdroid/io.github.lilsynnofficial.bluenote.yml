@@ -1,32 +1,20 @@
-# F-Droid Official Submission Recipe (fdroiddata metadata format)
-# Package ID: io.github.lilsynnofficial.bluenote
+# F-Droid upstream build recipe template. Official inclusion metadata is submitted to fdroiddata.
+# This file is kept in sync with the embedded .fdroid.yml.
+
 Categories:
   - Office
   - Time
   - Writing
 License: Apache-2.0
 AuthorName: LILSYNNOFFICIAL
+AuthorWebSite: https://github.com/LILSYNNOFFICIAL/BLUENOTE
 SourceCode: https://github.com/LILSYNNOFFICIAL/BLUENOTE
 IssueTracker: https://github.com/LILSYNNOFFICIAL/BLUENOTE/issues
 WebSite: https://lilsynnofficial.github.io/BLUENOTE/
 Changelog: https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases
 
 AutoName: BlueNote
-Summary: Local-first AI Personal Organizer, Habit Tracker, Notes & Second Brain
-
-Description: |-
-  BlueNote is a 100% local-first personal productivity workspace and Second Brain.
-  All AI features (natural language Brain Dump, OCR receipt & business card scanning,
-  note summarization, procedural image/video synthesis, and ambient focus music)
-  run completely on-device with zero external API keys required.
-
-  Features:
-  * Adaptive Daily Dashboard with Energy Modes (Focused, Busy, Tired, Vacation)
-  * 7-Day Weekly Habit Checkmark Grid & 30-Day Streak Trend Visualizations
-  * Multi-Intent Natural Language Brain Dump & On-Device OCR Scanner
-  * Tasks, Subtasks, Kanban Board & Smart Shopping Checklists
-  * Rich Markdown Smart Notes with Folders, Templates & Version History
-  * Personal CRM Contacts, Bookmarks & Interactive SVG Knowledge Graph
+Summary: Local-first personal organizer with notes, tasks, habits and OCR
 
 RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
@@ -34,19 +22,20 @@ Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 Builds:
   - versionName: 1.0.0-fdroid
     versionCode: 1
-    commit: v1.0.0
+    commit: HEAD
     subdir: android/app
     sudo:
       - apt-get update
       - apt-get install -y nodejs npm
     init:
       - cd ../..
-      - npm ci
-      - npm run build
+      - npm install --legacy-peer-deps --no-fund --no-audit --omit=optional
+      - F_DROID_BUILD=true npm run build
       - mkdir -p android/app/src/main/assets/public
       - cp -r dist/* android/app/src/main/assets/public/
     gradle:
       - fdroid
+    output: build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
