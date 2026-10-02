@@ -1,23 +1,41 @@
-name: Build Android APK & AAB Release (F-Droid & Google Play)
+name: Build & Release Android (Firebase + F-Droid)
 
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
-      - 'v*'
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag, for example v1.0.1'
+        required: true
+        type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: bluenote-release
+  cancel-in-progress: false
+
 jobs:
-  android-build:
+  android-release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout exact release source
         uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="${{ inputs.release_tag }}"
+          fi
+          [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -27,7 +45,7 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
 
       - name: Install Android SDK packages
@@ -44,48 +62,65 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Install dependencies (zero server secrets injected)
+      - name: Install dependencies
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
       - name: Build Play Store web bundle
         run: npm run android:sync
 
-      - name: Build Play Store AAB and debug APK
-        working-directory: ./android
-        run: gradle assemblePlaystoreRelease assembleDebug bundlePlaystoreRelease --no-daemon
+      - name: Require Firebase/release signing material
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          mkdir -p "$RUNNER_TEMP/signing"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing/bluenote-release.jks"
+          test -s "$RUNNER_TEMP/signing/bluenote-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/signing/bluenote-release.jks" >> "$GITHUB_ENV"
 
-      - name: Build F-Droid local-only web bundle
+      - name: Build signed Firebase-login APK + Play bundle
+        working-directory: ./android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ env.ANDROID_KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle assemblePlaystoreRelease bundlePlaystoreRelease --no-daemon
+
+      - name: Build F-Droid local-only APK
         run: npm run android:sync:fdroid
 
       - name: Build F-Droid APK
         working-directory: ./android
         run: gradle assembleFdroidRelease --no-daemon
 
-      - name: Prepare direct install APK
+      - name: Prepare release assets
+        shell: bash
         run: |
           mkdir -p release-assets
-          cp android/app/build/outputs/apk/fdroid/release/*.apk release-assets/bluenote-android-installable.apk
+          cp android/app/build/outputs/apk/playstore/release/*.apk release-assets/bluenote-playstore.apk
+          cp android/app/build/outputs/apk/fdroid/release/*.apk release-assets/bluenote-fdroid.apk
+          sha256sum release-assets/*.apk > release-assets/SHA256SUMS.txt
 
-      - name: Upload Android APK (Direct Install)
-        uses: actions/upload-artifact@v4
-        with:
-          name: bluenote-android-apk
-          path: |
-            release-assets/bluenote-android-installable.apk
-            android/app/build/outputs/apk/*/*/*.apk
-
-      - name: Upload Google Play Store App Bundle (.aab)
-        uses: actions/upload-artifact@v4
-        with:
-          name: bluenote-google-play-aab
-          path: android/app/build/outputs/bundle/playstoreRelease/*.aab
-
-      - name: Publish GitHub Release APK assets (on tag or manual dispatch)
-        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+      - name: Publish immutable GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0-latest' }}
-          name: BlueNote Android APK & Bundle Release
+          tag_name: ${{ steps.release.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: BlueNote ${{ steps.release.outputs.tag }}
+          generate_release_notes: true
+          make_latest: true
           files: |
-            release-assets/bluenote-android-installable.apk
-            android/app/build/outputs/bundle/playstoreRelease/*.aab
+            release-assets/bluenote-playstore.apk
+            release-assets/bluenote-fdroid.apk
+            release-assets/SHA256SUMS.txt
+
+      - name: Remove signing material
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/signing"

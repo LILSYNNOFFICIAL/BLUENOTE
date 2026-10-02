@@ -2,6 +2,7 @@ package io.github.lilsynnofficial.bluenote;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
@@ -20,8 +21,22 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1001;
+    private static final String RELEASE_API_URL =
+            "https://api.github.com/repos/LILSYNNOFFICIAL/BLUENOTE/releases/latest";
+    private static final String PLAYSTORE_APK_URL =
+            "https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/latest/download/bluenote-playstore.apk";
+    private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
 
@@ -121,9 +136,105 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState == null) {
             webView.loadUrl("file:///android_asset/public/index.html");
+            checkForPlaystoreUpdate();
         } else {
             webView.restoreState(savedInstanceState);
         }
+    }
+
+    private void checkForPlaystoreUpdate() {
+        // F-Droid must remain Firebase-free and independently signed; its updater is F-Droid.
+        if (!"playstore".equals(BuildConfig.DISTRIBUTION_CHANNEL)) {
+            return;
+        }
+
+        updateExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL(RELEASE_API_URL);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "BlueNote-Android");
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    return;
+                }
+
+                StringBuilder body = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(connection.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        body.append(line);
+                    }
+                }
+
+                JSONObject release = new JSONObject(body.toString());
+                String tag = release.optString("tag_name", "");
+                if (!tag.startsWith("v")) {
+                    return;
+                }
+
+                String latestVersion = tag.substring(1);
+                String currentVersion = BuildConfig.VERSION_NAME;
+                if (!isNewerVersion(latestVersion, currentVersion)) {
+                    return;
+                }
+
+                runOnUiThread(() -> showUpdateDialog(latestVersion));
+            } catch (Exception ignored) {
+                // Update checks are best-effort and must never interfere with app startup.
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        });
+    }
+
+    private boolean isNewerVersion(String latest, String current) {
+        try {
+            String[] a = latest.split("\\.");
+            String[] b = current.split("\\.");
+            int length = Math.max(a.length, b.length);
+            for (int i = 0; i < length; i++) {
+                int av = i < a.length ? Integer.parseInt(a[i].replaceAll("[^0-9].*$", "")) : 0;
+                int bv = i < b.length ? Integer.parseInt(b[i].replaceAll("[^0-9].*$", "")) : 0;
+                if (av != bv) {
+                    return av > bv;
+                }
+            }
+        } catch (Exception ignored) {
+            return !latest.equals(current);
+        }
+        return false;
+    }
+
+    private void showUpdateDialog(String latestVersion) {
+        if (isFinishing() || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && isDestroyed())) {
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("BlueNote update available")
+                .setMessage("BlueNote " + latestVersion + " is available. Download the signed Firebase-login APK?")
+                .setNegativeButton("Later", null)
+                .setPositiveButton("Download update", (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(PLAYSTORE_APK_URL));
+                        startActivity(intent);
+                    } catch (Exception ignored) {
+                    }
+                })
+                .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+        updateExecutor.shutdownNow();
+        super.onDestroy();
     }
 
     @Override
