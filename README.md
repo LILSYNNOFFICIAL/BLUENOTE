@@ -188,7 +188,8 @@ npm run dev
 
 ### Production web build
 
-```npm run build
+```bash
+npm run build
 ```
 
 ### Android synchronization
@@ -199,13 +200,15 @@ npm run android:sync
 
 ### Android F-Droid release
 
-```cd android
+```bash
+cd android
 ./gradlew assembleFdroidRelease
 ```
 
 ### Android Play Store release
 
-```cd android
+```bash
+cd android
 ./gradlew assemblePlaystoreRelease
 ```
 
