@@ -96,6 +96,14 @@ function unavailable(): never {
   throw new Error('Cloud accounts and cloud sync are disabled in the F-Droid build. BlueNote remains fully usable locally.');
 }
 
+export async function authorizeGmailWithFirebaseGoogle(): Promise<{
+  email: string;
+  accessToken: string | null;
+  messagesPreview: { id: string; snippet: string }[];
+}> {
+  unavailable();
+}
+
 export async function signInWithPopup(..._args: unknown[]): Promise<AuthResult> {
   return unavailable();
 }
