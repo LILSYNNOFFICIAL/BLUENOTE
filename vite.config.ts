@@ -16,7 +16,7 @@ export default defineConfig(() => {
         ...(isFdroidBuild
           ? [
               {
-                find: '@/firebase',
+                find: '@/src/firebase',
                 replacement: path.resolve(__dirname, 'src/firebase.foss.ts'),
               },
             ]
