@@ -57,3 +57,12 @@ npm run build
 npm run android:sync
 cd android && ./gradlew assembleFdroidRelease
 ```
+
+
+## 🔐 Production reliability notes
+
+- **AI:** BlueNote's core organizer does not require a user API key. Free cloud AI is best-effort; API keys remain optional advanced configuration.
+- **OCR:** Image OCR includes a keyless browser fallback using Tesseract.js; richer vision extraction can use a configured provider.
+- **Project files:** Chunked browser storage is local persistence, not guaranteed 10 GB cloud storage; object storage is still required for a true large-file cloud quota.
+- **Gmail automation:** Automatic unattended Gmail sending requires Google OAuth with offline refresh-token storage. The permission should be limited to the gmail.send scope rather than asking users for an API key.
+- **Android signing:** Current release automation still needs a stable production keystore/secret before publishing an upgrade that must install over an earlier production-signed APK.
