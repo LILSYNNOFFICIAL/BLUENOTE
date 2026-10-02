@@ -12,7 +12,7 @@ It combines:
 - **Brain Dump & OCR**
 - **Predictive Lists**
 - **Second Brain Graph**
-- **AI Studio** for optional image, video, and music workflows
+- ****AI Image Generator** for optional image-generation workflows
 - **Offline/local-first core workflows** that do not require a user API key
 
 ---
@@ -120,7 +120,7 @@ The F-Droid flavor is designed around the local-first application path:
 - Core organizer workflows remain available locally.
 - User API keys are not required for the core organizer.
 - Keyless browser OCR fallback is available through Tesseract.js.
-- Optional online AI/media integrations are not required for the core notes, tasks, organizer, habits, OCR, and offline workflows.
+- Optional online AI/image integrations are not required for the core notes, tasks, organizer, habits, OCR, and offline workflows.
 
 F-Droid maintainers still perform the final source, dependency, network-service, licensing, and Anti-Feature review.
 
@@ -156,15 +156,9 @@ Capture ideas quickly and convert images into searchable text.
 
 OCR supports a keyless browser fallback, while richer extraction can use an optional configured provider.
 
-### Optional AI Studio
+### Optional AI Image Generator
 
-The normal distribution includes optional AI-assisted creative tools for:
-
-- Image generation
-- Image enhancement
-- Video generation
-- Music/lyrics workflows
-- AI-assisted organization
+The normal distribution includes an optional AI image-generation tool for creative workflows. Image generation is retained; the video-generation and music-maker features are intentionally excluded from this release.
 
 These integrations are intentionally separated from the core local-first organizer and are not required for the F-Droid build's core functionality.
 
