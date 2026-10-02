@@ -297,7 +297,170 @@ async function startServer() {
     res.status(503).json({ error: 'Using on-device neural engine' });
   });
 
-  // 3. Server-Side Multi-Engine Image Generation Endpoint
+    // Helper: Call Zero-Key Public Hugging Face Gradio 5 FLUX.1 Spaces (FLUX.1-schnell & FLUX.1-merged)
+  async function generateGradioFluxImage(
+    visualPrompt: string,
+    width: number,
+    height: number
+  ): Promise<{ dataUrl: string; modelName: string } | null> {
+    const crispPrompt = `${visualPrompt}, ultra-crisp 8k UHD resolution, razor-sharp focus, intricate micro-details, professional studio lighting, DSLR masterpiece`;
+    const clampedW = Math.min(1280, Math.max(512, Math.round(width / 32) * 32));
+    const clampedH = Math.min(1280, Math.max(512, Math.round(height / 32) * 32));
+
+    const gradioSpaces = [
+      {
+        name: 'FLUX.1-schnell (Black Forest Labs HD)',
+        baseUrl: 'https://black-forest-labs-flux-1-schnell.hf.space',
+        endpoint: '/infer',
+        data: [crispPrompt, 0, true, clampedW, clampedH, 4],
+      },
+      {
+        name: 'FLUX.1-Merged (8-Step Crisp HD)',
+        baseUrl: 'https://multimodalart-flux-1-merged.hf.space',
+        endpoint: '/infer',
+        data: [crispPrompt, 0, true, clampedW, clampedH, 3.5, 8],
+      },
+      {
+        name: 'Stable Diffusion 3 Medium (28-Step HD)',
+        baseUrl: 'https://stabilityai-stable-diffusion-3-medium.hf.space',
+        endpoint: '/infer',
+        data: [
+          crispPrompt,
+          'blurry, low quality, pixelated, watermark, ugly, deformed',
+          0,
+          true,
+          clampedW,
+          clampedH,
+          5,
+          28,
+        ],
+      },
+    ];
+
+    for (const space of gradioSpaces) {
+      try {
+        const postController = new AbortController();
+        const postTimer = setTimeout(() => postController.abort(), 6000);
+        const postResp = await fetch(
+          `${space.baseUrl}/gradio_api/call${space.endpoint}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: postController.signal,
+            body: JSON.stringify({ data: space.data }),
+          }
+        );
+        clearTimeout(postTimer);
+        if (!postResp.ok) continue;
+
+        const postJson: any = await postResp.json();
+        const eventId = postJson?.event_id;
+        if (!eventId) continue;
+
+        const sseController = new AbortController();
+        const sseTimer = setTimeout(() => sseController.abort(), 14000);
+        const sseResp = await fetch(
+          `${space.baseUrl}/gradio_api/call${space.endpoint}/${eventId}`,
+          { signal: sseController.signal }
+        );
+        const sseText = await sseResp.text();
+        clearTimeout(sseTimer);
+
+        const dataLine = sseText
+          .split('\n')
+          .find((line) => line.startsWith('data: ') && line.includes('"url"'));
+        if (!dataLine) continue;
+
+        const parsedArr = JSON.parse(dataLine.slice(6));
+        const fileObj = Array.isArray(parsedArr) ? parsedArr[0] : parsedArr;
+        const fileUrl =
+          fileObj?.url ||
+          (fileObj?.path
+            ? `${space.baseUrl}/gradio_api/file=${fileObj.path}`
+            : null);
+        if (!fileUrl) continue;
+
+        const imgController = new AbortController();
+        const imgTimer = setTimeout(() => imgController.abort(), 9000);
+        const imgResp = await fetch(fileUrl, { signal: imgController.signal });
+        clearTimeout(imgTimer);
+        if (!imgResp.ok) continue;
+
+        const arrayBuf = await imgResp.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        if (buf.length < 4096) continue;
+
+        const contentType = imgResp.headers.get('content-type') || 'image/webp';
+        return {
+          dataUrl: `data:${contentType};base64,${buf.toString('base64')}`,
+          modelName: space.name,
+        };
+      } catch {
+        // Try next Gradio 5 space
+      }
+    }
+    return null;
+  }
+
+  // Helper: Openverse High-Resolution Photography Search
+  async function fetchOpenverseSubjectImage(
+    visualPrompt: string
+  ): Promise<{ dataUrl: string; title: string } | null> {
+    try {
+      const keywords = visualPrompt
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !/^(with|from|that|this|into|over|under|very|ultra|high|res)$/i.test(w))
+        .slice(0, 4)
+        .join(' ');
+      if (!keywords) return null;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5500);
+      const r = await fetch(
+        `https://api.openverse.org/v1/images/?q=${encodeURIComponent(keywords)}&page_size=8`,
+        {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'BlueNoteStudio/2.0' },
+        }
+      );
+      clearTimeout(timer);
+      if (!r.ok) return null;
+      const d: any = await r.json();
+      const results = (d?.results || []).filter(
+        (item: any) =>
+          item?.url &&
+          Number(item?.width || 1000) >= 600 &&
+          /\.(jpg|jpeg|png|webp)$/i.test(String(item.url).split('?')[0])
+      );
+      for (const chosen of results.slice(0, 3)) {
+        try {
+          const imgCtrl = new AbortController();
+          const imgTimer = setTimeout(() => imgCtrl.abort(), 5500);
+          const imgResp = await fetch(chosen.url, {
+            signal: imgCtrl.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BlueNoteStudio/2.0)' },
+          });
+          clearTimeout(imgTimer);
+          if (!imgResp.ok) continue;
+          const ct = imgResp.headers.get('content-type') || '';
+          if (!ct.startsWith('image/')) continue;
+          const buf = Buffer.from(await imgResp.arrayBuffer());
+          if (buf.length > 8192) {
+            return {
+              dataUrl: `data:${ct};base64,${buf.toString('base64')}`,
+              title: String(chosen.title || keywords),
+            };
+          }
+        } catch {}
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+// 3. Server-Side Multi-Engine Image Generation Endpoint
   // Supports: Google Gemini Image -> Zero-Key Gradio 5 FLUX.1-schnell & FLUX.1-Merged -> Pollinations -> Openverse & Wikimedia HD
   app.post('/api/ai/image', async (req, res) => {
     const {
