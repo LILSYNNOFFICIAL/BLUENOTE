@@ -42,7 +42,7 @@ interface AIStudioHubViewProps {
   onSaveToOSProject?: (
     projectId: string,
     payload: {
-      kind: 'photo' | 'video' | 'audio';
+      kind: 'photo' | 'audio';
       title: string;
       dataUrl: string;
       captionOrLyrics: string;
@@ -353,16 +353,16 @@ export const AIStudioHubView: React.FC<AIStudioHubViewProps> = ({
         <div>
           <div className="flex flex-wrap items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-semibold mb-1">
             <Sparkles className="w-4 h-4" />
-            <span>Multimodal Creative & Intelligence Suite</span>
+            <span>AI Tools & Intelligence</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
               Engine: {getActiveAIProviderBadge()}
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            BlueNote AI Studio Lab · Experimental
+            BlueNote AI Tools
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Experimental media lab for artwork, voice tools, and research. Core BlueNote organization does not depend on these tools.
+            Optional image, voice, transcription, and research tools. Core BlueNote organization does not depend on these tools.
           </p>
         </div>
 
