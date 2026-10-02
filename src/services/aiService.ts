@@ -624,6 +624,34 @@ export async function performOCRAndExtract(
 }> {
   const lowerName = filename.toLowerCase();
 
+  // Keyless local OCR fallback: Tesseract.js runs in the browser with no API key.
+  if (imageDataUrl && imageDataUrl.includes('base64,')) {
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const result = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+      const extractedText = String(result?.data?.text || '').trim();
+      if (extractedText) {
+        const items = await processBrainDumpInput(extractedText, workspace);
+        return {
+          ocrText: extractedText,
+          summary: `Keyless local OCR extracted ${items.length} actionable item(s) from "${filename}".`,
+          documentCategory: lowerName.includes('card')
+            ? 'Business Card'
+            : lowerName.includes('receipt') || lowerName.includes('invoice')
+            ? 'Receipt'
+            : lowerName.includes('whiteboard')
+            ? 'Whiteboard'
+            : 'Handwritten Note',
+          extractedItems: items,
+        };
+      }
+    } catch {
+      // Continue to the existing text-hint/local parser fallback.
+    }
+  }
+
   // If an image is uploaded, try server-side Vision OCR (/api/ai/chat) first
   if (imageDataUrl && imageDataUrl.includes('base64,')) {
     try {
@@ -1811,7 +1839,8 @@ function drawForegroundSubject(
 }
 
 // Draw a rich, gallery-grade scene onto a 2D canvas (supports static and animated frame `t` in [0,1])
-export function renderSceneFrameToCanvas(
+// Draw a rich, gallery-grade scene onto a 2D canvas (supports deterministic static image rendering)
+export function renderImageSceneToCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -2039,7 +2068,6 @@ async function callClientGradioFluxImage(
   return null;
 }
 
-// Apply crispness & micro-contrast sharpening on a canvas so any image looks ultra-crisp
 export async function sharpenAndEnhanceImageDataUrl(
   sourceUrl: string,
   targetWidth?: number,
@@ -2201,7 +2229,7 @@ export async function generateOrEditImage(params: {
     });
   }
 
-  renderSceneFrameToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
+  renderImageSceneToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
 
   return {
     imageUrl: canvas.toDataURL('image/png'),
@@ -2210,7 +2238,7 @@ export async function generateOrEditImage(params: {
   };
 }
 
-// 2. Audio Transcription (Server Gemini 3 Flash + Web Speech Fallback)
+// 3. Audio Transcription (Server Gemini 3 Flash + Client Gemini Key + Web Speech Fallback)
 export async function transcribeAudioWithGemini(
   input: { base64Audio: string; mimeType: string } | string,
   optionalMimeType?: string
@@ -2399,4 +2427,25 @@ export async function searchWithGoogleMapsGrounding(params: {
   };
 }
 
+
+function composeStructuredSongLyrics(prompt: string, bpm: number, genre: string): string {
+  const cleanTopic = prompt.replace(/[^\w\s,'-]/g, '').trim() || 'Midnight Horizon';
+  const words = cleanTopic.split(/\s+/).slice(0, 5).join(' ');
+  return (
+    `[Track Title]: "${words}"\n` +
+    `[Style]: ${genre} • ${bpm} BPM • 44.1kHz Stereo Master\n\n` +
+    `[Verse 1]\n` +
+    `City lights are fading through the quiet glass,\n` +
+    `Tracing every signal as the hours pass.\n` +
+    `In the rhythm of "${cleanTopic.slice(0, 36)}", we find our stride,\n` +
+    `Turning scattered echoes into tide.\n\n` +
+    `[Chorus]\n` +
+    `Hold the frequency, let the skyline glow,\n` +
+    `Every step in motion where the currents flow.\n` +
+    `Clear the static out, let the melody rise,\n` +
+    `Underneath the open sapphire skies.\n\n` +
+    `[Bridge & Instrumental Solo]\n` +
+    `Warm Rhodes chords & analog synth lead arpeggios building into the final chorus.`
+  );
+}
 
