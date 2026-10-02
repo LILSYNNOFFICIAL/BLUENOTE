@@ -73,12 +73,10 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
           mkdir -p "$RUNNER_TEMP/signing"
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing/bluenote-release.jks"
           test -s "$RUNNER_TEMP/signing/bluenote-release.jks"
@@ -90,13 +88,10 @@ jobs:
           ANDROID_KEYSTORE_PATH: ${{ env.ANDROID_KEYSTORE_PATH }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          # Normalize pasted secret values without exposing them in logs.
+          # Normalize the store password without exposing it in logs.
           export ANDROID_KEYSTORE_PASSWORD="$(printf '%s' "$ANDROID_KEYSTORE_PASSWORD" | tr -d '\r\n')"
-          export ANDROID_KEY_PASSWORD="$(printf '%s' "$ANDROID_KEY_PASSWORD" | tr -d '\r\n')"
           test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_PASSWORD"
           gradle assemblePlaystoreRelease bundlePlaystoreRelease --no-daemon
 
       - name: Build F-Droid local-only APK
