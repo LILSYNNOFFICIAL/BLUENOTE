@@ -12,12 +12,17 @@ export default defineConfig(() => {
     },
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
+      alias: [
+        { find: '@', replacement: path.resolve(__dirname, '.') },
         ...(isFdroidBuild
-          ? { './firebase': path.resolve(__dirname, 'src/firebase.foss.ts') }
-          : {}),
-      },
+          ? [
+              {
+                find: /(^|\/)firebase$/,
+                replacement: path.resolve(__dirname, 'src/firebase.foss.ts'),
+              },
+            ]
+          : []),
+      ],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
