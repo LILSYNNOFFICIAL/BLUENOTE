@@ -1,4 +1,8 @@
-Initial BlueNote Android release with a local-first Personal Organizer and Second Brain.
+BlueNote 1.0.1: streamlined AI Studio and F-Droid preparation.
+- Retains AI image generation and editing
+- Removes AI video generation and AI music/song generation
+- Retains audio transcription, live voice, search/Maps grounding, and core organizer workflows
+- Keeps the F-Droid/local-first Android distribution path
 - Local workspace for notes, tasks, habits, projects, calendar and contacts
 - Natural-language Brain Dump and keyless local OCR workflows
 - PROJECTS OS document organization and knowledge graph
