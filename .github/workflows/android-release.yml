@@ -109,18 +109,26 @@ jobs:
           cp android/app/build/outputs/apk/fdroid/release/*.apk release-assets/bluenote-fdroid.apk
           sha256sum release-assets/*.apk > release-assets/SHA256SUMS.txt
 
-      - name: Publish immutable GitHub Release
+      - name: Create draft GitHub Release with assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: BlueNote ${{ steps.release.outputs.tag }}
           generate_release_notes: true
-          make_latest: true
+          draft: true
           files: |
             release-assets/bluenote-playstore.apk
             release-assets/bluenote-fdroid.apk
             release-assets/SHA256SUMS.txt
+
+      - name: Publish immutable GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: BlueNote ${{ steps.release.outputs.tag }}
+          draft: false
+          make_latest: true
 
       - name: Remove signing material
         if: always()
