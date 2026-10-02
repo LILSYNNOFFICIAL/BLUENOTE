@@ -6,6 +6,11 @@ BlueNote is a complete **AI Life & Work Operating System** combining **PROJECTS 
 
 ## 🌐 Live Web App & Android APK
 
+### F-Droid build
+
+BlueNote includes a dedicated F-Droid build flavor. The F-Droid variant is local-first and does not include the Firebase web SDK, cloud authentication, or cloud workspace synchronization. It can be built directly from source with the embedded `.fdroid.yml` recipe. Optional online AI/media integrations are not required for the core organizer, notes, tasks, habits, OCR, and offline workflows.
+
+
 - **GitHub Pages Web App:** [https://lilsynnofficial.github.io/BLUENOTE/](https://lilsynnofficial.github.io/BLUENOTE/)
 - **Direct Installable Android APK:** [Download `bluenote-android-installable.apk`](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/latest/download/bluenote-android-installable.apk)
 - **GitHub Actions Build Artifacts:** [Android Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml)
@@ -26,7 +31,10 @@ BlueNote is a complete **AI Life & Work Operating System** combining **PROJECTS 
 
 ---
 
-## ✨ Built-In AI Engines (Zero User Configuration Required)
+## ✨ Built-In AI Engines
+
+BlueNote is local-first. Core organizer data is stored locally, and keyless/local processing is available for core capture and OCR workflows. Online AI/media integrations are optional and build/channel dependent; the F-Droid flavor is specifically built without Firebase cloud services.
+
 
 BlueNote works **out of the box with zero API keys required from users**:
 
