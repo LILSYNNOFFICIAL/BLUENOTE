@@ -13,15 +13,15 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: [
-        { find: '@', replacement: path.resolve(__dirname, '.') },
         ...(isFdroidBuild
           ? [
               {
-                find: /(^|\/)firebase$/,
+                find: '@/firebase',
                 replacement: path.resolve(__dirname, 'src/firebase.foss.ts'),
               },
             ]
           : []),
+        { find: '@', replacement: path.resolve(__dirname, '.') },
       ],
     },
     server: {
