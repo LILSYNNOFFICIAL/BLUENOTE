@@ -1,0 +1,5 @@
+BlueNote 1.0.1: streamlined AI Studio and F-Droid preparation.
+- Retains AI image generation and editing
+- Removes AI video generation and AI music/song generation
+- Retains audio transcription, live voice, search/Maps grounding, and core organizer workflows
+- Keeps the F-Droid/local-first Android distribution path
