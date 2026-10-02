@@ -1,0 +1,43 @@
+# Embedded F-Droid build recipe for local verification and reproducible packaging.
+# Official submissions still belong in fdroiddata; this file makes the upstream
+# repository directly buildable with fdroidserver.
+Categories:
+  - Office
+  - Time
+  - Writing
+License: Apache-2.0
+AuthorName: LILSYNNOFFICIAL
+AuthorWebSite: https://github.com/LILSYNNOFFICIAL/BLUENOTE
+SourceCode: https://github.com/LILSYNNOFFICIAL/BLUENOTE
+IssueTracker: https://github.com/LILSYNNOFFICIAL/BLUENOTE/issues
+WebSite: https://lilsynnofficial.github.io/BLUENOTE/
+Changelog: https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases
+
+AutoName: BlueNote
+Summary: Local-first personal organizer with notes, tasks, habits and OCR
+
+RepoType: git
+Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
+
+Builds:
+  - versionName: 1.0.0-fdroid
+    versionCode: 1
+    commit: HEAD
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm
+    init:
+      - cd ../..
+      - npm install --legacy-peer-deps --no-fund --no-audit --omit=optional
+      - F_DROID_BUILD=true npm run build
+      - mkdir -p android/app/src/main/assets/public
+      - cp -r dist/* android/app/src/main/assets/public/
+    gradle:
+      - fdroid
+    output: build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 1.0.0-fdroid
+CurrentVersionCode: 1
