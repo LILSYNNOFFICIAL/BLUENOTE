@@ -235,9 +235,9 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
     },
     {
       icon: Network,
-      badge: 'Pillar 7 • Connected Memory & Studio',
-      title: 'Second Brain Graph, Semantic Search & Local AI Studio',
-      desc: 'Explore automatic relationships across your notes, projects, contacts, and files in the Second Brain Graph, search semantically with ⌘K, or synthesize visuals and ambient focus audio in the AI Studio Hub.',
+      badge: 'Pillar 7 • Connected Memory & Visual AI',
+      title: 'Second Brain Graph, Semantic Search & AI Image Generator',
+      desc: 'Explore automatic relationships across your notes, projects, contacts, and files in the Second Brain Graph, search semantically with ⌘K, or generate & edit ultra-crisp HD artwork, transcribe voice notes, and run Google Search & Maps Grounding.',
       tip: 'Press ⌘K (or Ctrl+K) anytime to jump to any tool, note, project, contact, or command.',
       color: 'from-amber-500 to-orange-600',
     },

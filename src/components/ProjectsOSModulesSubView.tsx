@@ -68,11 +68,8 @@ import {
 } from '../services/projectsOSService';
 import { compressImageFileToDataUrl } from '../types/bluenote';
 import {
-  downloadVeoVideoBlobUrl,
-  generateMusicWithLyria,
   generateOrEditImage,
   sharpenAndEnhanceImageDataUrl,
-  startVeoVideoGeneration,
 } from '../services/aiService';
 
 interface ProjectsOSModulesSubViewProps {
@@ -118,8 +115,6 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
   const [mediaPlaybackRate, setMediaPlaybackRate] = useState<Record<string, number>>({});
   const [mediaLoopActive, setMediaLoopActive] = useState<Record<string, boolean>>({});
   const [mediaCurrentTime, setMediaCurrentTime] = useState<Record<string, number>>({});
-  const [aiMediaPrompt, setAiMediaPrompt] = useState('');
-  const [aiMediaGenerating, setAiMediaGenerating] = useState<'music' | 'video' | null>(null);
 
   // Photo Album state
   const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -898,124 +893,6 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
       );
     });
 
-    const handleGenerateAIMusicForProject = async () => {
-      if (aiMediaGenerating) return;
-      const prompt =
-        aiMediaPrompt.trim() ||
-        `${project.name} — studio master instrumental with warm chords and crisp percussion`;
-      setAiMediaGenerating('music');
-      try {
-        const res = await generateMusicWithLyria({
-          prompt,
-          model: 'lyria-3-pro-preview',
-        });
-        const now = new Date().toISOString();
-        const isMp3 = res.audioUrl.includes('/api/ai/music-stream');
-        const ext = isMp3 ? 'mp3' : 'wav';
-        const cleanName = prompt
-          .replace(/[^\w\s-]/g, '')
-          .trim()
-          .split(/\s+/)
-          .slice(0, 5)
-          .join('_') || 'AI_Studio_Track';
-        const newMedia: ProjectMediaItem = {
-          id: `pmed-ai-${Date.now()}`,
-          projectId: project.id,
-          filename: `${cleanName}.${ext}`,
-          mediaType: 'audio',
-          mimeType: isMp3 ? 'audio/mpeg' : 'audio/wav',
-          sizeBytes: 2680000,
-          durationSeconds: 28,
-          transcriptOrCaptions: res.lyrics,
-          sceneInfo: `AI Studio Master (${res.model})`,
-          tags: ['AI-Music', isMp3 ? 'Studio-MP3' : '48kHz-Stereo', project.name],
-          dataUrl: res.audioUrl,
-          uploadedAt: now,
-        };
-        onUpdateProject((prev) => ({
-          ...prev,
-          updatedAt: now,
-          media: [newMedia, ...prev.media],
-          timeline: [
-            {
-              id: `tl-${Date.now()}`,
-              projectId: prev.id,
-              timestamp: now,
-              category: 'ai',
-              title: `Composed AI Studio Track "${newMedia.filename}"`,
-              subtitle: `Engine: ${res.model}`,
-            },
-            ...prev.timeline,
-          ],
-        }));
-        setAiMediaPrompt('');
-        showToast(`Composed "${newMedia.filename}" (${res.model}) into Project Media!`);
-      } catch {
-        showToast('Could not generate AI music track.');
-      } finally {
-        setAiMediaGenerating(null);
-      }
-    };
-
-    const handleGenerateAIVideoForProject = async () => {
-      if (aiMediaGenerating) return;
-      const prompt =
-        aiMediaPrompt.trim() ||
-        `Cinematic 4K showcase for ${project.name}, golden hour lighting, smooth camera motion`;
-      setAiMediaGenerating('video');
-      try {
-        const { operationName, model } = await startVeoVideoGeneration({
-          prompt,
-          aspectRatio: '16:9',
-        });
-        const blobUrl = await downloadVeoVideoBlobUrl(operationName);
-        const now = new Date().toISOString();
-        const isMp4 = (model || '').includes('MP4');
-        const cleanName = prompt
-          .replace(/[^\w\s-]/g, '')
-          .trim()
-          .split(/\s+/)
-          .slice(0, 5)
-          .join('_') || 'AI_Cinema_Video';
-        const newMedia: ProjectMediaItem = {
-          id: `pmed-vid-${Date.now()}`,
-          projectId: project.id,
-          filename: `${cleanName}.${isMp4 ? 'mp4' : 'webm'}`,
-          mediaType: 'video',
-          mimeType: isMp4 ? 'video/mp4' : 'video/webm',
-          sizeBytes: 3400000,
-          durationSeconds: 6,
-          transcriptOrCaptions: `[00:00] AI Video Scene: "${prompt}"\n[00:03] Rendered via ${model || 'LTX-Video-Distilled & FLUX.1 HD'}`,
-          sceneInfo: `AI Video (${model || 'LTX-Video MP4 / 8Mbps HD'})`,
-          tags: ['AI-Video', isMp4 ? 'LTX-MP4' : '8Mbps-HD', project.name],
-          dataUrl: blobUrl,
-          uploadedAt: now,
-        };
-        onUpdateProject((prev) => ({
-          ...prev,
-          updatedAt: now,
-          media: [newMedia, ...prev.media],
-          timeline: [
-            {
-              id: `tl-${Date.now()}`,
-              projectId: prev.id,
-              timestamp: now,
-              category: 'ai',
-              title: `Generated AI Video "${newMedia.filename}"`,
-              subtitle: `Engine: ${model || 'LTX-Video MP4'}`,
-            },
-            ...prev.timeline,
-          ],
-        }));
-        setAiMediaPrompt('');
-        showToast(`Generated "${newMedia.filename}" into Project Media!`);
-      } catch {
-        showToast('Could not generate AI video.');
-      } finally {
-        setAiMediaGenerating(null);
-      }
-    };
-
     return (
       <div className="space-y-5">
         <div className="p-5 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 space-y-4">
@@ -1026,7 +903,7 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                 Audio, Video &amp; Transcript Intelligence
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Search spoken words, vocal takes, video scenes, or generate crisp Studio MP3 Music &amp; LTX-Video MP4 clips directly into this project.
+                Import and manage project audio &amp; video recordings, search spoken words and transcripts, loop A-B sections, and jump to timestamps.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1050,49 +927,6 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-1.5"
               >
                 <Upload className="w-4 h-4" /> + Upload Audio / Video
-              </button>
-            </div>
-          </div>
-
-          {/* Built-in AI Studio Music (.MP3) & LTX-Video (.MP4) Generator Bar */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-violet-600/10 border border-blue-500/25 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <div className="flex items-center gap-2 text-xs font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
-              <Sparkles className="w-4 h-4" />
-              <span>AI Studio Generator:</span>
-            </div>
-            <input
-              type="text"
-              value={aiMediaPrompt}
-              onChange={(e) => setAiMediaPrompt(e.target.value)}
-              placeholder={`Describe a song or video scene for "${project.name}"...`}
-              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs"
-            />
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                disabled={aiMediaGenerating !== null}
-                onClick={handleGenerateAIMusicForProject}
-                className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
-              >
-                {aiMediaGenerating === 'music' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Music className="w-3.5 h-3.5" />
-                )}
-                <span>Compose Studio MP3</span>
-              </button>
-              <button
-                type="button"
-                disabled={aiMediaGenerating !== null}
-                onClick={handleGenerateAIVideoForProject}
-                className="px-3.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-extrabold flex items-center gap-1.5"
-              >
-                {aiMediaGenerating === 'video' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Video className="w-3.5 h-3.5" />
-                )}
-                <span>Generate LTX AI Video</span>
               </button>
             </div>
           </div>

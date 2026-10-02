@@ -7,8 +7,8 @@ import {
   Loader2,
   Cpu,
   Image as ImageIcon,
-  Video,
-  Music,
+  Mic,
+  Globe,
   FileText,
 } from 'lucide-react';
 import {
@@ -137,21 +137,21 @@ export const AIKeysAndFreeAIModal: React.FC<AIKeysAndFreeAIModalProps> = ({
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
               <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Video className="w-4 h-4 text-indigo-500" />
-                LTX-Video AI MP4 &amp; 8 Mbps Cinema Engine
+                <Mic className="w-4 h-4 text-indigo-500" />
+                Audio Transcription &amp; Live Voice
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Synthesizes AI MP4 video clips via Lightricks LTX-Video-Distilled &amp; Wan2.1 paired with an 8 Mbps 720p HD keyframe cinema recorder.
+                Transcribes microphone voice notes and uploaded audio files into clean Smart Notes, plus low-latency Live Voice conversation sessions.
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
               <div className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Music className="w-4 h-4 text-emerald-500" />
-                Studio MP3 &amp; 48kHz Stereo FM Synthesizer
+                <Globe className="w-4 h-4 text-emerald-500" />
+                Google Search &amp; Maps Grounding
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Pairs studio-mastered MP3 tracks and AI songwriting with an on-device 48,000 Hz 16-bit stereo FM Rhodes + reverb synthesizer.
+                Delivers real-time web research and spatial place discovery with verified source links that can be saved directly to your Links organizer.
               </p>
             </div>
 

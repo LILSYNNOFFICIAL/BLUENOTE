@@ -1114,7 +1114,7 @@ export default function App() {
     { id: 'files', label: 'Files & OCR Vault', icon: FolderOpen, group: 'knowledge' },
     { id: 'second-brain', label: 'Knowledge Graph', icon: Network, group: 'ai' },
     { id: 'search', label: 'Semantic Search', icon: Search, group: 'ai' },
-    { id: 'ai-studio', label: 'Multimodal AI Studio', icon: Wand2, group: 'ai' },
+    { id: 'ai-studio', label: 'AI Image Generator', icon: Wand2, group: 'ai' },
     { id: 'ai-chat', label: 'AI Assistant', icon: Bot, group: 'ai' },
   ];
 
@@ -1437,7 +1437,7 @@ export default function App() {
 
               <button
                 onClick={() => setActiveSection('ai-studio')}
-                title="Open Multimodal AI Studio"
+                title="Open AI Image Generator"
                 className={`hidden sm:flex p-2 rounded-xl transition-colors items-center gap-1.5 text-xs font-semibold ${
                   activeSection === 'ai-studio'
                     ? 'bg-indigo-600 text-white shadow-xs'
@@ -1445,7 +1445,7 @@ export default function App() {
                 }`}
               >
                 <Wand2 className="w-4 h-4" />
-                <span className="hidden xl:inline">AI Studio</span>
+                <span className="hidden xl:inline">AI Images</span>
               </button>
 
               <button
@@ -3093,13 +3093,13 @@ export default function App() {
                       list.find((p) => !p.isArchived);
                     if (!target) {
                       target = createProjectFromTemplate({
-                        name: 'AI Studio Creative Workspace',
+                        name: 'AI Image Creative Workspace',
                         description:
-                          'Dedicated 10 GB container for FLUX.1 8K Photos, LTX AI Videos, and Studio MP3 Songs',
+                          'Dedicated 10 GB container for FLUX.1 8K Photos and visual assets',
                         template: 'Custom',
                         color: '#2563eb',
                         icon: 'Sparkles',
-                        tags: ['AI-Studio', 'FLUX-8K', 'LTX-Video', 'Studio-MP3'],
+                        tags: ['AI-Images', 'FLUX-8K'],
                       });
                       list = [target, ...list];
                     }
@@ -3110,75 +3110,43 @@ export default function App() {
                         .trim()
                         .split(/\s+/)
                         .slice(0, 5)
-                        .join('_') || 'AI_Studio_Asset';
+                        .join('_') || 'AI_Image_Asset';
 
                     const updatedList = list.map((p) => {
                       if (p.id !== target!.id) return p;
-                      if (payload.kind === 'photo') {
-                        const firstAlbum = p.photoAlbums[0] || {
-                          id: `palb-${Date.now()}`,
-                          projectId: p.id,
-                          title: `${p.name} — Visual Showcase`,
-                          subtitle: 'AI Studio HD Gallery',
-                          layout: 'grid' as const,
-                          photos: [],
-                          createdAt: now,
-                          updatedAt: now,
-                        };
-                        const newPhoto = {
-                          id: `pho-studio-${Date.now()}`,
-                          filename: `${cleanSlug}.png`,
-                          caption: payload.captionOrLyrics,
-                          dataUrl: payload.dataUrl,
-                          sizeBytes: 380000,
-                          takenAt: now,
-                          groupName: 'AI Studio Lab',
-                          tags: ['FLUX.1-HD', payload.model],
-                        };
-                        const nextAlbums =
-                          p.photoAlbums.length > 0
-                            ? p.photoAlbums.map((alb, idx) =>
-                                idx === 0
-                                  ? { ...alb, updatedAt: now, photos: [newPhoto, ...alb.photos] }
-                                  : alb
-                              )
-                            : [{ ...firstAlbum, photos: [newPhoto] }];
-                        return {
-                          ...p,
-                          updatedAt: now,
-                          photoAlbums: nextAlbums,
-                        };
-                      } else {
-                        const isAudio = payload.kind === 'audio';
-                        const isMp3 = payload.dataUrl.includes('/api/ai/music-stream');
-                        const isMp4 = payload.model.includes('MP4');
-                        const ext = isAudio ? (isMp3 ? 'mp3' : 'wav') : isMp4 ? 'mp4' : 'webm';
-                        const newMedia = {
-                          id: `pmed-studio-${Date.now()}`,
-                          projectId: p.id,
-                          filename: `${cleanSlug}.${ext}`,
-                          mediaType: (isAudio ? 'audio' : 'video') as 'audio' | 'video',
-                          mimeType: isAudio
-                            ? isMp3
-                              ? 'audio/mpeg'
-                              : 'audio/wav'
-                            : isMp4
-                            ? 'video/mp4'
-                            : 'video/webm',
-                          sizeBytes: isAudio ? 2680000 : 3400000,
-                          durationSeconds: isAudio ? 28 : 6,
-                          transcriptOrCaptions: payload.captionOrLyrics,
-                          sceneInfo: `AI Studio (${payload.model})`,
-                          tags: ['AI-Studio', payload.model],
-                          dataUrl: payload.dataUrl,
-                          uploadedAt: now,
-                        };
-                        return {
-                          ...p,
-                          updatedAt: now,
-                          media: [newMedia, ...p.media],
-                        };
-                      }
+                      const firstAlbum = p.photoAlbums[0] || {
+                        id: `palb-${Date.now()}`,
+                        projectId: p.id,
+                        title: `${p.name} — Visual Showcase`,
+                        subtitle: 'AI Image HD Gallery',
+                        layout: 'grid' as const,
+                        photos: [],
+                        createdAt: now,
+                        updatedAt: now,
+                      };
+                      const newPhoto = {
+                        id: `pho-studio-${Date.now()}`,
+                        filename: `${cleanSlug}.png`,
+                        caption: payload.captionOrLyrics,
+                        dataUrl: payload.dataUrl,
+                        sizeBytes: 380000,
+                        takenAt: now,
+                        groupName: 'AI Image Generator',
+                        tags: ['FLUX.1-HD', payload.model],
+                      };
+                      const nextAlbums =
+                        p.photoAlbums.length > 0
+                          ? p.photoAlbums.map((alb, idx) =>
+                              idx === 0
+                                ? { ...alb, updatedAt: now, photos: [newPhoto, ...alb.photos] }
+                                : alb
+                            )
+                          : [{ ...firstAlbum, photos: [newPhoto] }];
+                      return {
+                        ...p,
+                        updatedAt: now,
+                        photoAlbums: nextAlbums,
+                      };
                     });
                     try {
                       localStorage.setItem(
@@ -3193,7 +3161,7 @@ export default function App() {
                   });
                   showToast(
                     `Saved ${payload.kind.toUpperCase()} directly to PROJECTS container "${
-                      targetProjectName || 'AI Studio Creative Workspace'
+                      targetProjectName || 'AI Image Creative Workspace'
                     }"!`
                   );
                 }}
