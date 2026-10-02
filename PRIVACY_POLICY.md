@@ -8,8 +8,8 @@
 ## 1. Local-First Data Storage by Default
 BlueNote is architected as a **local-first** application. By default, all notes, tasks, habits, calendar events, reminders, contacts, saved links, files, and settings are stored locally on your device (`localStorage` / WebView storage). No account is required to use BlueNote.
 
-## 2. 100% On-Device AI Processing
-All AI and multimodal features in BlueNote—including natural language Brain Dump parsing, OCR receipt and business card scanning, note summarization, procedural image/video generation, and ambient focus music synthesis—execute **100% locally on your device**. Your data is never sold, shared with advertisers, or transmitted to third-party AI servers.
+## 2. Local and Optional Online Processing
+BlueNote is designed around local-first operation. Core workspace data and local capture workflows can operate on-device, and OCR includes a keyless local processing path. Some optional AI, media, grounding, authentication, and synchronization features can use online services in non-F-Droid builds. The F-Droid build disables Firebase authentication and cloud workspace synchronization. BlueNote does not sell user data or use advertising trackers.
 
 ## 3. Optional Cloud Sync
 If you explicitly choose to sign in using the optional Cloud Sync feature, your workspace data is synchronized to your isolated private document (`/workspaces/{userId}`) so you can access your organizer across devices. You can sign out or export/delete your workspace data at any time from **Settings & Privacy**.

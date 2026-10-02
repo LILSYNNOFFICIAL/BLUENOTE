@@ -4,13 +4,25 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const isFdroidBuild = process.env.F_DROID_BUILD === 'true';
   return {
     base: './',
+    define: {
+      __BLUENOTE_FDROID_BUILD__: JSON.stringify(isFdroidBuild),
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
+      alias: [
+        ...(isFdroidBuild
+          ? [
+              {
+                find: '@/src/firebase',
+                replacement: path.resolve(__dirname, 'src/firebase.foss.ts'),
+              },
+            ]
+          : []),
+        { find: '@', replacement: path.resolve(__dirname, '.') },
+      ],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

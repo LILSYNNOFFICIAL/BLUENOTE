@@ -624,6 +624,34 @@ export async function performOCRAndExtract(
 }> {
   const lowerName = filename.toLowerCase();
 
+  // Keyless local OCR fallback: Tesseract.js runs in the browser with no API key.
+  if (imageDataUrl && imageDataUrl.includes('base64,')) {
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng');
+      const result = await worker.recognize(imageDataUrl);
+      await worker.terminate();
+      const extractedText = String(result?.data?.text || '').trim();
+      if (extractedText) {
+        const items = await processBrainDumpInput(extractedText, workspace);
+        return {
+          ocrText: extractedText,
+          summary: `Keyless local OCR extracted ${items.length} actionable item(s) from "${filename}".`,
+          documentCategory: lowerName.includes('card')
+            ? 'Business Card'
+            : lowerName.includes('receipt') || lowerName.includes('invoice')
+            ? 'Receipt'
+            : lowerName.includes('whiteboard')
+            ? 'Whiteboard'
+            : 'Handwritten Note',
+          extractedItems: items,
+        };
+      }
+    } catch {
+      // Continue to the existing text-hint/local parser fallback.
+    }
+  }
+
   // If an image is uploaded, try server-side Vision OCR (/api/ai/chat) first
   if (imageDataUrl && imageDataUrl.includes('base64,')) {
     try {
@@ -1811,7 +1839,8 @@ function drawForegroundSubject(
 }
 
 // Draw a rich, gallery-grade scene onto a 2D canvas (supports static and animated frame `t` in [0,1])
-export function renderSceneFrameToCanvas(
+// Draw a rich, gallery-grade scene onto a 2D canvas (supports deterministic static image rendering)
+export function renderImageSceneToCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
@@ -2039,7 +2068,6 @@ async function callClientGradioFluxImage(
   return null;
 }
 
-// Apply crispness & micro-contrast sharpening on a canvas so any image looks ultra-crisp
 export async function sharpenAndEnhanceImageDataUrl(
   sourceUrl: string,
   targetWidth?: number,
@@ -2201,202 +2229,13 @@ export async function generateOrEditImage(params: {
     });
   }
 
-  renderSceneFrameToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
+  renderImageSceneToCanvas(ctx, width, height, rawPrompt, 0.25, bgImg);
 
   return {
     imageUrl: canvas.toDataURL('image/png'),
     caption: `Synthesized HD Artwork (${width}×${height}, ${params.aspectRatio || '16:9'}) — "${rawPrompt}"`,
     model: 'BlueNote Studio Subject Engine',
   };
-}
-
-// Store generated video blob URLs and metadata by operationName
-const localVideoStore = new Map<string, string>();
-const localVideoModelStore = new Map<string, string>();
-
-// 2. Video Generation (Supports Real Lightricks LTX-Video-Distilled AI MP4 + 1280x720 8Mbps FLUX.1 HD Cinema Video)
-export async function startVeoVideoGeneration(params: {
-  prompt: string;
-  base64Image?: string;
-  mimeType?: string;
-  aspectRatio: '16:9' | '9:16';
-}): Promise<{ operationName: string; model?: string }> {
-  const effectivePrompt =
-    params.prompt.trim() ||
-    'Majestic eagle soaring over snow-capped mountain peaks at golden hour, cinematic 4k';
-  const opName = `local-video-${Date.now()}`;
-
-  // Tier 1: Real AI MP4 Video via Server-Side Lightricks LTX-Video-Distilled (/api/ai/video)
-  if (!params.base64Image) {
-    try {
-      const resp = await fetch('/api/ai/video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: effectivePrompt,
-          aspectRatio: params.aspectRatio,
-        }),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data?.videoUrl && String(data.videoUrl).startsWith('data:video/')) {
-          // Convert base64 MP4 data URL into a fast ObjectURL for smooth <video> playback & download
-          const byteStr = atob(String(data.videoUrl).split(',')[1]);
-          const ab = new Uint8Array(byteStr.length);
-          for (let i = 0; i < byteStr.length; i++) {
-            ab[i] = byteStr.charCodeAt(i);
-          }
-          const mp4Blob = new Blob([ab], { type: 'video/mp4' });
-          const blobUrl = URL.createObjectURL(mp4Blob);
-          localVideoStore.set(opName, blobUrl);
-          localVideoModelStore.set(
-            opName,
-            data.model || 'Lightricks LTX-Video-Distilled (Real AI MP4)'
-          );
-          return {
-            operationName: opName,
-            model: data.model || 'Lightricks LTX-Video-Distilled (Real AI MP4)',
-          };
-        }
-      }
-    } catch {}
-  }
-
-  // Tier 2: Ultra-Crisp 1280x720 HD FLUX.1 Keyframe + 8 Mbps High-Bitrate Cinema Video Engine
-  const width = params.aspectRatio === '9:16' ? 720 : 1280;
-  const height = params.aspectRatio === '9:16' ? 1280 : 720;
-
-  let keyframeDataUrl = params.base64Image;
-  if (!keyframeDataUrl) {
-    try {
-      const generatedFrame = await generateOrEditImage({
-        prompt: effectivePrompt,
-        aspectRatio: params.aspectRatio,
-      });
-      if (generatedFrame?.imageUrl) {
-        keyframeDataUrl = generatedFrame.imageUrl;
-      }
-    } catch {}
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  canvas.style.position = 'fixed';
-  canvas.style.left = '-9999px';
-  canvas.style.top = '-9999px';
-  canvas.style.width = '1px';
-  canvas.style.height = '1px';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.opacity = '0.01';
-  document.body.appendChild(canvas);
-
-  const ctx = canvas.getContext('2d')!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-
-  let bgImg: HTMLImageElement | null = null;
-  if (keyframeDataUrl) {
-    bgImg = await new Promise<HTMLImageElement | null>((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
-      img.src = keyframeDataUrl!;
-    });
-  }
-
-  try {
-    const stream = (canvas as any).captureStream ? (canvas as any).captureStream(30) : null;
-    if (stream && typeof MediaRecorder !== 'undefined') {
-      const candidateTypes = [
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm',
-        'video/mp4',
-      ];
-      const supportedType =
-        candidateTypes.find((t) => {
-          try {
-            return MediaRecorder.isTypeSupported(t);
-          } catch {
-            return false;
-          }
-        }) || '';
-
-      const recorder = supportedType
-        ? new MediaRecorder(stream, {
-            mimeType: supportedType,
-            videoBitsPerSecond: 8000000, // 8 Mbps Ultra-Crisp HD Bitrate
-          })
-        : new MediaRecorder(stream);
-
-      const videoTrack = stream.getVideoTracks?.()[0] as any;
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
-      };
-      const donePromise = new Promise<void>((resolve) => {
-        recorder.onstop = () => {
-          if (chunks.length > 0) {
-            const blob = new Blob(chunks, {
-              type: supportedType || 'video/webm',
-            });
-            if (blob.size > 512) {
-              localVideoStore.set(opName, URL.createObjectURL(blob));
-              localVideoModelStore.set(
-                opName,
-                'FLUX.1 HD Keyframe + 8Mbps 720p Cinema Engine'
-              );
-            }
-          }
-          resolve();
-        };
-      });
-
-      recorder.start(100);
-      const totalFrames = 90;
-      for (let f = 0; f < totalFrames; f++) {
-        const t = f / totalFrames;
-        renderSceneFrameToCanvas(ctx, width, height, effectivePrompt, t, bgImg);
-        if (videoTrack && typeof videoTrack.requestFrame === 'function') {
-          try {
-            videoTrack.requestFrame();
-          } catch {}
-        }
-        await new Promise((r) => setTimeout(r, 16));
-      }
-      recorder.stop();
-      await donePromise;
-    }
-  } catch {
-    // Fallback handled by Live 60FPS Cinema Canvas Player in AIStudioHubView
-  } finally {
-    try {
-      if (canvas.parentNode) {
-        canvas.parentNode.removeChild(canvas);
-      }
-    } catch {}
-  }
-
-  if (!localVideoStore.has(opName)) {
-    localVideoStore.set(opName, `canvas-stream://${encodeURIComponent(effectivePrompt)}`);
-  }
-
-  return {
-    operationName: opName,
-    model: localVideoModelStore.get(opName) || 'FLUX.1 HD Cinema Video Engine',
-  };
-}
-
-export async function pollVeoVideoStatus(
-  operationName: string
-): Promise<{ done: boolean; error?: string | null }> {
-  return { done: localVideoStore.has(operationName), error: null };
-}
-
-export async function downloadVeoVideoBlobUrl(operationName: string): Promise<string> {
-  return localVideoStore.get(operationName) || '';
 }
 
 // 3. Audio Transcription (Server Gemini 3 Flash + Client Gemini Key + Web Speech Fallback)
@@ -2588,7 +2427,7 @@ export async function searchWithGoogleMapsGrounding(params: {
   };
 }
 
-// Helper to generate structured song lyrics based on prompt when offline/keyless
+
 function composeStructuredSongLyrics(prompt: string, bpm: number, genre: string): string {
   const cleanTopic = prompt.replace(/[^\w\s,'-]/g, '').trim() || 'Midnight Horizon';
   const words = cleanTopic.split(/\s+/).slice(0, 5).join(' ');
@@ -2608,319 +2447,5 @@ function composeStructuredSongLyrics(prompt: string, bpm: number, genre: string)
     `[Bridge & Instrumental Solo]\n` +
     `Warm Rhodes chords & analog synth lead arpeggios building into the final chorus.`
   );
-}
-
-// 6. Studio Music & Song Engine (Real Studio-Mastered MP3 via Openverse/Freesound HQ + 48kHz Stereo Reverb FM Synthesizer)
-export async function generateMusicWithLyria(params: {
-  prompt: string;
-  model: 'lyria-3-clip-preview' | 'lyria-3-pro-preview';
-  base64Image?: string;
-  imageMimeType?: string;
-}): Promise<{ audioUrl: string; lyrics: string; model: string }> {
-  const effectivePrompt =
-    params.prompt.trim() ||
-    'Warm lo-fi Rhodes electric piano, deep sub-bass, crisp boom-bap drums, and atmospheric synth melody';
-  const durationSec = params.model === 'lyria-3-pro-preview' ? 28 : 16;
-
-  let aiSongMeta: {
-    title?: string;
-    genre?: string;
-    bpm?: number;
-    keySignature?: string;
-    chordNames?: string[];
-    melodyFrequenciesHz?: number[];
-    lyricsAndNotes?: string;
-    studioAudioUrl?: string;
-    studioTrackTitle?: string;
-  } | null = null;
-
-  try {
-    const resp = await fetch('/api/ai/music', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: effectivePrompt,
-        durationSec,
-      }),
-    });
-    if (resp.ok) {
-      aiSongMeta = await resp.json();
-    }
-  } catch {
-    // Proceed with client Openverse check + 48kHz stereo FM studio synthesizer
-  }
-
-  if (!aiSongMeta?.lyricsAndNotes) {
-    try {
-      const freeLyrics = await callConfiguredOrFreeTextAI(
-        `Write structured song lyrics (Verse 1, Chorus, Bridge) for a song about: "${effectivePrompt}". Keep it poetic, concise, and ready to sing.`,
-        'You are a professional songwriter.'
-      );
-      if (freeLyrics?.text) {
-        aiSongMeta = {
-          ...(aiSongMeta || {}),
-          lyricsAndNotes: freeLyrics.text,
-        };
-      }
-    } catch {}
-  }
-
-  const lower = effectivePrompt.toLowerCase();
-  const isUpbeat =
-    lower.includes('upbeat') ||
-    lower.includes('edm') ||
-    lower.includes('house') ||
-    lower.includes('techno') ||
-    lower.includes('synthwave') ||
-    lower.includes('cyber') ||
-    lower.includes('fast') ||
-    lower.includes('pop') ||
-    lower.includes('dance');
-  const isCinematic =
-    lower.includes('cinematic') ||
-    lower.includes('orchestra') ||
-    lower.includes('ambient') ||
-    lower.includes('classical') ||
-    lower.includes('piano');
-
-  const genreLabel =
-    aiSongMeta?.genre ||
-    (isUpbeat
-      ? 'Synthwave / Melodic Electronic'
-      : isCinematic
-      ? 'Cinematic Ambient & Neo-Classical Piano'
-      : 'Lo-Fi Chillhop & Neo-Soul Groove');
-
-  const bpm = aiSongMeta?.bpm
-    ? Math.max(68, Math.min(145, aiSongMeta.bpm))
-    : isUpbeat
-    ? 124
-    : isCinematic
-    ? 78
-    : 90;
-
-  // If the server found a real studio-mastered MP3 track, return it immediately with the lyrics!
-  if (aiSongMeta?.studioAudioUrl) {
-    const trackHeader = aiSongMeta.studioTrackTitle
-      ? `[Studio Master Track]: "${aiSongMeta.studioTrackTitle}" (Matched for "${effectivePrompt}")`
-      : `[Track]: "${aiSongMeta.title || effectivePrompt}"`;
-    const lyricsText = aiSongMeta.lyricsAndNotes
-      ? `${trackHeader}\n[Genre]: ${genreLabel} · [Tempo]: ${bpm} BPM · [Engine]: 48kHz Studio MP3 Master\n\n${aiSongMeta.lyricsAndNotes}`
-      : composeStructuredSongLyrics(effectivePrompt, bpm, genreLabel);
-    return {
-      audioUrl: aiSongMeta.studioAudioUrl,
-      lyrics: lyricsText,
-      model: 'Openverse / Freesound HQ Studio Master + AI Songwriter',
-    };
-  }
-
-  // Fallback Tier: Upgraded 48,000 Hz Stereo FM + Stereo Delay/Reverb Studio Synthesizer
-  const sampleRate = 48000;
-  const numChannels = 2;
-  const numSamples = durationSec * sampleRate;
-  const dataSize = numSamples * numChannels * 2;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  const writeStr = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i));
-    }
-  };
-
-  writeStr(0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(8, 'WAVE');
-  writeStr(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, numChannels, true); // Stereo
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * 2, true);
-  view.setUint16(32, numChannels * 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  // Rich 4-bar chord progressions & bass roots
-  const progressions = isUpbeat
-    ? [
-        { bass: 110.0, chord: [220.0, 261.63, 329.63, 392.0], arp: [440.0, 523.25, 659.25, 783.99] }, // Am7
-        { bass: 87.31, chord: [174.61, 220.0, 261.63, 349.23], arp: [349.23, 440.0, 523.25, 698.46] }, // Fmaj7
-        { bass: 130.81, chord: [261.63, 329.63, 392.0, 493.88], arp: [523.25, 659.25, 783.99, 987.77] }, // Cmaj7
-        { bass: 98.0, chord: [196.0, 246.94, 293.66, 392.0], arp: [392.0, 493.88, 587.33, 783.99] }, // G
-      ]
-    : [
-        { bass: 130.81, chord: [261.63, 329.63, 392.0, 493.88], arp: [523.25, 659.25, 783.99, 659.25] }, // Cmaj9
-        { bass: 110.0, chord: [220.0, 261.63, 329.63, 392.0], arp: [440.0, 523.25, 659.25, 523.25] }, // Am9
-        { bass: 146.83, chord: [293.66, 349.23, 440.0, 523.25], arp: [587.33, 698.46, 880.0, 698.46] }, // Dm9
-        { bass: 98.0, chord: [196.0, 246.94, 329.63, 392.0], arp: [392.0, 493.88, 659.25, 783.99] }, // G13
-      ];
-
-  const defaultMelody = [
-    523.25, 659.25, 587.33, 493.88, 523.25, 392.0, 440.0, 493.88,
-    523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 523.25, 493.88,
-  ];
-  const melodyScale =
-    aiSongMeta?.melodyFrequenciesHz && aiSongMeta.melodyFrequenciesHz.length >= 4
-      ? aiSongMeta.melodyFrequenciesHz
-      : defaultMelody;
-
-  const beatDur = 60 / bpm;
-  const barDur = beatDur * 4;
-
-  // Stereo Ping-Pong Reverb / Delay Buffer (320ms & 440ms) for lush studio depth
-  const delaySamplesL = Math.floor(sampleRate * 0.31);
-  const delaySamplesR = Math.floor(sampleRate * 0.43);
-  const delayBufL = new Float32Array(delaySamplesL);
-  const delayBufR = new Float32Array(delaySamplesR);
-  let dIdxL = 0;
-  let dIdxR = 0;
-  let lpFilterStateL = 0;
-  let lpFilterStateR = 0;
-
-  let prng = 1337 + effectivePrompt.length * 97;
-  const nextNoise = () => {
-    prng = (prng * 16807) % 2147483647;
-    return prng / 1073741823.5 - 1;
-  };
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / sampleRate;
-    const songProgress = t / durationSec;
-    const isChorus = songProgress >= 0.22 && songProgress <= 0.82;
-    const barIdx = Math.floor(t / barDur) % progressions.length;
-    const currentBar = progressions[barIdx];
-
-    const beatInBar = (t % barDur) / beatDur;
-    const beatFrac = beatInBar % 1;
-    const eighthStep = Math.floor(beatInBar * 2);
-    const eighthFrac = (beatInBar * 2) % 1;
-    const sixteenthStep = Math.floor(beatInBar * 4);
-    const sixteenthFrac = (beatInBar * 4) % 1;
-
-    // 1. Lush Stereo FM Rhodes + Detuned Chorus Pad
-    let padL = 0;
-    let padR = 0;
-    const chordAttack = Math.min(1, (t % barDur) / 0.04);
-    for (let c = 0; c < currentBar.chord.length; c++) {
-      const freq = currentBar.chord[c];
-      const fmMod = Math.sin(2 * Math.PI * freq * 2 * t) * 0.85 * Math.exp(-beatFrac * 3.2);
-      const voiceA = Math.sin(2 * Math.PI * freq * 0.9985 * t + fmMod * 0.35) * 0.085;
-      const voiceB = Math.sin(2 * Math.PI * freq * 1.0015 * t - fmMod * 0.25) * 0.085;
-      if (c % 2 === 0) {
-        padL += (voiceA * 1.15 + voiceB * 0.65) * chordAttack;
-        padR += (voiceA * 0.65 + voiceB * 1.15) * chordAttack;
-      } else {
-        padL += (voiceA * 0.65 + voiceB * 1.15) * chordAttack;
-        padR += (voiceA * 1.15 + voiceB * 0.65) * chordAttack;
-      }
-    }
-
-    // 2. Warm Analog Sub-Bass + Upper Harmonic Punch
-    const bassEnv = Math.min(1, beatFrac / 0.008) * Math.exp(-beatFrac * 2.8);
-    const bassFreq = beatInBar >= 3.5 ? currentBar.bass * 1.5 : currentBar.bass;
-    const bassSample =
-      (Math.sin(2 * Math.PI * bassFreq * t) * 0.26 +
-        Math.tanh(Math.sin(2 * Math.PI * bassFreq * 2 * t) * 1.6) * 0.075) *
-      bassEnv;
-
-    // 3. Crisp Bell/Pluck Lead Melody + Stereo 16th Arpeggiator
-    const melIdx = (Math.floor(t / (beatDur * 0.5)) + barIdx * 3) % melodyScale.length;
-    const melFreq = Math.max(220, Math.min(1100, melodyScale[melIdx] || 523.25));
-    const melAttack = Math.min(1, eighthFrac / 0.005);
-    const melEnv = melAttack * Math.exp(-eighthFrac * 4.6);
-    const fmBell = Math.sin(2 * Math.PI * melFreq * 3 * t) * Math.exp(-eighthFrac * 12) * 0.45;
-    const melSample =
-      Math.sin(2 * Math.PI * melFreq * t + fmBell) * melEnv * 0.145;
-
-    let arpSample = 0;
-    if (isChorus) {
-      const arpFreq = currentBar.arp[sixteenthStep % currentBar.arp.length];
-      const arpEnv = Math.min(1, sixteenthFrac / 0.004) * Math.exp(-sixteenthFrac * 7.2);
-      arpSample =
-        (Math.sin(2 * Math.PI * arpFreq * t) +
-          0.35 * Math.sin(2 * Math.PI * arpFreq * 2 * t)) *
-        arpEnv *
-        0.075;
-    }
-
-    // 4. Crisp Studio Drums (Punchy Kick, Layered Snare/Clap, Shimmering Hi-Hat)
-    let drumL = 0;
-    let drumR = 0;
-    if (!isCinematic) {
-      const beatInt = Math.floor(beatInBar);
-      const isKickBeat =
-        beatInt === 0 || beatInt === 2 || (isUpbeat && (beatInt === 1 || beatInt === 3));
-      if (isKickBeat && beatFrac < 0.26) {
-        const kEnv = Math.exp(-beatFrac * 17);
-        const kPitch = 48 + 130 * Math.exp(-beatFrac * 42);
-        const kick = Math.tanh(Math.sin(2 * Math.PI * kPitch * beatFrac) * 1.4) * kEnv * 0.36;
-        drumL += kick;
-        drumR += kick;
-      }
-
-      const isSnareBeat = beatInt === 1 || beatInt === 3;
-      if (isSnareBeat && beatFrac < 0.22) {
-        const sEnv = Math.exp(-beatFrac * 22);
-        const body = Math.sin(2 * Math.PI * 195 * beatFrac) * 0.45;
-        const crispNoise = nextNoise() * 0.68;
-        const snare = (crispNoise + body) * sEnv * 0.24;
-        drumL += snare * 1.04;
-        drumR += snare * 0.96;
-      }
-
-      if (eighthFrac < 0.08) {
-        const hEnv = Math.exp(-eighthFrac * 58);
-        const accent = eighthStep % 2 === 1 ? 0.105 : 0.06;
-        const hat = nextNoise() * hEnv * accent;
-        drumL += hat * 0.85;
-        drumR += hat * 1.15;
-      }
-    }
-
-    // 5. Stereo Reverb / Ping-Pong Echo on Melody & Arpeggiator
-    const dryMelL = melSample * 0.92 + arpSample * 1.15;
-    const dryMelR = melSample * 1.08 + arpSample * 0.85;
-    const delayedL = delayBufL[dIdxL];
-    const delayedR = delayBufR[dIdxR];
-    delayBufL[dIdxL] = dryMelL + delayedR * 0.34;
-    delayBufR[dIdxR] = dryMelR + delayedL * 0.34;
-    dIdxL = (dIdxL + 1) % delaySamplesL;
-    dIdxR = (dIdxR + 1) % delaySamplesR;
-
-    const masterEnv = Math.min(1, t / 0.45, (durationSec - t) / 0.85);
-    const rawL =
-      (padL + bassSample + dryMelL + delayedL * 0.28 + drumL) * masterEnv;
-    const rawR =
-      (padR + bassSample + dryMelR + delayedR * 0.28 + drumR) * masterEnv;
-
-    // Gentle analog warmth filter + soft-knee mastering limiter
-    lpFilterStateL = lpFilterStateL * 0.12 + rawL * 0.88;
-    lpFilterStateR = lpFilterStateR * 0.12 + rawR * 0.88;
-
-    const softClip = (x: number) => Math.tanh(x * 1.22);
-    const outL = Math.max(-1, Math.min(1, softClip(lpFilterStateL)));
-    const outR = Math.max(-1, Math.min(1, softClip(lpFilterStateR)));
-
-    const byteOffset = 44 + i * 4;
-    view.setInt16(byteOffset, outL * 32767, true);
-    view.setInt16(byteOffset + 2, outR * 32767, true);
-  }
-
-  const blob = new Blob([buffer], { type: 'audio/wav' });
-  const audioUrl = URL.createObjectURL(blob);
-
-  const lyricsText = aiSongMeta?.lyricsAndNotes
-    ? `${aiSongMeta.title ? `[Track]: "${aiSongMeta.title}"` : `[Track]: "${effectivePrompt}"`}\n` +
-      `[Genre]: ${genreLabel} · [Tempo]: ${bpm} BPM · [Key]: ${aiSongMeta.keySignature || 'C Major / A Minor'}\n\n` +
-      `${aiSongMeta.lyricsAndNotes}`
-    : composeStructuredSongLyrics(effectivePrompt, bpm, genreLabel);
-
-  return {
-    audioUrl,
-    lyrics: lyricsText,
-    model: `${params.model} (48kHz Stereo FM + Reverb Master)`,
-  };
 }
 

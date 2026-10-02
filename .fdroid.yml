@@ -1,6 +1,6 @@
-# F-Droid upstream build recipe template. Official inclusion metadata is submitted to fdroiddata.
-# This file is kept in sync with the embedded .fdroid.yml.
-
+# Embedded F-Droid build recipe for local verification and reproducible packaging.
+# Official submissions still belong in fdroiddata; this file makes the upstream
+# repository directly buildable with fdroidserver.
 Categories:
   - Office
   - Time

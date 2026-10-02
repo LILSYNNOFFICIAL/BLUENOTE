@@ -297,162 +297,7 @@ async function startServer() {
     res.status(503).json({ error: 'Using on-device neural engine' });
   });
 
-  // 2. Server-Side Studio Music & AI Song Endpoint (Openverse HQ Studio MP3 + Gemini / Free Cloud AI Lyrics)
-  app.get('/api/ai/music-stream', async (req, res) => {
-    const rawUrl = String(req.query?.url || '').trim();
-    if (!rawUrl || !/^https:\/\/(cdn\.freesound\.org|prod-1\.storage\.jamendo\.com|mp3d\.jamendo\.com|upload\.wikimedia\.org)/i.test(rawUrl)) {
-      res.status(400).send('Invalid audio stream URL');
-      return;
-    }
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 14000);
-      const upstream = await fetch(rawUrl, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BlueNoteStudio/2.0)' },
-      });
-      clearTimeout(timer);
-      if (!upstream.ok) {
-        res.status(502).send('Upstream audio unavailable');
-        return;
-      }
-      const ct = upstream.headers.get('content-type') || 'audio/mpeg';
-      const arrayBuf = await upstream.arrayBuffer();
-      res.setHeader('Content-Type', ct);
-      res.setHeader('Cache-Control', 'public, max-age=3600');
-      res.send(Buffer.from(arrayBuf));
-    } catch {
-      res.status(502).send('Audio stream proxy timeout');
-    }
-  });
-
-  app.post('/api/ai/music', async (req, res) => {
-    const { prompt, durationSec } = req.body || {};
-    const rawPrompt = String(
-      prompt || 'Warm lo-fi Rhodes electric piano, deep sub-bass, and crisp studio drums'
-    ).trim();
-
-    // Step A: Find a real studio-mastered MP3 track via Openverse Audio API (Freesound HQ / Jamendo)
-    let studioAudioUrl = '';
-    let studioTrackTitle = '';
-    try {
-      const lower = rawPrompt.toLowerCase();
-      let musicSearchQuery = 'instrumental music loop';
-      if (/lofi|lo-fi|chill|study|rhodes|beats/i.test(lower)) {
-        musicSearchQuery = 'chill lofi piano beat music';
-      } else if (/synthwave|cyber|neon|electronic|edm|house|techno|dance/i.test(lower)) {
-        musicSearchQuery = 'synthwave electronic beat music';
-      } else if (/piano|classical|cinematic|ambient|orchestra|film/i.test(lower)) {
-        musicSearchQuery = 'cinematic piano ambient music';
-      } else if (/guitar|acoustic|folk|indie|country/i.test(lower)) {
-        musicSearchQuery = 'acoustic guitar melody music';
-      } else if (/jazz|sax|blues|soul|funk/i.test(lower)) {
-        musicSearchQuery = 'smooth jazz groove music';
-      } else if (/rock|metal|drums|energetic/i.test(lower)) {
-        musicSearchQuery = 'energetic rock guitar drum groove';
-      } else {
-        const cleanedWords = rawPrompt
-          .replace(/[^\w\s]/g, ' ')
-          .split(/\s+/)
-          .filter((w) => w.length > 2)
-          .slice(0, 4)
-          .join(' ');
-        musicSearchQuery = `${cleanedWords || 'melodic instrumental'} music`;
-      }
-
-      const ovController = new AbortController();
-      const ovTimer = setTimeout(() => ovController.abort(), 5500);
-      const ovResp = await fetch(
-        `https://api.openverse.org/v1/audio/?q=${encodeURIComponent(musicSearchQuery)}&page_size=12`,
-        {
-          signal: ovController.signal,
-          headers: { 'User-Agent': 'BlueNoteStudio/2.0' },
-        }
-      );
-      clearTimeout(ovTimer);
-      if (ovResp.ok) {
-        const ovData: any = await ovResp.json();
-        const candidates = (ovData?.results || []).filter((item: any) => {
-          const u = String(item?.url || '');
-          const dur = Number(item?.duration || 0);
-          return (
-            /^https:\/\/(cdn\.freesound\.org\/previews\/.*-hq\.mp3|prod-1\.storage\.jamendo\.com)/i.test(u) &&
-            (dur === 0 || dur >= 12000)
-          );
-        });
-        // Prefer fast CDN Freesound HQ MP3s first so playback starts in <1 second
-        const freesoundCandidate = candidates.find((c: any) =>
-          String(c.url).includes('cdn.freesound.org')
-        );
-        const chosen = freesoundCandidate || candidates[0];
-        if (chosen?.url) {
-          studioAudioUrl = `/api/ai/music-stream?url=${encodeURIComponent(chosen.url)}`;
-          studioTrackTitle = String(chosen.title || 'Studio Master').trim();
-        }
-      }
-    } catch {}
-
-    // Step B: Generate custom song metadata & lyrics via Gemini or Free Cloud AI
-    const ai = getGeminiClient();
-    if (ai) {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: `Compose a complete musical arrangement and structured song lyrics (Verse 1, Chorus, Verse 2, Bridge) for: "${rawPrompt}" (Duration: ${durationSec || 24}s). Include a realistic BPM (72-136) and 16 melody note frequencies in Hz.`,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                genre: { type: Type.STRING },
-                bpm: { type: Type.NUMBER },
-                keySignature: { type: Type.STRING },
-                chordNames: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                melodyFrequenciesHz: {
-                  type: Type.ARRAY,
-                  items: { type: Type.NUMBER },
-                },
-                lyricsAndNotes: { type: Type.STRING },
-              },
-              required: ['title', 'genre', 'bpm', 'keySignature', 'lyricsAndNotes'],
-            },
-          },
-        });
-
-        const parsed = JSON.parse(response.text || '{}');
-        res.json({
-          ...parsed,
-          studioAudioUrl: studioAudioUrl || undefined,
-          studioTrackTitle: studioTrackTitle || undefined,
-        });
-        return;
-      } catch (err: any) {
-        if (String(err?.message || '').includes('403')) {
-          envGeminiKeyDenied = true;
-        }
-      }
-    }
-
-    if (studioAudioUrl) {
-      res.json({
-        title: studioTrackTitle || rawPrompt.slice(0, 42),
-        genre: '48kHz Studio Master Audio',
-        bpm: 108,
-        keySignature: 'C Minor / Eb Major (Studio Master)',
-        studioAudioUrl,
-        studioTrackTitle,
-      });
-      return;
-    }
-
-    res.status(503).json({ error: 'Using 48kHz stereo FM studio synthesizer' });
-  });
-
-  // Helper: Call Zero-Key Public Hugging Face Gradio 5 FLUX.1 Spaces (FLUX.1-schnell & FLUX.1-merged)
+    // Helper: Call Zero-Key Public Hugging Face Gradio 5 FLUX.1 Spaces (FLUX.1-schnell & FLUX.1-merged)
   async function generateGradioFluxImage(
     visualPrompt: string,
     width: number,
@@ -615,7 +460,7 @@ async function startServer() {
     }
   }
 
-  // 3. Server-Side Multi-Engine Image Generation Endpoint
+// 3. Server-Side Multi-Engine Image Generation Endpoint
   // Supports: Google Gemini Image -> Zero-Key Gradio 5 FLUX.1-schnell & FLUX.1-Merged -> Pollinations -> Openverse & Wikimedia HD
   app.post('/api/ai/image', async (req, res) => {
     const {
@@ -648,7 +493,7 @@ async function startServer() {
         parts.push({ text: visualPrompt });
 
         const imgResp = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-3.1-flash-image',
           contents: { parts },
           config: {
             imageConfig: {
@@ -663,7 +508,7 @@ async function startServer() {
             res.json({
               imageUrl: `data:${outMime};base64,${part.inlineData.data}`,
               caption: `Generated with Gemini Image (${aspectRatio || '16:9'}) — Subject: "${visualPrompt}"`,
-              model: 'gemini-2.5-flash-image',
+              model: 'gemini-3.1-flash-image',
             });
             return;
           }
@@ -748,97 +593,6 @@ async function startServer() {
     }
 
     res.status(503).json({ error: 'Fallback to client subject studio engine' });
-  });
-
-  // 3B. Server-Side Real AI Video Generation Endpoint (Lightricks LTX-Video-Distilled MP4)
-  app.post('/api/ai/video', async (req, res) => {
-    const { prompt, aspectRatio } = req.body || {};
-    const rawPrompt = String(
-      prompt || 'Majestic eagle soaring over snow-capped mountain peaks at golden hour'
-    ).trim();
-    const visualPrompt = `${cleanImagePromptServer(rawPrompt)}, cinematic 4k, ultra-crisp, smooth camera motion, photorealistic lighting`;
-    const isPortrait = aspectRatio === '9:16';
-    const widthUi = isPortrait ? 512 : 704;
-    const heightUi = isPortrait ? 704 : 512;
-
-    try {
-      const postCtrl = new AbortController();
-      const postTimer = setTimeout(() => postCtrl.abort(), 7000);
-      const postResp = await fetch(
-        'https://lightricks-ltx-video-distilled.hf.space/gradio_api/call/text_to_video',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: postCtrl.signal,
-          body: JSON.stringify({
-            data: [
-              visualPrompt,
-              'worst quality, inconsistent motion, blurry, jittery, distorted, pixelated, watermark',
-              null,
-              null,
-              heightUi,
-              widthUi,
-              'text-to-video',
-              2,
-              9,
-              42,
-              true,
-              1,
-              true,
-            ],
-          }),
-        }
-      );
-      clearTimeout(postTimer);
-
-      if (postResp.ok) {
-        const postJson: any = await postResp.json();
-        const eventId = postJson?.event_id;
-        if (eventId) {
-          const sseCtrl = new AbortController();
-          const sseTimer = setTimeout(() => sseCtrl.abort(), 22000);
-          const sseResp = await fetch(
-            `https://lightricks-ltx-video-distilled.hf.space/gradio_api/call/text_to_video/${eventId}`,
-            { signal: sseCtrl.signal }
-          );
-          const sseText = await sseResp.text();
-          clearTimeout(sseTimer);
-
-          const dataLine = sseText
-            .split('\n')
-            .find((line) => line.startsWith('data: ') && line.includes('.mp4'));
-          if (dataLine) {
-            const parsedArr = JSON.parse(dataLine.slice(6));
-            const firstItem = Array.isArray(parsedArr) ? parsedArr[0] : parsedArr;
-            const videoObj = firstItem?.video || firstItem;
-            const mp4Url =
-              videoObj?.url ||
-              (videoObj?.path
-                ? `https://lightricks-ltx-video-distilled.hf.space/gradio_api/file=${videoObj.path}`
-                : null);
-
-            if (mp4Url) {
-              const vidCtrl = new AbortController();
-              const vidTimer = setTimeout(() => vidCtrl.abort(), 12000);
-              const vidResp = await fetch(mp4Url, { signal: vidCtrl.signal });
-              clearTimeout(vidTimer);
-              if (vidResp.ok) {
-                const vidBuf = Buffer.from(await vidResp.arrayBuffer());
-                if (vidBuf.length > 8192) {
-                  res.json({
-                    videoUrl: `data:video/mp4;base64,${vidBuf.toString('base64')}`,
-                    model: 'Lightricks LTX-Video-Distilled (Real AI MP4)',
-                  });
-                  return;
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch {}
-
-    res.status(503).json({ error: 'Fallback to 1080p FLUX Cinema Video Engine' });
   });
 
   // 4. Server-Side Audio Transcription Endpoint
