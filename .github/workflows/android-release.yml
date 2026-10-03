@@ -109,7 +109,31 @@ jobs:
           cp android/app/build/outputs/apk/fdroid/release/*.apk release-assets/bluenote-fdroid.apk
           sha256sum release-assets/*.apk > release-assets/SHA256SUMS.txt
 
+      - name: Check existing GitHub Release state
+        id: release_state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" || true)
+          if [[ -z "$RESPONSE" ]]; then
+            echo "immutable=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          IMMUTABLE="$(printf '%s' "$RESPONSE" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).immutable === true ? "true" : "false"))')"
+          echo "immutable=$IMMUTABLE" >> "$GITHUB_OUTPUT"
+          if [[ "$IMMUTABLE" == "true" ]]; then
+            echo "Release ${RELEASE_TAG} is already immutable; preserving its existing assets."
+          fi
+
       - name: Create draft GitHub Release with assets
+        if: steps.release_state.outputs.immutable != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
@@ -123,6 +147,7 @@ jobs:
             release-assets/SHA256SUMS.txt
 
       - name: Publish immutable GitHub Release
+        if: steps.release_state.outputs.immutable != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release.outputs.tag }}
