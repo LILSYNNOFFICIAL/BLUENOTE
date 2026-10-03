@@ -126,7 +126,7 @@ jobs:
             echo "immutable=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          IMMUTABLE="$(printf '%s' "$RESPONSE" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>process.stdout.write(JSON.parse(s).immutable === true ? "true" : "false"))')"
+          IMMUTABLE="$(printf '%s' "$RESPONSE" | python -c 'import json,sys; print("true" if json.load(sys.stdin).get("immutable") is True else "false")')"
           echo "immutable=$IMMUTABLE" >> "$GITHUB_OUTPUT"
           if [[ "$IMMUTABLE" == "true" ]]; then
             echo "Release ${RELEASE_TAG} is already immutable; preserving its existing assets."
