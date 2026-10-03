@@ -1,6 +1,6 @@
-# F-Droid upstream build recipe template. Official inclusion metadata is submitted to fdroiddata.
-# This file is kept in sync with the embedded .fdroid.yml.
-
+# Embedded F-Droid build recipe for local verification and reproducible packaging.
+# Official submissions still belong in fdroiddata; this file makes the upstream
+# repository directly buildable with fdroidserver.
 Categories:
   - Office
   - Time
@@ -20,9 +20,9 @@ RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 
 Builds:
-  - versionName: 1.0.1-fdroid
-    versionCode: 2
-    commit: c13b9aec034af9ffd847bdab5d029f98a0bbe0ff
+  - versionName: 1.0.2-fdroid
+    versionCode: 3
+    commit: 59fb76b38666e5f5a54d3c21a7d41726d58f8d07
     subdir: android/app
     sudo:
       - apt-get update
@@ -39,5 +39,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.1-fdroid
-CurrentVersionCode: 2
+CurrentVersion: 1.0.2-fdroid
+CurrentVersionCode: 3
