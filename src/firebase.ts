@@ -20,6 +20,7 @@ import {
   ref as storageRef,
   uploadBytesResumable,
   getDownloadURL,
+  getBlob,
   deleteObject,
   initializeFirestore,
   doc,
@@ -67,7 +68,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-export { storageRef, uploadBytesResumable, getDownloadURL, deleteObject };
+export { storageRef, uploadBytesResumable, getDownloadURL, getBlob, deleteObject };
 
 export const db = initializeFirestore(
   app,
