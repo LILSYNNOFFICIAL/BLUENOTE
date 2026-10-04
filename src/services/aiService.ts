@@ -657,7 +657,7 @@ export async function performOCRAndExtract(
     try {
       const resp = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getFirebaseAuthHeader()) },
         body: JSON.stringify({
           prompt: `Perform OCR on this image (${filename}). Extract all visible text verbatim, and provide a 1-sentence summary.${
             customTextHint ? ` Additional user note: ${customTextHint}` : ''
@@ -982,6 +982,18 @@ export function getActiveAIProviderBadge(_cfg?: UserAIConfig): string {
   return 'Built-In Cloud & On-Device AI';
 }
 
+async function getFirebaseAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const { auth } = await import('../firebase');
+    const user = auth.currentUser;
+    if (!user || typeof (user as any).getIdToken !== 'function') return {};
+    const token = await (user as any).getIdToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function callConfiguredOrFreeTextAI(
   prompt: string,
   systemInstruction = 'You are BlueNote AI, a helpful, concise executive assistant.'
@@ -992,7 +1004,7 @@ export async function callConfiguredOrFreeTextAI(
   try {
     const proxyResp = await fetch('/api/ai/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getFirebaseAuthHeader()) },
       body: JSON.stringify({
         prompt,
         systemInstruction,

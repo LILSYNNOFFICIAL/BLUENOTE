@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import firebaseConfig from './firebase-applet-config.json';
 
 let envGeminiKeyDenied = false;
 
@@ -117,8 +118,10 @@ async function fetchWikimediaSubjectImage(
 
     const imgController = new AbortController();
     const imgTimer = setTimeout(() => imgController.abort(), 8000);
+    if (!isSafeOutboundImageUrl(imgUrl)) return null;
     const imgResp = await fetch(imgUrl, {
       signal: imgController.signal,
+      redirect: 'error',
       headers: { 'User-Agent': 'BlueNoteStudio/1.0' },
     });
     clearTimeout(imgTimer);
@@ -143,11 +146,171 @@ async function fetchWikimediaSubjectImage(
   }
 }
 
+function isSafeOutboundImageUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      host === 'localhost' ||
+      host === 'metadata.google.internal' ||
+      host === 'metadata.amazonaws.com' ||
+      host.endsWith('.local') ||
+      host === '::1' ||
+      host.startsWith('fc') ||
+      host.startsWith('fd') ||
+      host.startsWith('fe80:')
+    ) return false;
+    const octets = host.split('.').map(Number);
+    if (
+      octets.length === 4 &&
+      octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) &&
+      (octets[0] === 10 ||
+        octets[0] === 127 ||
+        octets[0] === 0 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168))
+    ) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const apiRateBuckets = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_KEYS = 10_000;
+
+function rateLimitApi(maxRequests: number, windowMs: number) {
+  return (req: any, res: any, next: any) => {
+    const now = Date.now();
+    const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
+    const existing = apiRateBuckets.get(key);
+
+    // Bound attacker-controlled cardinality. Without a cap, a botnet or spoofed
+    // proxy address set could grow this in-memory map until the Node process runs OOM.
+    if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS && !existing) {
+      for (const [oldKey, bucket] of apiRateBuckets) {
+        if (now >= bucket.resetAt) apiRateBuckets.delete(oldKey);
+        if (apiRateBuckets.size < MAX_RATE_LIMIT_KEYS) break;
+      }
+      if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS) {
+        const oldestKey = apiRateBuckets.keys().next().value;
+        if (typeof oldestKey === 'string') apiRateBuckets.delete(oldestKey);
+      }
+    }
+
+    if (!existing || now >= existing.resetAt) {
+      apiRateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+
+    if (existing.count >= maxRequests) {
+      res.setHeader('Retry-After', Math.ceil((existing.resetAt - now) / 1000));
+      res.status(429).json({ error: 'Too many AI requests. Please try again later.' });
+      return;
+    }
+
+    existing.count += 1;
+    next();
+  };
+}
+
+
+async function requireFirebaseAuth(req: any, res: any, next: any) {
+  const header = String(req.headers.authorization || '');
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  const idToken = match?.[1]?.trim();
+  const apiKey = String(process.env.FIREBASE_WEB_API_KEY || firebaseConfig.apiKey || '').trim();
+
+  if (!idToken || !apiKey || idToken.length > 2000) {
+    res.status(401).json({ error: 'Authentication required.' });
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({ idToken }),
+      }
+    );
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      res.status(401).json({ error: 'Invalid or expired authentication token.' });
+      return;
+    }
+
+    const data: any = await response.json();
+    const user = Array.isArray(data?.users) ? data.users[0] : null;
+    if (!user?.localId || user.disabled === true) {
+      res.status(401).json({ error: 'Invalid or disabled account.' });
+      return;
+    }
+
+    req.firebaseUser = {
+      uid: String(user.localId),
+      email: typeof user.email === 'string' ? user.email : null,
+    };
+    next();
+  } catch {
+    res.status(503).json({ error: 'Authentication service unavailable.' });
+  }
+}
+
+function validateAiPayload(req: any, res: any, next: any) {
+  const body = req.body || {};
+  const prompt = typeof body.prompt === 'string' ? body.prompt : '';
+  const systemInstruction =
+    typeof body.systemInstruction === 'string' ? body.systemInstruction : '';
+
+  if (prompt.length > 20000 || systemInstruction.length > 12000) {
+    res.status(413).json({ error: 'AI prompt is too large.' });
+    return;
+  }
+
+  const imageDataUrl = typeof body.imageDataUrl === 'string' ? body.imageDataUrl : '';
+  const base64Image = typeof body.base64Image === 'string' ? body.base64Image : '';
+  const base64Audio = typeof body.base64Audio === 'string' ? body.base64Audio : '';
+
+  if (imageDataUrl.length > 12 * 1024 * 1024
+      || base64Image.length > 12 * 1024 * 1024
+      || base64Audio.length > 16 * 1024 * 1024) {
+    res.status(413).json({ error: 'Uploaded AI media is too large.' });
+    return;
+  }
+
+  next();
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+    next();
+  });
+
+  app.use(express.json({ limit: '20mb' }));
+
+  // The server-side AI routes can spend provider quota, so keep abuse bounded even
+  // when this server is exposed directly to the public internet.
+  app.use('/api/ai', requireFirebaseAuth, (req: any, res: any, next: any) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  }, rateLimitApi(30, 60_000), validateAiPayload);
 
   app.get('/api/health', (_req, res) => {
     const envKey = (process.env.GEMINI_API_KEY || '').trim();
@@ -379,10 +542,12 @@ async function startServer() {
             ? `${space.baseUrl}/gradio_api/file=${fileObj.path}`
             : null);
         if (!fileUrl) continue;
+        const parsedFileUrl = new URL(String(fileUrl));
+        if (parsedFileUrl.protocol !== 'https:' || parsedFileUrl.hostname !== new URL(space.baseUrl).hostname || parsedFileUrl.username || parsedFileUrl.password || parsedFileUrl.port) continue;
 
         const imgController = new AbortController();
         const imgTimer = setTimeout(() => imgController.abort(), 9000);
-        const imgResp = await fetch(fileUrl, { signal: imgController.signal });
+        const imgResp = await fetch(parsedFileUrl, { signal: imgController.signal, redirect: 'error' });
         clearTimeout(imgTimer);
         if (!imgResp.ok) continue;
 
@@ -437,8 +602,10 @@ async function startServer() {
         try {
           const imgCtrl = new AbortController();
           const imgTimer = setTimeout(() => imgCtrl.abort(), 5500);
-          const imgResp = await fetch(chosen.url, {
+          if (!isSafeOutboundImageUrl(String(chosen.url))) continue;
+          const imgResp = await fetch(String(chosen.url), {
             signal: imgCtrl.signal,
+            redirect: 'error',
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BlueNoteStudio/2.0)' },
           });
           clearTimeout(imgTimer);

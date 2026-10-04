@@ -41,6 +41,7 @@ import {
   formatBytes,
   organizeProjectDocumentsWithAI,
   streamUploadFileInChunks,
+  downloadProtectedProjectFile,
 } from '../services/projectsOSService';
 
 interface ProjectsOSDocumentsSubViewProps {
@@ -234,7 +235,8 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
       finalContent: res.extractedText,
       currentStage: 'Original',
       currentVersionId: verId,
-      chunkStoredInIdb: true,
+      chunkStoredInIdb: false,
+      storagePath: res.storagePath,
       versions: [
         {
           id: verId,
@@ -403,7 +405,7 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
     doc: ProjectDocument,
     format: 'txt' | 'md' | 'adoc' | 'docx' | 'pdf'
   ) => {
-    const baseName = doc.filename.replace(/\.[a-z0-9]+$/i, '');
+    const baseName = doc.filename.replace(/\.[a-z0-9]+$/i, '').replace(/[^a-zA-Z0-9._() -]/g, '_').slice(0, 160) || 'document';
     let outContent = doc.finalContent;
     let mime = 'text/plain;charset=utf-8';
     let ext = format;
@@ -414,10 +416,20 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
     } else if (format === 'pdf') {
       const printWin = window.open('', '_blank', 'width=850,height=900');
       if (printWin) {
-        printWin.document.write(
-          `<html><head><title>${doc.filename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${doc.filename}</h1><pre>${doc.finalContent.replace(/</g, '&lt;')}</pre><script>window.print();</script></body></html>`
-        );
-        printWin.document.close();
+        const printDoc = printWin.document;
+        printDoc.title = doc.filename.slice(0, 180);
+        const style = printDoc.createElement('style');
+        style.textContent =
+          'body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}';
+        const heading = printDoc.createElement('h1');
+        heading.textContent = doc.filename.slice(0, 180);
+        const pre = printDoc.createElement('pre');
+        pre.textContent = doc.finalContent.slice(0, 5_000_000);
+        printDoc.head.appendChild(style);
+        printDoc.body.appendChild(heading);
+        printDoc.body.appendChild(pre);
+        printWin.addEventListener('load', () => printWin.print(), { once: true });
+        printWin.setTimeout(() => printWin.print(), 250);
         return;
       }
     }
@@ -1050,9 +1062,20 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDownloadDocument(doc, doc.fileType === 'md' ? 'md' : 'txt')}
+                          onClick={async () => {
+                            try {
+                              if (doc.storagePath) {
+                                await downloadProtectedProjectFile(doc.storagePath, doc.filename);
+                                showToast(`Downloaded "${doc.filename}"`);
+                              } else {
+                                handleDownloadDocument(doc, doc.fileType === 'md' ? 'md' : 'txt');
+                              }
+                            } catch (error) {
+                              showToast(error instanceof Error ? error.message : 'Secure download failed.');
+                            }
+                          }}
+                          title={doc.storagePath ? 'Download original securely' : 'Export document'}
                           className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                          title="Download Document"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>

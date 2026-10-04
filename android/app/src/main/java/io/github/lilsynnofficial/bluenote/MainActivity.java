@@ -17,9 +17,15 @@ import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
+
+import androidx.annotation.RequiresApi;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewAssetLoader;
+import androidx.webkit.WebViewClientCompat;
+import androidx.webkit.WebViewFeature;
 
 import org.json.JSONObject;
 
@@ -32,6 +38,9 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1001;
+    private static final String APP_HOST = "lilsynnofficial.github.io";
+    private static final String APP_PATH_PREFIX = "/public/";
+    private static final String APP_ORIGIN = "https://" + APP_HOST;
     private static final String RELEASE_API_URL =
             "https://api.github.com/repos/LILSYNNOFFICIAL/BLUENOTE/releases/latest";
     private static final String PLAYSTORE_APK_URL =
@@ -61,43 +70,51 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setTextZoom(100);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setSupportMultipleWindows(false);
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
+            WebSettingsCompat.setSafeBrowsingEnabled(settings, true);
+        }
+
+        final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .setDomain(APP_HOST)
+                .addPathHandler(APP_PATH_PREFIX, new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
 
         webView.setBackgroundColor(Color.parseColor("#FFFFFF"));
 
-        webView.setWebViewClient(new WebViewClient() {
+        webView.setWebViewClient(new WebViewClientCompat() {
+            @Override
+            @RequiresApi(21)
+            public WebResourceResponse shouldInterceptRequest(
+                    WebView view,
+                    WebResourceRequest request
+            ) {
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                return assetLoader.shouldInterceptRequest(Uri.parse(url));
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                String scheme = uri.getScheme();
-                if ("file".equals(scheme)) {
+                if (isTrustedAppUrl(uri)) {
                     return false;
                 }
-                if (uri.getHost() != null) {
-                    String host = uri.getHost().toLowerCase();
-                    if (host.contains("localhost")
-                            || host.contains("127.0.0.1")
-                            || host.endsWith("firebaseapp.com")
-                            || host.endsWith("web.app")
-                            || host.endsWith("google.com")
-                            || host.endsWith("googleapis.com")
-                            || host.endsWith("lilsynnofficial.github.io")) {
-                        return false;
-                    }
-                }
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    startActivity(intent);
-                } catch (Exception ignored) {
-                }
+                openExternalUrl(uri);
                 return true;
             }
         });
@@ -105,12 +122,37 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                runOnUiThread(() -> request.grant(request.getResources()));
+                if (!isTrustedAppOrigin(request.getOrigin())) {
+                    request.deny();
+                    return;
+                }
+
+                final java.util.ArrayList<String> allowedResources = new java.util.ArrayList<>();
+                for (String resource : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
+                            || PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                        allowedResources.add(resource);
+                    }
+                }
+
+                if (allowedResources.isEmpty()) {
+                    request.deny();
+                    return;
+                }
+
+                runOnUiThread(() -> request.grant(allowedResources.toArray(new String[0])));
             }
 
             @Override
-            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                callback.invoke(origin, true, false);
+            public void onGeolocationPermissionsShowPrompt(
+                    String origin,
+                    GeolocationPermissions.Callback callback
+            ) {
+                if (isTrustedAppOrigin(Uri.parse(origin))) {
+                    callback.invoke(origin, false, false);
+                } else {
+                    callback.invoke(origin, false, false);
+                }
             }
 
             @Override
@@ -134,16 +176,38 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) {
-            webView.loadUrl("file:///android_asset/public/index.html");
-            checkForPlaystoreUpdate();
-        } else {
-            webView.restoreState(savedInstanceState);
+        webView.loadUrl(APP_ORIGIN + APP_PATH_PREFIX + "index.html");
+        checkForPlaystoreUpdate();
+    }
+
+    private boolean isTrustedAppOrigin(Uri uri) {
+        return uri != null
+                && "https".equalsIgnoreCase(uri.getScheme())
+                && APP_HOST.equalsIgnoreCase(uri.getHost());
+    }
+
+    private boolean isTrustedAppUrl(Uri uri) {
+        return isTrustedAppOrigin(uri)
+                && uri.getPath() != null
+                && uri.getPath().startsWith(APP_PATH_PREFIX);
+    }
+
+    private void openExternalUrl(Uri uri) {
+        if (uri == null || uri.getScheme() == null) {
+            return;
+        }
+        String scheme = uri.getScheme().toLowerCase();
+        if (!"https".equals(scheme) && !"mailto".equals(scheme)
+                && !"tel".equals(scheme)) {
+            return;
+        }
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, uri));
+        } catch (Exception ignored) {
         }
     }
 
     private void checkForPlaystoreUpdate() {
-        // F-Droid must remain Firebase-free and independently signed; its updater is F-Droid.
         if (!"playstore".equals(BuildConfig.DISTRIBUTION_CHANNEL)) {
             return;
         }
@@ -185,7 +249,6 @@ public class MainActivity extends Activity {
 
                 runOnUiThread(() -> showUpdateDialog(latestVersion));
             } catch (Exception ignored) {
-                // Update checks are best-effort and must never interfere with app startup.
             } finally {
                 if (connection != null) {
                     connection.disconnect();
@@ -234,6 +297,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         updateExecutor.shutdownNow();
+        if (webView != null) {
+            webView.stopLoading();
+            webView.loadUrl("about:blank");
+            webView.destroy();
+            webView = null;
+        }
         super.onDestroy();
     }
 
@@ -248,14 +317,6 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if (webView != null) {
-            webView.saveState(outState);
-        }
     }
 
     @Override

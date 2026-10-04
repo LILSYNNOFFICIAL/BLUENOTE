@@ -9,6 +9,7 @@ import {
   ProjectTemplateType,
   SmartCollection,
 } from '../types/projectsOS';
+import { auth, storage, storageRef, uploadBytesResumable, getBlob } from '../firebase';
 
 const IDB_NAME = 'bluenote_projects_os_chunks_v1';
 const IDB_STORE = 'file_chunks';
@@ -57,6 +58,74 @@ export async function saveFileChunkToIDB(
  * Streams a potentially massive file in 2MB chunks without loading the whole file into memory.
  * Extracts text from the first readable segments (up to 512KB of text) for instant indexing & editing.
  */
+const MAX_PROJECT_FILE_BYTES = 250 * 1024 * 1024;
+const ALLOWED_PROJECT_FILE_TYPES: Record<string, { mime: string }> = {
+  txt: { mime: 'text/plain' },
+  md: { mime: 'text/markdown' },
+  doc: { mime: 'application/msword' },
+  docx: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+  pdf: { mime: 'application/pdf' },
+};
+
+function sanitizeStoredFilename(name: string): string {
+  const normalized = String(name || 'unnamed').normalize('NFKC');
+  const base = normalized.split(/[\\/]/).pop() || 'unnamed';
+  const safe = base.replace(/[^a-zA-Z0-9._() -]/g, '_').replace(/\.{2,}/g, '.').trim();
+  return (safe || 'unnamed').slice(0, 180);
+}
+
+async function validateProjectFile(file: File): Promise<{ extension: string; mime: string }> {
+  if (!auth.currentUser) throw new Error('You must be signed in to upload files.');
+  if (file.size <= 0 || file.size > MAX_PROJECT_FILE_BYTES) {
+    throw new Error('File is empty or exceeds the 250 MB project-file limit.');
+  }
+
+  const extension = (file.name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  const policy = ALLOWED_PROJECT_FILE_TYPES[extension];
+  if (!policy) throw new Error('Unsupported file type. Allowed: TXT, MD, DOC, DOCX, PDF.');
+
+  if (extension === 'doc' || extension === 'docx' || extension === 'pdf') {
+    const sample = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+    const ascii = String.fromCharCode(...sample);
+    if (extension === 'docx' && ascii.slice(0, 2) !== 'PK') {
+      throw new Error('The DOCX file signature is invalid.');
+    }
+    if (extension === 'pdf' && !ascii.startsWith('%PDF-')) {
+      throw new Error('The PDF file signature is invalid.');
+    }
+    if (extension === 'doc' && !(sample[0] === 0xd0 && sample[1] === 0xcf && sample[2] === 0x11 && sample[3] === 0xe0)) {
+      throw new Error('The DOC file signature is invalid.');
+    }
+  }
+
+  return { extension, mime: policy.mime };
+}
+
+export async function downloadProtectedProjectFile(storagePath: string, filename: string): Promise<void> {
+  if (!auth.currentUser) throw new Error('You must be signed in to download files.');
+  if (!/^users\/[A-Za-z0-9_-]+\/project-files\/[A-Za-z0-9_-]+\/[A-Za-z0-9._() -]{1,180}$/.test(storagePath)) {
+    throw new Error('Invalid protected file reference.');
+  }
+  if (!storagePath.startsWith(`users/${auth.currentUser.uid}/project-files/`)) {
+    throw new Error('You are not authorized to download this file.');
+  }
+
+  const blob = await getBlob(storageRef(storage, storagePath));
+  const safeName = sanitizeStoredFilename(filename);
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = safeName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }
+}
+
 export async function streamUploadFileInChunks(params: {
   file: File;
   jobId: string;
@@ -73,80 +142,105 @@ export async function streamUploadFileInChunks(params: {
   status: 'completed' | 'paused' | 'cancelled';
   completedChunks: number;
   extractedText: string;
+  storagePath?: string;
 }> {
-  const { file, jobId, startChunk = 0, shouldPause, shouldCancel, onProgress } = params;
-  const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE_BYTES));
+  const { file, jobId, shouldPause, shouldCancel, onProgress } = params;
+  const { extension, mime } = await validateProjectFile(file);
+  const safeName = sanitizeStoredFilename(file.name);
+  const userId = auth.currentUser!.uid;
+  const fileId = crypto.randomUUID();
+  const storagePath = `users/${userId}/project-files/${fileId}/${safeName}`;
+  const storageReference = storageRef(storage, storagePath);
+
+  if (shouldCancel()) return { status: 'cancelled', completedChunks: 0, extractedText: '' };
+
+  const uploadMetadata = {
+    contentType: mime,
+    contentDisposition: `attachment; filename="${safeName.replace(/"/g, '')}"`,
+    customMetadata: {
+      ownerUid: userId,
+      originalExtension: extension,
+      uploadJobId: String(jobId).slice(0, 128),
+    },
+  };
+
+  const uploadTask = uploadBytesResumable(storageReference, file, uploadMetadata);
+  const totalBytes = file.size;
   const startTime = performance.now();
-  let extractedText = '';
-  const maxTextExtractBytes = 512 * 1024; // Extract up to 512KB of text for instant editor/index
+  let paused = false;
 
-  for (let i = startChunk; i < totalChunks; i++) {
-    if (shouldCancel()) {
-      return { status: 'cancelled', completedChunks: i, extractedText };
-    }
-    if (shouldPause()) {
-      return { status: 'paused', completedChunks: i, extractedText };
-    }
-
-    const offset = i * CHUNK_SIZE_BYTES;
-    const end = Math.min(file.size, offset + CHUNK_SIZE_BYTES);
-    const slice = file.slice(offset, end);
-
-    await saveFileChunkToIDB(jobId, i, slice);
-
-    // Extract readable text from initial chunk(s) without loading multi-GB blobs into RAM
-    if (offset < maxTextExtractBytes) {
-      const textSlice = file.slice(offset, Math.min(end, maxTextExtractBytes));
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
-      try {
-        if (i === 0 && ext === 'docx') {
-          const buf = await textSlice.arrayBuffer();
-          const docxText = await extractDocxBinaryText(buf, file.name);
-          if (docxText) {
-            extractedText += docxText;
-          } else {
-            const rawChunkText = await textSlice.text();
-            extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
-          }
-        } else if (i === 0 && ext === 'pdf') {
-          const buf = await textSlice.arrayBuffer();
-          const pdfText = extractPdfBinaryText(buf, file.name);
-          if (pdfText) {
-            extractedText += pdfText;
-          } else {
-            const rawChunkText = await textSlice.text();
-            extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
-          }
-        } else {
-          const rawChunkText = await textSlice.text();
-          extractedText += sanitizeExtractedDocumentText(rawChunkText, file.name);
+  const uploadResult = await new Promise<any>((resolve, reject) => {
+    const unsubscribe = uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        if (shouldCancel()) {
+          uploadTask.cancel();
+          return;
         }
-      } catch {
-        // Binary slice fallback
+        if (shouldPause() && uploadTask.snapshot.state === 'running') {
+          uploadTask.pause();
+          paused = true;
+        } else if (!shouldPause() && uploadTask.snapshot.state === 'paused') {
+          uploadTask.resume();
+          paused = false;
+        }
+        const elapsedSec = Math.max(0.05, (performance.now() - startTime) / 1000);
+        onProgress({
+          completedChunks: Math.floor(snapshot.bytesTransferred / CHUNK_SIZE_BYTES),
+          totalChunks: Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE_BYTES)),
+          bytesTransferred: snapshot.bytesTransferred,
+          speedBytesPerSec: Math.round(snapshot.bytesTransferred / elapsedSec),
+        });
+      },
+      (error) => {
+        unsubscribe();
+        if (error.code === 'storage/canceled') {
+          resolve({ cancelled: true });
+        } else {
+          reject(error);
+        }
+      },
+      () => {
+        unsubscribe();
+        resolve(uploadTask.snapshot);
       }
-    }
+    );
+  });
 
-    // Yield to browser UI thread so 60fps responsiveness is guaranteed
-    await new Promise((r) => setTimeout(r, 25));
-
-    const elapsedSec = Math.max(0.05, (performance.now() - startTime) / 1000);
-    const bytesTransferred = end;
-    const speedBytesPerSec = Math.round(bytesTransferred / elapsedSec);
-
-    onProgress({
-      completedChunks: i + 1,
-      totalChunks,
-      bytesTransferred,
-      speedBytesPerSec,
-    });
+  if (uploadResult?.cancelled) {
+    return { status: 'cancelled', completedChunks: 0, extractedText: '' };
   }
+  if (paused || shouldPause()) {
+    uploadTask.pause();
+    return { status: 'paused', completedChunks: Math.floor(uploadTask.snapshot.bytesTransferred / CHUNK_SIZE_BYTES), extractedText: '' };
+  }
+
+  const maxTextExtractBytes = 512 * 1024;
+  let extractedText = '';
+  const textSlice = file.slice(0, Math.min(file.size, maxTextExtractBytes));
+  try {
+    if (extension === 'docx') {
+      const docxText = await extractDocxBinaryText(await textSlice.arrayBuffer(), file.name);
+      extractedText = docxText || '';
+    } else if (extension === 'pdf') {
+      extractedText = extractPdfBinaryText(await textSlice.arrayBuffer(), file.name) || '';
+    } else {
+      extractedText = sanitizeExtractedDocumentText(await textSlice.text(), file.name);
+    }
+  } catch {}
+
+  onProgress({
+    completedChunks: Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE_BYTES)),
+    totalChunks: Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE_BYTES)),
+    bytesTransferred: totalBytes,
+    speedBytesPerSec: Math.round(totalBytes / Math.max(0.05, (performance.now() - startTime) / 1000)),
+  });
 
   return {
     status: 'completed',
-    completedChunks: totalChunks,
-    extractedText:
-      extractedText.trim() ||
-      `# ${file.name}\n\nUploaded (${formatBytes(file.size)}) and indexed in chunked storage.`,
+    completedChunks: Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE_BYTES)),
+    extractedText: extractedText.trim() || `# ${file.name}\\n\\nUploaded securely and indexed.`,
+    storagePath,
   };
 }
 
@@ -185,12 +279,32 @@ export async function extractDocxBinaryText(
         if (compressionMethod === 0) {
           xmlString = decoder.decode(rawSlice);
         } else if (compressionMethod === 8 && typeof DecompressionStream !== 'undefined') {
+          // Bound decompression to prevent ZIP/XML bombs from exhausting browser memory.
+          const MAX_DOCX_XML_BYTES = 4 * 1024 * 1024;
           const ds = new DecompressionStream('deflate-raw');
           const writer = ds.writable.getWriter();
-          writer.write(rawSlice);
-          writer.close();
-          const decompressedBuf = await new Response(ds.readable).arrayBuffer();
-          xmlString = decoder.decode(new Uint8Array(decompressedBuf));
+          await writer.write(rawSlice);
+          await writer.close();
+          const reader = ds.readable.getReader();
+          const chunks: Uint8Array[] = [];
+          let totalDecompressed = 0;
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            totalDecompressed += value.byteLength;
+            if (totalDecompressed > MAX_DOCX_XML_BYTES) {
+              await reader.cancel();
+              return null;
+            }
+            chunks.push(value);
+          }
+          const decompressedBuf = new Uint8Array(totalDecompressed);
+          let writeOffset = 0;
+          for (const chunk of chunks) {
+            decompressedBuf.set(chunk, writeOffset);
+            writeOffset += chunk.byteLength;
+          }
+          xmlString = decoder.decode(decompressedBuf);
         }
         if (xmlString && xmlString.includes('<w:')) {
           return parseWordXmlToMarkdown(xmlString, filename);
@@ -1453,15 +1567,20 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
   const initialTheme: PhotoAlbumTheme = album.theme || 'dark-cinema';
   const initialInterval = album.slideshowIntervalSec || 4;
 
+  // Encode JSON safely for an inline script. User-controlled strings can contain </script>.
+  // Escaping '<' prevents an attacker from terminating the script element before JSON.parse runs.
   const photosJson = JSON.stringify(
     album.photos.map((p) => ({
-      filename: p.filename,
-      caption: p.caption || p.filename,
-      src: p.dataUrl,
+      filename: String(p.filename || '').slice(0, 512),
+      caption: String(p.caption || p.filename || '').slice(0, 2000),
+      src: String(p.dataUrl || ''),
       takenAt: p.takenAt,
-      group: p.groupName || 'Portfolio',
+      group: String(p.groupName || 'Portfolio').slice(0, 256),
     }))
-  );
+  )
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 
   return `<!DOCTYPE html>
 <html lang="en" data-theme="${initialTheme}">
@@ -1614,16 +1733,37 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     let slideshowTimer = null;
     const gallery = document.getElementById('gallery');
 
+    function isSafeImageSource(src) {
+      return typeof src === 'string' && /^data:image\\/(?:png|jpe?g|webp|gif);base64,/i.test(src);
+    }
+
     function renderGallery() {
-      gallery.innerHTML = PHOTOS.map((p, i) => \`
-        <div class="card" onclick="openLightbox(\${i})">
-          <img src="\${p.src}" alt="\${p.caption}" loading="lazy" />
-          <div class="meta">
-            <div class="caption">\${p.caption}</div>
-            <div class="filename">\${p.filename}</div>
-          </div>
-        </div>
-      \`).join('');
+      gallery.replaceChildren();
+      PHOTOS.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.addEventListener('click', () => openLightbox(i));
+
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = String(p.caption || p.filename || '');
+        img.src = isSafeImageSource(p.src) ? p.src : '';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        caption.textContent = String(p.caption || p.filename || '');
+
+        const filename = document.createElement('div');
+        filename.className = 'filename';
+        filename.textContent = String(p.filename || '');
+
+        meta.append(caption, filename);
+        card.append(img, meta);
+        gallery.append(card);
+      });
     }
 
     function setTheme(themeName) {

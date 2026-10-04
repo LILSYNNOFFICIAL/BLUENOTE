@@ -78,6 +78,7 @@ export interface ProjectDocument {
   versions: DocumentVersion[];
   currentVersionId: string;
   chunkStoredInIdb?: boolean;
+  storagePath?: string;
   sourceReferences?: string[];
 }
 
