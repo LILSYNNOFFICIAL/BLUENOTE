@@ -1075,7 +1075,6 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                           }}
                           title={doc.storagePath ? 'Download original securely' : 'Export document'}
                           className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                          title="Download Document"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
