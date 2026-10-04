@@ -22,8 +22,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import androidx.annotation.RequiresApi;
+import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
+import androidx.webkit.WebViewFeature;
 
 import org.json.JSONObject;
 
@@ -78,6 +80,10 @@ public class MainActivity extends Activity {
         settings.setTextZoom(100);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setSupportMultipleWindows(false);
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
+            WebSettingsCompat.setSafeBrowsingEnabled(settings, true);
+        }
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
                 .setDomain(APP_HOST)
