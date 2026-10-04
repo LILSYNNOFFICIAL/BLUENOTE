@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://lilsynnofficial.github.io",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "Content-Length"],
+    "maxAgeSeconds": 3600
+  }
+]
