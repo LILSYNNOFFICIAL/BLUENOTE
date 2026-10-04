@@ -405,7 +405,7 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
     doc: ProjectDocument,
     format: 'txt' | 'md' | 'adoc' | 'docx' | 'pdf'
   ) => {
-    const baseName = doc.filename.replace(/\.[a-z0-9]+$/i, '');
+    const baseName = doc.filename.replace(/\.[a-z0-9]+$/i, '').replace(/[^a-zA-Z0-9._() -]/g, '_').slice(0, 160) || 'document';
     let outContent = doc.finalContent;
     let mime = 'text/plain;charset=utf-8';
     let ext = format;
@@ -423,16 +423,14 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-        if (printWin) {
-          const safeFilename = escapeHtml(doc.filename.slice(0, 180));
+        const safeFilename = escapeHtml(doc.filename.slice(0, 180));
           const safeContent = escapeHtml(doc.finalContent.slice(0, 5_000_000));
-          printWin.document.write(
-            `<html><head><title>${safeFilename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${safeFilename}</h1><pre>${safeContent}</pre><script>window.print();</script></body></html>`
-          );
+        printWin.document.write(
+          `<html><head><title>${safeFilename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${safeFilename}</h1><pre>${safeContent}</pre><script>window.print();</script></body></html>`
+        );
         printWin.document.close();
         return;
       }
-    }
 
     const blob = new Blob([outContent], { type: mime });
     const url = URL.createObjectURL(blob);
