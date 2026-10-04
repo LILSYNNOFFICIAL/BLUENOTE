@@ -143,11 +143,64 @@ async function fetchWikimediaSubjectImage(
   }
 }
 
+const apiRateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimitApi(maxRequests: number, windowMs: number) {
+  return (req: any, res: any, next: any) => {
+    const now = Date.now();
+    const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
+    const existing = apiRateBuckets.get(key);
+
+    if (!existing || now >= existing.resetAt) {
+      apiRateBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      next();
+      return;
+    }
+
+    if (existing.count >= maxRequests) {
+      res.setHeader('Retry-After', Math.ceil((existing.resetAt - now) / 1000));
+      res.status(429).json({ error: 'Too many AI requests. Please try again later.' });
+      return;
+    }
+
+    existing.count += 1;
+    next();
+  };
+}
+
+function validateAiPayload(req: any, res: any, next: any) {
+  const body = req.body || {};
+  const prompt = typeof body.prompt === 'string' ? body.prompt : '';
+  const systemInstruction =
+    typeof body.systemInstruction === 'string' ? body.systemInstruction : '';
+
+  if (prompt.length > 20000 || systemInstruction.length > 12000) {
+    res.status(413).json({ error: 'AI prompt is too large.' });
+    return;
+  }
+
+  const imageDataUrl = typeof body.imageDataUrl === 'string' ? body.imageDataUrl : '';
+  const base64Image = typeof body.base64Image === 'string' ? body.base64Image : '';
+  const base64Audio = typeof body.base64Audio === 'string' ? body.base64Audio : '';
+
+  if (imageDataUrl.length > 12 * 1024 * 1024
+      || base64Image.length > 12 * 1024 * 1024
+      || base64Audio.length > 16 * 1024 * 1024) {
+    res.status(413).json({ error: 'Uploaded AI media is too large.' });
+    return;
+  }
+
+  next();
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  // The server-side AI routes can spend provider quota, so keep abuse bounded even
+  // when this server is exposed directly to the public internet.
+  app.use('/api/ai', rateLimitApi(30, 60_000), validateAiPayload);
+  app.use(express.json({ limit: '20mb' }));
 
   app.get('/api/health', (_req, res) => {
     const envKey = (process.env.GEMINI_API_KEY || '').trim();
