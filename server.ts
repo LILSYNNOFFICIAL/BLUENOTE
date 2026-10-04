@@ -118,8 +118,10 @@ async function fetchWikimediaSubjectImage(
 
     const imgController = new AbortController();
     const imgTimer = setTimeout(() => imgController.abort(), 8000);
+    if (!isSafeOutboundImageUrl(imgUrl)) return null;
     const imgResp = await fetch(imgUrl, {
       signal: imgController.signal,
+      redirect: 'error',
       headers: { 'User-Agent': 'BlueNoteStudio/1.0' },
     });
     clearTimeout(imgTimer);
@@ -141,6 +143,38 @@ async function fetchWikimediaSubjectImage(
     };
   } catch {
     return null;
+  }
+}
+
+function isSafeOutboundImageUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      host === 'localhost' ||
+      host === 'metadata.google.internal' ||
+      host === 'metadata.amazonaws.com' ||
+      host.endsWith('.local') ||
+      host === '::1' ||
+      host.startsWith('fc') ||
+      host.startsWith('fd') ||
+      host.startsWith('fe80:')
+    ) return false;
+    const octets = host.split('.').map(Number);
+    if (
+      octets.length === 4 &&
+      octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) &&
+      (octets[0] === 10 ||
+        octets[0] === 127 ||
+        octets[0] === 0 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168))
+    ) return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -494,10 +528,12 @@ async function startServer() {
             ? `${space.baseUrl}/gradio_api/file=${fileObj.path}`
             : null);
         if (!fileUrl) continue;
+        const parsedFileUrl = new URL(String(fileUrl));
+        if (parsedFileUrl.protocol !== 'https:' || parsedFileUrl.hostname !== new URL(space.baseUrl).hostname || parsedFileUrl.username || parsedFileUrl.password || parsedFileUrl.port) continue;
 
         const imgController = new AbortController();
         const imgTimer = setTimeout(() => imgController.abort(), 9000);
-        const imgResp = await fetch(fileUrl, { signal: imgController.signal });
+        const imgResp = await fetch(parsedFileUrl, { signal: imgController.signal, redirect: 'error' });
         clearTimeout(imgTimer);
         if (!imgResp.ok) continue;
 
@@ -552,8 +588,10 @@ async function startServer() {
         try {
           const imgCtrl = new AbortController();
           const imgTimer = setTimeout(() => imgCtrl.abort(), 5500);
-          const imgResp = await fetch(chosen.url, {
+          if (!isSafeOutboundImageUrl(String(chosen.url))) continue;
+          const imgResp = await fetch(String(chosen.url), {
             signal: imgCtrl.signal,
+            redirect: 'error',
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BlueNoteStudio/2.0)' },
           });
           clearTimeout(imgTimer);
