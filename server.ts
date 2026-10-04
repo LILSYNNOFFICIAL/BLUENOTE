@@ -179,12 +179,28 @@ function isSafeOutboundImageUrl(rawUrl: string): boolean {
 }
 
 const apiRateBuckets = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_KEYS = 10_000;
 
 function rateLimitApi(maxRequests: number, windowMs: number) {
   return (req: any, res: any, next: any) => {
     const now = Date.now();
     const key = String(req.ip || req.socket?.remoteAddress || 'unknown');
     const existing = apiRateBuckets.get(key);
+
+    // Bound attacker-controlled cardinality. Without a cap, a botnet or spoofed
+    // proxy address set could grow this in-memory map until the Node process runs OOM.
+    if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS && !existing) {
+      for (const [oldKey, bucket] of apiRateBuckets) {
+        if (now >= bucket.resetAt) {
+          apiRateBuckets.delete(oldKey);
+        }
+        if (apiRateBuckets.size < MAX_RATE_LIMIT_KEYS) break;
+      }
+      if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS) {
+        const oldestKey = apiRateBuckets.keys().next().value;
+        if (typeof oldestKey === 'string') apiRateBuckets.delete(oldestKey);
+      }
+    }
 
     if (!existing || now >= existing.resetAt) {
       apiRateBuckets.set(key, { count: 1, resetAt: now + windowMs });
