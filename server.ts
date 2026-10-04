@@ -172,7 +172,7 @@ function rateLimitApi(maxRequests: number, windowMs: number) {
 
 async function requireFirebaseAuth(req: any, res: any, next: any) {
   const header = String(req.headers.authorization || '');
-  const match = header.match(/^Bearer\\s+(.+)$/i);
+  const match = header.match(/^Bearer\s+(.+)$/i);
   const idToken = match?.[1]?.trim();
   const apiKey = String(process.env.FIREBASE_WEB_API_KEY || firebaseConfig.apiKey || '').trim();
 
