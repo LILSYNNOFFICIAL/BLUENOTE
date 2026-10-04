@@ -103,7 +103,7 @@ async function validateProjectFile(file: File): Promise<{ extension: string; mim
 
 export async function downloadProtectedProjectFile(storagePath: string, filename: string): Promise<void> {
   if (!auth.currentUser) throw new Error('You must be signed in to download files.');
-  if (!/^users\\/[A-Za-z0-9_-]+\\/project-files\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9._() -]{1,180}$/.test(storagePath)) {
+  if (!/^users\/[A-Za-z0-9_-]+\/project-files\/[A-Za-z0-9_-]+\/[A-Za-z0-9._() -]{1,180}$/.test(storagePath)) {
     throw new Error('Invalid protected file reference.');
   }
   if (!storagePath.startsWith(`users/${auth.currentUser.uid}/project-files/`)) {
@@ -143,7 +143,6 @@ export async function streamUploadFileInChunks(params: {
   completedChunks: number;
   extractedText: string;
   storagePath?: string;
-  downloadUrl?: string;
 }> {
   const { file, jobId, shouldPause, shouldCancel, onProgress } = params;
   const { extension, mime } = await validateProjectFile(file);
