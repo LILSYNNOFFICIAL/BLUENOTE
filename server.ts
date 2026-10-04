@@ -191,9 +191,7 @@ function rateLimitApi(maxRequests: number, windowMs: number) {
     // proxy address set could grow this in-memory map until the Node process runs OOM.
     if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS && !existing) {
       for (const [oldKey, bucket] of apiRateBuckets) {
-        if (now >= bucket.resetAt) {
-          apiRateBuckets.delete(oldKey);
-        }
+        if (now >= bucket.resetAt) apiRateBuckets.delete(oldKey);
         if (apiRateBuckets.size < MAX_RATE_LIMIT_KEYS) break;
       }
       if (apiRateBuckets.size >= MAX_RATE_LIMIT_KEYS) {
