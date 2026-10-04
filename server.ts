@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import firebaseConfig from './firebase-applet-config.json';
 
 let envGeminiKeyDenied = false;
 
@@ -168,6 +169,54 @@ function rateLimitApi(maxRequests: number, windowMs: number) {
   };
 }
 
+
+async function requireFirebaseAuth(req: any, res: any, next: any) {
+  const header = String(req.headers.authorization || '');
+  const match = header.match(/^Bearer\\s+(.+)$/i);
+  const idToken = match?.[1]?.trim();
+  const apiKey = String(process.env.FIREBASE_WEB_API_KEY || firebaseConfig.apiKey || '').trim();
+
+  if (!idToken || !apiKey || idToken.length > 2000) {
+    res.status(401).json({ error: 'Authentication required.' });
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({ idToken }),
+      }
+    );
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      res.status(401).json({ error: 'Invalid or expired authentication token.' });
+      return;
+    }
+
+    const data: any = await response.json();
+    const user = Array.isArray(data?.users) ? data.users[0] : null;
+    if (!user?.localId || user.disabled === true) {
+      res.status(401).json({ error: 'Invalid or disabled account.' });
+      return;
+    }
+
+    req.firebaseUser = {
+      uid: String(user.localId),
+      email: typeof user.email === 'string' ? user.email : null,
+    };
+    next();
+  } catch {
+    res.status(503).json({ error: 'Authentication service unavailable.' });
+  }
+}
+
 function validateAiPayload(req: any, res: any, next: any) {
   const body = req.body || {};
   const prompt = typeof body.prompt === 'string' ? body.prompt : '';
@@ -210,7 +259,7 @@ async function startServer() {
 
   // The server-side AI routes can spend provider quota, so keep abuse bounded even
   // when this server is exposed directly to the public internet.
-  app.use('/api/ai', (req: any, res: any, next: any) => {
+  app.use('/api/ai', requireFirebaseAuth, (req: any, res: any, next: any) => {
     res.setHeader('Cache-Control', 'no-store');
     next();
   }, rateLimitApi(30, 60_000), validateAiPayload);
