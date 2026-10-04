@@ -424,7 +424,7 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
         const safeFilename = escapeHtml(doc.filename.slice(0, 180));
-          const safeContent = escapeHtml(doc.finalContent.slice(0, 5_000_000));
+        const safeContent = escapeHtml(doc.finalContent.slice(0, 5_000_000));
         printWin.document.write(
           `<html><head><title>${safeFilename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${safeFilename}</h1><pre>${safeContent}</pre><script>window.print();</script></body></html>`
         );
