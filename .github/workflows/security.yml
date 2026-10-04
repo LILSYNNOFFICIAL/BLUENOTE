@@ -44,14 +44,17 @@ jobs:
         with:
           category: /language:${{ matrix.language }}
 
-  dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
+  npm-audit:
+    name: npm audit
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Dependency review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate lockfile without lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+
+      - name: Audit production and development dependencies
+        run: npm audit --audit-level=high
