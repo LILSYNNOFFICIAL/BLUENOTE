@@ -9,7 +9,7 @@ import {
   ProjectTemplateType,
   SmartCollection,
 } from '../types/projectsOS';
-import { auth, storageRef, uploadBytesResumable, getDownloadURL } from '../firebase';
+import { auth, storage, storageRef, uploadBytesResumable, getBlob } from '../firebase';
 
 const IDB_NAME = 'bluenote_projects_os_chunks_v1';
 const IDB_STORE = 'file_chunks';
@@ -101,6 +101,31 @@ async function validateProjectFile(file: File): Promise<{ extension: string; mim
   return { extension, mime: policy.mime };
 }
 
+export async function downloadProtectedProjectFile(storagePath: string, filename: string): Promise<void> {
+  if (!auth.currentUser) throw new Error('You must be signed in to download files.');
+  if (!/^users\\/[A-Za-z0-9_-]+\\/project-files\\/[A-Za-z0-9_-]+\\/[A-Za-z0-9._() -]{1,180}$/.test(storagePath)) {
+    throw new Error('Invalid protected file reference.');
+  }
+  if (!storagePath.startsWith(`users/${auth.currentUser.uid}/project-files/`)) {
+    throw new Error('You are not authorized to download this file.');
+  }
+
+  const blob = await getBlob(storageRef(storage, storagePath));
+  const safeName = sanitizeStoredFilename(filename);
+  const url = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = safeName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }
+}
+
 export async function streamUploadFileInChunks(params: {
   file: File;
   jobId: string;
@@ -126,7 +151,7 @@ export async function streamUploadFileInChunks(params: {
   const userId = auth.currentUser!.uid;
   const fileId = crypto.randomUUID();
   const storagePath = `users/${userId}/project-files/${fileId}/${safeName}`;
-  const storageReference = storageRef((await import('../firebase')).storage, storagePath);
+  const storageReference = storageRef(storage, storagePath);
 
   if (shouldCancel()) return { status: 'cancelled', completedChunks: 0, extractedText: '' };
 
