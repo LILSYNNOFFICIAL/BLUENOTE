@@ -59,18 +59,18 @@ export async function saveFileChunkToIDB(
  * Extracts text from the first readable segments (up to 512KB of text) for instant indexing & editing.
  */
 const MAX_PROJECT_FILE_BYTES = 250 * 1024 * 1024;
-const ALLOWED_PROJECT_FILE_TYPES: Record<string, { mime: string; magic?: string }> = {
+const ALLOWED_PROJECT_FILE_TYPES: Record<string, { mime: string }> = {
   txt: { mime: 'text/plain' },
   md: { mime: 'text/markdown' },
-  doc: { mime: 'application/msword', magic: '\\xd0\\xcf\\x11\\xe0' },
-  docx: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', magic: 'PK' },
-  pdf: { mime: 'application/pdf', magic: '%PDF-' },
+  doc: { mime: 'application/msword' },
+  docx: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+  pdf: { mime: 'application/pdf' },
 };
 
 function sanitizeStoredFilename(name: string): string {
   const normalized = String(name || 'unnamed').normalize('NFKC');
   const base = normalized.split(/[\\/]/).pop() || 'unnamed';
-  const safe = base.replace(/[^a-zA-Z0-9._() -]/g, '_').replace(/\\.{2,}/g, '.').trim();
+  const safe = base.replace(/[^a-zA-Z0-9._() -]/g, '_').replace(/\.{2,}/g, '.').trim();
   return (safe || 'unnamed').slice(0, 180);
 }
 
@@ -80,11 +80,11 @@ async function validateProjectFile(file: File): Promise<{ extension: string; mim
     throw new Error('File is empty or exceeds the 250 MB project-file limit.');
   }
 
-  const extension = (file.name.match(/\\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+  const extension = (file.name.match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
   const policy = ALLOWED_PROJECT_FILE_TYPES[extension];
   if (!policy) throw new Error('Unsupported file type. Allowed: TXT, MD, DOC, DOCX, PDF.');
 
-  if (policy.magic) {
+  if (extension === 'doc' || extension === 'docx' || extension === 'pdf') {
     const sample = new Uint8Array(await file.slice(0, 8).arrayBuffer());
     const ascii = String.fromCharCode(...sample);
     if (extension === 'docx' && ascii.slice(0, 2) !== 'PK') {
@@ -216,7 +216,6 @@ export async function streamUploadFileInChunks(params: {
     return { status: 'paused', completedChunks: Math.floor(uploadTask.snapshot.bytesTransferred / CHUNK_SIZE_BYTES), extractedText: '' };
   }
 
-  const downloadUrl = await getDownloadURL(storageReference);
   const maxTextExtractBytes = 512 * 1024;
   let extractedText = '';
   const textSlice = file.slice(0, Math.min(file.size, maxTextExtractBytes));
@@ -243,7 +242,6 @@ export async function streamUploadFileInChunks(params: {
     completedChunks: Math.max(1, Math.ceil(totalBytes / CHUNK_SIZE_BYTES)),
     extractedText: extractedText.trim() || `# ${file.name}\\n\\nUploaded securely and indexed.`,
     storagePath,
-    downloadUrl,
   };
 }
 
