@@ -416,9 +416,19 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
     } else if (format === 'pdf') {
       const printWin = window.open('', '_blank', 'width=850,height=900');
       if (printWin) {
-        printWin.document.write(
-          `<html><head><title>${doc.filename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${doc.filename}</h1><pre>${doc.finalContent.replace(/</g, '&lt;')}</pre><script>window.print();</script></body></html>`
-        );
+        const escapeHtml = (value: string) =>
+          value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        if (printWin) {
+          const safeFilename = escapeHtml(doc.filename.slice(0, 180));
+          const safeContent = escapeHtml(doc.finalContent.slice(0, 5_000_000));
+          printWin.document.write(
+            `<html><head><title>${safeFilename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${safeFilename}</h1><pre>${safeContent}</pre><script>window.print();</script></body></html>`
+          );
         printWin.document.close();
         return;
       }
