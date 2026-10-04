@@ -176,12 +176,8 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) {
-            webView.loadUrl(APP_ORIGIN + APP_PATH_PREFIX + "index.html");
-            checkForPlaystoreUpdate();
-        } else {
-            webView.restoreState(savedInstanceState);
-        }
+        webView.loadUrl(APP_ORIGIN + APP_PATH_PREFIX + "index.html");
+        checkForPlaystoreUpdate();
     }
 
     private boolean isTrustedAppOrigin(Uri uri) {
@@ -201,7 +197,7 @@ public class MainActivity extends Activity {
             return;
         }
         String scheme = uri.getScheme().toLowerCase();
-        if (!"https".equals(scheme) && !"http".equals(scheme) && !"mailto".equals(scheme)
+        if (!"https".equals(scheme) && !"mailto".equals(scheme)
                 && !"tel".equals(scheme)) {
             return;
         }
@@ -321,14 +317,6 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        if (webView != null) {
-            webView.saveState(outState);
-        }
     }
 
     @Override
