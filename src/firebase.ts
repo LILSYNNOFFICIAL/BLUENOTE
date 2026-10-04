@@ -22,6 +22,8 @@ import {
   getDownloadURL,
   getBlob,
   deleteObject,
+} from 'firebase/storage';
+import {
   initializeFirestore,
   doc,
   getDocFromServer,
