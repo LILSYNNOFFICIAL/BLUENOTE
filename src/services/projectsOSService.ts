@@ -279,12 +279,32 @@ export async function extractDocxBinaryText(
         if (compressionMethod === 0) {
           xmlString = decoder.decode(rawSlice);
         } else if (compressionMethod === 8 && typeof DecompressionStream !== 'undefined') {
+          // Bound decompression to prevent ZIP/XML bombs from exhausting browser memory.
+          const MAX_DOCX_XML_BYTES = 4 * 1024 * 1024;
           const ds = new DecompressionStream('deflate-raw');
           const writer = ds.writable.getWriter();
-          writer.write(rawSlice);
-          writer.close();
-          const decompressedBuf = await new Response(ds.readable).arrayBuffer();
-          xmlString = decoder.decode(new Uint8Array(decompressedBuf));
+          await writer.write(rawSlice);
+          await writer.close();
+          const reader = ds.readable.getReader();
+          const chunks: Uint8Array[] = [];
+          let totalDecompressed = 0;
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            totalDecompressed += value.byteLength;
+            if (totalDecompressed > MAX_DOCX_XML_BYTES) {
+              await reader.cancel();
+              return null;
+            }
+            chunks.push(value);
+          }
+          const decompressedBuf = new Uint8Array(totalDecompressed);
+          let writeOffset = 0;
+          for (const chunk of chunks) {
+            decompressedBuf.set(chunk, writeOffset);
+            writeOffset += chunk.byteLength;
+          }
+          xmlString = decoder.decode(decompressedBuf);
         }
         if (xmlString && xmlString.includes('<w:')) {
           return parseWordXmlToMarkdown(xmlString, filename);
