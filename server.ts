@@ -197,10 +197,11 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  app.use(express.json({ limit: '20mb' }));
+
   // The server-side AI routes can spend provider quota, so keep abuse bounded even
   // when this server is exposed directly to the public internet.
   app.use('/api/ai', rateLimitApi(30, 60_000), validateAiPayload);
-  app.use(express.json({ limit: '20mb' }));
 
   app.get('/api/health', (_req, res) => {
     const envKey = (process.env.GEMINI_API_KEY || '').trim();
