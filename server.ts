@@ -197,11 +197,23 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+    next();
+  });
+
   app.use(express.json({ limit: '20mb' }));
 
   // The server-side AI routes can spend provider quota, so keep abuse bounded even
   // when this server is exposed directly to the public internet.
-  app.use('/api/ai', rateLimitApi(30, 60_000), validateAiPayload);
+  app.use('/api/ai', (req: any, res: any, next: any) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  }, rateLimitApi(30, 60_000), validateAiPayload);
 
   app.get('/api/health', (_req, res) => {
     const envKey = (process.env.GEMINI_API_KEY || '').trim();
