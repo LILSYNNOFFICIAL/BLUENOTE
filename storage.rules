@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Private per-user project files. There are deliberately no public catch-all rules.
+    match /users/{userId}/project-files/{fileId}/{fileName} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function validFileName() {
+        return fileName.size() >= 1
+          && fileName.size() <= 180
+          && fileName.matches('^[a-zA-Z0-9._() -]+$');
+      }
+
+      function validUpload() {
+        return request.resource.size > 0
+          && request.resource.size <= 250 * 1024 * 1024
+          && request.resource.contentType in [
+            'text/plain',
+            'text/markdown',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/pdf'
+          ]
+          && request.resource.metadata.ownerUid == userId
+          && request.resource.metadata.ownerUid == request.auth.uid
+          && request.resource.metadata.originalExtension in ['txt', 'md', 'doc', 'docx', 'pdf']
+          && request.resource.metadata.uploadJobId.size() >= 1
+          && request.resource.metadata.uploadJobId.size() <= 128;
+      }
+
+      allow get: if isOwner();
+      allow list: if false;
+      allow create: if isOwner() && validFileName() && validUpload();
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+
+    // Explicit deny for everything outside the private application namespace.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
