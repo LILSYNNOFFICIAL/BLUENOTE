@@ -431,6 +431,7 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
         printWin.document.close();
         return;
       }
+    }
 
     const blob = new Blob([outContent], { type: mime });
     const url = URL.createObjectURL(blob);
