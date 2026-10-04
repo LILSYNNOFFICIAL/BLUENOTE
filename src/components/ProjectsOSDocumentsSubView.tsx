@@ -416,19 +416,20 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
     } else if (format === 'pdf') {
       const printWin = window.open('', '_blank', 'width=850,height=900');
       if (printWin) {
-        const escapeHtml = (value: string) =>
-          value
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-        const safeFilename = escapeHtml(doc.filename.slice(0, 180));
-        const safeContent = escapeHtml(doc.finalContent.slice(0, 5_000_000));
-        printWin.document.write(
-          `<html><head><title>${safeFilename}</title><style>body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}</style></head><body><h1>${safeFilename}</h1><pre>${safeContent}</pre><script>window.print();</script></body></html>`
-        );
-        printWin.document.close();
+        const printDoc = printWin.document;
+        printDoc.title = doc.filename.slice(0, 180);
+        const style = printDoc.createElement('style');
+        style.textContent =
+          'body{font-family:system-ui,sans-serif;padding:40px;line-height:1.6;max-width:760px;margin:0 auto;}pre{white-space:pre-wrap;font-family:inherit;}';
+        const heading = printDoc.createElement('h1');
+        heading.textContent = doc.filename.slice(0, 180);
+        const pre = printDoc.createElement('pre');
+        pre.textContent = doc.finalContent.slice(0, 5_000_000);
+        printDoc.head.appendChild(style);
+        printDoc.body.appendChild(heading);
+        printDoc.body.appendChild(pre);
+        printWin.addEventListener('load', () => printWin.print(), { once: true });
+        printWin.setTimeout(() => printWin.print(), 250);
         return;
       }
     }
