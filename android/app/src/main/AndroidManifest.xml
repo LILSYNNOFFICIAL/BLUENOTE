@@ -36,11 +36,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
+// Share-intent handling is not implemented in MainActivity. Do not expose an
+// unnecessary exported SEND entry point that accepts attacker-controlled text.
+
         </activity>
     </application>
 </manifest>
