@@ -41,6 +41,7 @@ import {
   formatBytes,
   organizeProjectDocumentsWithAI,
   streamUploadFileInChunks,
+  downloadProtectedProjectFile,
 } from '../services/projectsOSService';
 
 interface ProjectsOSDocumentsSubViewProps {
@@ -234,7 +235,8 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
       finalContent: res.extractedText,
       currentStage: 'Original',
       currentVersionId: verId,
-      chunkStoredInIdb: true,
+      chunkStoredInIdb: false,
+      storagePath: res.storagePath,
       versions: [
         {
           id: verId,
@@ -1050,7 +1052,19 @@ export const ProjectsOSDocumentsSubView: React.FC<ProjectsOSDocumentsSubViewProp
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDownloadDocument(doc, doc.fileType === 'md' ? 'md' : 'txt')}
+                          onClick={async () => {
+                            try {
+                              if (doc.storagePath) {
+                                await downloadProtectedProjectFile(doc.storagePath, doc.filename);
+                                showToast(`Downloaded "${doc.filename}"`);
+                              } else {
+                                handleDownloadDocument(doc, doc.fileType === 'md' ? 'md' : 'txt');
+                              }
+                            } catch (error) {
+                              showToast(error instanceof Error ? error.message : 'Secure download failed.');
+                            }
+                          }}
+                          title={doc.storagePath ? 'Download original securely' : 'Export document'}
                           className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                           title="Download Document"
                         >
