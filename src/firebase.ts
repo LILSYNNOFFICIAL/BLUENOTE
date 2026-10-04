@@ -16,6 +16,11 @@ import {
   User,
 } from 'firebase/auth';
 import {
+  getStorage,
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
   initializeFirestore,
   doc,
   getDocFromServer,
@@ -60,6 +65,10 @@ export function getDetectedAppUrl(): string {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
+
+export { storageRef, uploadBytesResumable, getDownloadURL, deleteObject };
+
 export const db = initializeFirestore(
   app,
   {
