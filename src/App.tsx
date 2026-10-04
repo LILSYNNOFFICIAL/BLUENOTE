@@ -309,14 +309,21 @@ export default function App() {
     }, 3400);
   }, []);
 
-  // Save to localStorage on every workspace update
+  // Do not keep an additional plaintext workspace copy in localStorage once authenticated.
+  // Firestore provides the authenticated cloud persistence layer; signed-out/offline mode
+  // may still use localStorage for the local-only workspace.
   useEffect(() => {
+    if (!authReady) return;
+    if (currentUser) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
     } catch (e) {
       console.warn('LocalStorage quota warning:', e);
     }
-  }, [workspace]);
+  }, [workspace, authReady, currentUser]);
 
   // Handle Android Launcher App Shortcuts (?action=brain-dump, ?action=ocr-scanner, ?section=...) & Hardware Back Button
   useEffect(() => {
