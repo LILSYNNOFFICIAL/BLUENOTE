@@ -1453,15 +1453,20 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
   const initialTheme: PhotoAlbumTheme = album.theme || 'dark-cinema';
   const initialInterval = album.slideshowIntervalSec || 4;
 
+  // Encode JSON safely for an inline script. User-controlled strings can contain </script>.
+  // Escaping '<' prevents an attacker from terminating the script element before JSON.parse runs.
   const photosJson = JSON.stringify(
     album.photos.map((p) => ({
-      filename: p.filename,
-      caption: p.caption || p.filename,
-      src: p.dataUrl,
+      filename: String(p.filename || '').slice(0, 512),
+      caption: String(p.caption || p.filename || '').slice(0, 2000),
+      src: String(p.dataUrl || ''),
       takenAt: p.takenAt,
-      group: p.groupName || 'Portfolio',
+      group: String(p.groupName || 'Portfolio').slice(0, 256),
     }))
-  );
+  )
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 
   return `<!DOCTYPE html>
 <html lang="en" data-theme="${initialTheme}">
@@ -1614,16 +1619,37 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     let slideshowTimer = null;
     const gallery = document.getElementById('gallery');
 
+    function isSafeImageSource(src) {
+      return typeof src === 'string' && /^data:image\\/(?:png|jpe?g|webp|gif);base64,/i.test(src);
+    }
+
     function renderGallery() {
-      gallery.innerHTML = PHOTOS.map((p, i) => \`
-        <div class="card" onclick="openLightbox(\${i})">
-          <img src="\${p.src}" alt="\${p.caption}" loading="lazy" />
-          <div class="meta">
-            <div class="caption">\${p.caption}</div>
-            <div class="filename">\${p.filename}</div>
-          </div>
-        </div>
-      \`).join('');
+      gallery.replaceChildren();
+      PHOTOS.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.addEventListener('click', () => openLightbox(i));
+
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = String(p.caption || p.filename || '');
+        img.src = isSafeImageSource(p.src) ? p.src : '';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        caption.textContent = String(p.caption || p.filename || '');
+
+        const filename = document.createElement('div');
+        filename.className = 'filename';
+        filename.textContent = String(p.filename || '');
+
+        meta.append(caption, filename);
+        card.append(img, meta);
+        gallery.append(card);
+      });
     }
 
     function setTheme(themeName) {
