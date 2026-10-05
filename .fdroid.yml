@@ -20,9 +20,9 @@ RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 
 Builds:
-  - versionName: 1.0.2-fdroid
-    versionCode: 3
-    commit: 59fb76b38666e5f5a54d3c21a7d41726d58f8d07
+  - versionName: 1.0.3-fdroid
+    versionCode: 4
+    commit: 0ce3a83ea28bd72bab4b2e099ffaec4bd81c79a7
     subdir: android/app
     sudo:
       - apt-get update
