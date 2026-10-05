@@ -274,8 +274,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  const todayTasks = activeTasks.filter((t) => t.dueDate === todayISO && t.status !== 'Completed');
+  const overdueTasks = activeTasks.filter((t) => t.dueDate && t.dueDate < todayISO && t.status !== 'Completed');
+  const todayEvents = workspace.events.filter((e) => e.date === todayISO && !e.deletedAt);
+  const briefingItems = [
+    ...overdueTasks.slice(0, 2).map((t) => ({ kind: 'Overdue', title: t.title, action: () => onNavigate('tasks', t.id) })),
+    ...todayTasks.slice(0, 2).map((t) => ({ kind: 'Today', title: t.title, action: () => onNavigate('tasks', t.id) })),
+    ...todayEvents.slice(0, 2).map((e) => ({ kind: 'Calendar', title: e.title, action: () => onNavigate('calendar', e.id) })),
+  ].slice(0, 4);
+
   return (
     <div className="space-y-6 pb-12">
+      {briefingItems.length > 0 && (
+        <section className="bg-slate-950 text-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300">BlueNote Briefing</div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight mt-1">Here’s what matters today.</h2>
+              <p className="text-xs text-slate-400 mt-1">Based only on information you have actually saved in BlueNote.</p>
+            </div>
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-300">
+              <span>{overdueTasks.length} overdue</span>
+              <span className="text-slate-600">•</span>
+              <span>{todayTasks.length} tasks</span>
+              <span className="text-slate-600">•</span>
+              <span>{todayEvents.length} events</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5">
+            {briefingItems.map((item, index) => (
+              <button
+                key={item.kind + '-' + item.title + '-' + index}
+                type="button"
+                onClick={item.action}
+                className="text-left rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 px-3.5 py-3 transition-colors"
+              >
+                <div className="text-[10px] uppercase tracking-wider font-bold text-blue-300">{item.kind}</div>
+                <div className="text-xs font-semibold text-white truncate mt-1">{item.title}</div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Top Executive Command Hero & Natural Language Omnibox */}
       <div className="bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-6 relative overflow-hidden">
         {/* Subtle Top Accent Hairline */}
