@@ -636,6 +636,30 @@ export default function App() {
     [logActivity, showToast]
   );
 
+  const handleRememberInboxItem = useCallback(
+    (item: InboxItem) => {
+      const fact = item.rawContent.trim();
+      if (!fact) return;
+      setWorkspace((prev) => {
+        const existing = prev.settings.learnedMemoryFacts || [];
+        if (existing.some((saved) => saved.toLowerCase() === fact.toLowerCase())) return prev;
+        return {
+          ...prev,
+          settings: {
+            ...prev.settings,
+            learnedMemoryFacts: [fact, ...existing].slice(0, 100),
+          },
+          activityLog: [
+            logActivity('Remembered a personal fact', 'system', fact.slice(0, 120)),
+            ...prev.activityLog,
+          ],
+        };
+      });
+      showToast('Remembered for future BlueNote assistance');
+    },
+    [logActivity, showToast]
+  );
+
   // Commit items from Brain Dump or OCR Scanner directly into organized workspace collections
   const handleCommitBrainDumpItems = useCallback(
     (
@@ -1778,6 +1802,7 @@ export default function App() {
             {activeSection === 'inbox' && (
               <UniversalInboxView
                 workspace={workspace}
+                onRememberInboxItem={handleRememberInboxItem}
                 onCaptureToInbox={handleQuickCapture}
                 onApproveInboxItem={handleApproveInboxItem}
                 onApproveAllInbox={handleApproveAllInbox}
