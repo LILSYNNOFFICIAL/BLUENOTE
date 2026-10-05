@@ -852,3 +852,111 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+
+/* ============================================================================
+   BLUENOTE MODERN SHELL
+   Shared page frame + calm default light UI. Feature behavior remains owned
+   by the existing page components; this layer only standardizes presentation.
+   ============================================================================ */
+
+.bn-page-template {
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  min-height: 100%;
+}
+
+.bn-page-content {
+  width: 100%;
+  min-width: 0;
+  display: flow-root;
+}
+
+html.theme-light body,
+html.theme-light .bn-app-shell {
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+
+html.theme-light aside.bn-sidebar {
+  background: #ffffff !important;
+  border-right-color: #e8e8e8 !important;
+  box-shadow: 1px 0 12px rgba(0, 0, 0, 0.025) !important;
+}
+
+html.theme-light header.bn-header {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-bottom-color: #e9e9e9 !important;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.025) !important;
+}
+
+html.theme-light main .bg-white,
+html.theme-light .bn-card {
+  border-color: #e9e9e9 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025), 0 8px 24px -18px rgba(0, 0, 0, 0.16) !important;
+}
+
+html.theme-light main .bg-slate-50,
+html.theme-light main .bg-slate-50\/90,
+html.theme-light main .bg-slate-50\/80,
+html.theme-light main .bg-slate-50\/70,
+html.theme-light main .bg-slate-50\/50 {
+  background-color: #f7f7f7 !important;
+  border-color: #e9e9e9 !important;
+}
+
+html.theme-light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-light textarea,
+html.theme-light select {
+  background-color: #f7f7f7 !important;
+  border-color: #dedede !important;
+  color: #111111 !important;
+  box-shadow: none !important;
+}
+
+html.theme-light input:focus,
+html.theme-light textarea:focus,
+html.theme-light select:focus {
+  background-color: #ffffff !important;
+  border-color: #111111 !important;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08) !important;
+}
+
+/* Black-and-white navigation hierarchy for the default theme. */
+html.theme-light aside.bn-sidebar button.bg-blue-600 {
+  background: #111111 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html.theme-light aside.bn-sidebar button.bg-blue-600:hover {
+  background: #000000 !important;
+}
+
+/* Keep the global header focused. These are still available elsewhere in the
+   app, but no longer compete with Search, Capture, and Profile on every page. */
+@media (min-width: 1024px) {
+  .bn-header-actions .bn-header-optional {
+    display: none !important;
+  }
+}
+
+/* Give primary controls a crisp modern shape without changing their behavior. */
+.bn-page-template button,
+.bn-page-template input,
+.bn-page-template textarea,
+.bn-page-template select {
+  border-radius: 12px;
+}
+
+@media (max-width: 767px) {
+  .bn-page-template {
+    max-width: none;
+  }
+}
+
+/* Preserve the existing splash screen exactly as a product moment. */
+.bn-splash-preserve {
+  isolation: isolate;
+}
