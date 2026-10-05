@@ -677,6 +677,53 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               </label>
             </div>
           </div>
+
+          <div className="mt-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">BlueNote Memory</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Facts you explicitly asked BlueNote to remember. Nothing is added here automatically.
+                </p>
+              </div>
+              {(workspace.settings.learnedMemoryFacts || []).length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onUpdateSettings({ learnedMemoryFacts: [] })}
+                  className="text-[11px] font-semibold text-red-600 hover:text-red-700"
+                >
+                  Clear Memory
+                </button>
+              )}
+            </div>
+
+            {(workspace.settings.learnedMemoryFacts || []).length === 0 ? (
+              <div className="mt-3 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center">
+                <p className="text-xs text-slate-500">No remembered facts yet.</p>
+                <p className="text-[10px] text-slate-400 mt-1">Use “Remember This” in the Universal Inbox when you want BlueNote to retain something.</p>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {(workspace.settings.learnedMemoryFacts || []).map((fact, index) => (
+                  <div key={fact + index} className="flex items-start justify-between gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800">
+                    <p className="text-xs text-slate-700 dark:text-slate-300">{fact}</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateSettings({
+                          learnedMemoryFacts: (workspace.settings.learnedMemoryFacts || []).filter((_, i) => i !== index),
+                        })
+                      }
+                      className="text-[10px] font-semibold text-slate-400 hover:text-red-600 shrink-0"
+                      aria-label="Forget this fact"
+                    >
+                      Forget
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
