@@ -16,17 +16,17 @@
 | | Link |
 |---|---|
 | 🌐 **Web App** | [Open BlueNote](https://lilsynnofficial.github.io/BLUENOTE/) |
-| 📱 **Latest Android Release** | [v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3) |
-| 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk) |
-| 🛡️ **F-Droid APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-fdroid.apk) |
-| 🔐 **SHA-256 Checksums** | [SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/SHA256SUMS.txt) |
+| 📱 **Latest Published Android Release** | [v1.0.2](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.2) |
+| 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-playstore.apk) |
+| 🛡️ **F-Droid APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk) |
+| 🔐 **SHA-256 Checksums** | [SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/SHA256SUMS.txt) |
 | 💻 **Source Code** | [GitHub Repository](https://github.com/LILSYNNOFFICIAL/BLUENOTE) |
 | 🐛 **Bug Reports / Issues** | [GitHub Issues](https://github.com/LILSYNNOFFICIAL/BLUENOTE/issues) |
 | ⚙️ **CI / Validation** | [GitHub Actions](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/ci.yml) |
 | 🤖 **Android Release Pipeline** | [Build & Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml) |
 | 🌍 **Pages Deployment** | [Deployment Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/deploy.yml) |
 
-> **Current release: v1.0.3** — Play Store and F-Droid APKs are built and published from the verified Android release pipeline.
+> **Current published release: v1.0.2.** BlueNote `main` is now prepared for Android `1.0.3` with the security hardening described below; the new APK pair still requires the existing Android release workflow to publish a new tag.
 
 ## 🧠 What Is BlueNote?
 
@@ -94,14 +94,14 @@ BlueNote uses two Android product flavors:
 | `fdroid` | Local-first / free-software Android build | Excluded from F-Droid web bundle | F-Droid |
 | `playstore` | Google Play distribution | Supported where configured | Google Play |
 
-### v1.0.3
+### v1.0.3 source preparation
 
-- **Version:** `1.0.3`
-- **Version code:** `4`
-- **Release tag:** `v1.0.3`
+- **Source version:** `1.0.3`
+- **Android version code:** `4`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
+- **Release tag:** pending publication
 - **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
-- **Release:** [GitHub v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3)
+- **APK status:** the published APK pair remains v1.0.2 until the Android release workflow publishes v1.0.3.
 
 ### v1.0.2
 
@@ -115,15 +115,15 @@ BlueNote uses two Android product flavors:
 
 **Play Store variant**
 
-[⬇️ Download BlueNote Play Store APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk)
+[⬇️ Download BlueNote Play Store APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-playstore.apk)
 
 **F-Droid variant**
 
-[⬇️ Download BlueNote F-Droid APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-fdroid.apk)
+[⬇️ Download BlueNote F-Droid APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk)
 
 **Verify downloads**
 
-[🔐 Download SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/SHA256SUMS.txt)
+[🔐 Download SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/SHA256SUMS.txt)
 
 > The F-Droid APK in the GitHub release is the upstream build artifact. Official F-Droid inclusion and signing are handled separately by F-Droid maintainers.
 
