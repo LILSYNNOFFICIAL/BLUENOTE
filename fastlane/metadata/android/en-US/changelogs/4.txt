@@ -1,0 +1,5 @@
+BlueNote 1.0.3:
+- Security hardening for Android WebView origins, file access, mixed content, Safe Browsing, and app backups
+- Updated esbuild to satisfy Vite 8 peer dependency requirements
+- Added dependency audit and CodeQL security workflow
+- Updated F-Droid recipe to version code 4
