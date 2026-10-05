@@ -20,6 +20,7 @@ interface UniversalInboxViewProps {
   onDeleteInboxItem: (id: string) => void;
   onOpenBrainDump: (tab?: 'brain-dump' | 'ocr-scanner') => void;
   onClearProcessedInbox?: () => void;
+  onRememberInboxItem?: (item: InboxItem) => void;
 }
 
 export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
@@ -30,6 +31,7 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
   onDeleteInboxItem,
   onOpenBrainDump,
   onClearProcessedInbox,
+  onRememberInboxItem,
 }) => {
   const [captureInput, setCaptureInput] = useState('');
   const [categoryOverrides, setCategoryOverrides] = useState<Record<string, EntityType>>({});
@@ -151,6 +153,22 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span>{item.aiExplanation}</span>
                 </p>
+                {onRememberInboxItem &&
+                  (/\b(my|our|favorite|favourite|prefer|usually|always|lives|works at|birthday|address|phone|email|number is|is my)\b/i.test(item.rawContent) ||
+                    Boolean(item.extractedMetadata?.phone || item.extractedMetadata?.email || item.extractedMetadata?.company)) && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => onRememberInboxItem(item)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-900 text-[11px] font-semibold hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
+                        title="Save this fact to BlueNote Memory"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Remember This
+                      </button>
+                      <span className="text-[10px] text-slate-400">Saved to BlueNote Memory only when you approve it</span>
+                    </div>
+                  )}
               </div>
 
               <div className="flex flex-wrap md:flex-col items-end justify-between gap-2.5 shrink-0">
