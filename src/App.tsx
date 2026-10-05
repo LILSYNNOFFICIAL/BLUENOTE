@@ -293,8 +293,13 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<'local' | 'synced' | 'syncing' | 'offline'>('local');
   const [headerQuickInput, setHeaderQuickInput] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [localSaveState, setLocalSaveState] = useState<'saved' | 'saving' | 'offline'>('saved');
+  const [canUndo, setCanUndo] = useState(false);
 
   const isApplyingRemoteUpdate = useRef(false);
+  const isUndoing = useRef(false);
+  const undoStack = useRef<WorkspaceState[]>([]);
+  const lastWorkspaceSnapshot = useRef<string | null>(null);
   const mainScrollRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -310,14 +315,54 @@ export default function App() {
     }, 3400);
   }, []);
 
-  // Save to localStorage on every workspace update
+  // Local autosave + lightweight undo history. Every workspace mutation is still
+  // immediately persisted locally, while the previous snapshot remains available
+  // for one-tap recovery. Remote Firestore updates are not added to the undo stack.
   useEffect(() => {
+    const serialized = JSON.stringify(workspace);
+
+    if (
+      lastWorkspaceSnapshot.current &&
+      lastWorkspaceSnapshot.current !== serialized &&
+      !isApplyingRemoteUpdate.current &&
+      !isUndoing.current
+    ) {
+      try {
+        const previous = JSON.parse(lastWorkspaceSnapshot.current) as WorkspaceState;
+        undoStack.current = [...undoStack.current, previous].slice(-20);
+        setCanUndo(true);
+      } catch {
+        // Ignore malformed history snapshots and keep autosave working.
+      }
+    }
+
+    lastWorkspaceSnapshot.current = serialized;
+    setLocalSaveState('saving');
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+      localStorage.setItem(STORAGE_KEY, serialized);
+      setLocalSaveState('saved');
     } catch (e) {
       console.warn('LocalStorage quota warning:', e);
+      setLocalSaveState('offline');
+    }
+
+    if (isUndoing.current) {
+      isUndoing.current = false;
     }
   }, [workspace]);
+
+  const handleUndo = useCallback(() => {
+    const previous = undoStack.current.pop();
+    if (!previous) {
+      setCanUndo(false);
+      showToast('Nothing to undo yet');
+      return;
+    }
+    isUndoing.current = true;
+    setCanUndo(undoStack.current.length > 0);
+    setWorkspace(previous);
+    showToast('Undid the last change');
+  }, [showToast]);
 
   // Handle Android Launcher App Shortcuts (?action=brain-dump, ?action=ocr-scanner, ?section=...) & Hardware Back Button
   useEffect(() => {
@@ -1530,6 +1575,34 @@ export default function App() {
                     'Sign Up / Profile'}
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title={canUndo ? 'Undo last BlueNote change' : 'Nothing to undo'}
+                aria-label={canUndo ? 'Undo last change' : 'Nothing to undo'}
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                  canUndo
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-400 hover:text-blue-600'
+                    : 'bg-slate-100/70 dark:bg-slate-800/60 border-slate-200/70 dark:border-slate-700/70 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span aria-hidden="true">↶</span>
+                <span className="hidden lg:inline">Undo</span>
+              </button>
+
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[10px] font-semibold border border-slate-200/70 dark:border-slate-700/70 bg-slate-50/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400"
+                title={localSaveState === 'saved' ? 'Your latest workspace changes are saved locally' : localSaveState === 'saving' ? 'Saving your workspace locally' : 'Local storage is unavailable; cloud sync may still work when signed in'}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  localSaveState === 'saved' ? 'bg-emerald-500' : localSaveState === 'saving' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'
+                }`} />
+                <span className="hidden lg:inline">
+                  {localSaveState === 'saved' ? 'Saved' : localSaveState === 'saving' ? 'Saving' : 'Local storage unavailable'}
+                </span>
+              </div>
 
               {/* Collapsible AI Assistant Panel Toggle */}
               <button
