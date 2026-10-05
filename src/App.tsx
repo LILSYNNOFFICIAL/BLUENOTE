@@ -1408,10 +1408,9 @@ export default function App() {
             <div className="bn-header-actions flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
-                className="bn-header-optional"
                 onClick={() => setAiKeysModalOpen(true)}
                 title={`Built-In AI Engine (${aiProviderLabel})`}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all shrink-0"
+                className="bn-header-optional px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all shrink-0"
               >
                 <Sparkles className="w-3.5 h-3.5 shrink-0" />
                 <span>AI Engine</span>
@@ -1422,7 +1421,6 @@ export default function App() {
                   onClick={install}
                   className="bn-header-optional hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
                   title="Install BlueNote App onto your Android or Desktop Home Screen"
-                  className="bn-header-optional hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden xl:inline">Install</span>
@@ -1441,7 +1439,7 @@ export default function App() {
               <button
                 onClick={() => setActiveSection('ai-studio')}
                 title="Open AI Image Generator"
-                className={`hidden sm:flex p-2 rounded-xl transition-colors items-center gap-1.5 text-xs font-semibold ${
+                className={`bn-header-optional hidden sm:flex p-2 rounded-xl transition-colors items-center gap-1.5 text-xs font-semibold ${
                   activeSection === 'ai-studio'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/25'
@@ -1452,7 +1450,6 @@ export default function App() {
               </button>
 
               <button
-                className="bn-header-optional hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
                 onClick={() => setBrainDumpModal({ open: true, tab: 'ocr-scanner' })}
                 title="Scan Receipt, Business Card, or Handwritten Note (OCR)"
                 className="bn-header-optional hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
