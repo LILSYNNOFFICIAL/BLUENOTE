@@ -16,7 +16,7 @@
 | | Link |
 |---|---|
 | 🌐 **Web App** | [Open BlueNote](https://lilsynnofficial.github.io/BLUENOTE/) |
-| 📱 **Latest Android Release** | [v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.2) |
+| 📱 **Latest Android Release** | [v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3) |
 | 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk) |
 | 🛡️ **F-Droid APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-fdroid.apk) |
 | 🔐 **SHA-256 Checksums** | [SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/SHA256SUMS.txt) |
@@ -94,6 +94,15 @@ BlueNote uses two Android product flavors:
 | `fdroid` | Local-first / free-software Android build | Excluded from F-Droid web bundle | F-Droid |
 | `playstore` | Google Play distribution | Supported where configured | Google Play |
 
+### v1.0.3
+
+- **Version:** `1.0.3`
+- **Version code:** `4`
+- **Release tag:** `v1.0.3`
+- **Package ID:** `io.github.lilsynnofficial.bluenote`
+- **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
+- **Release:** [GitHub v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3)
+
 ### v1.0.2
 
 - **Version:** `1.0.2`
@@ -106,11 +115,11 @@ BlueNote uses two Android product flavors:
 
 **Play Store variant**
 
-[⬇️ Download BlueNote Play Store APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-playstore.apk)
+[⬇️ Download BlueNote Play Store APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk)
 
 **F-Droid variant**
 
-[⬇️ Download BlueNote F-Droid APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk)
+[⬇️ Download BlueNote F-Droid APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-fdroid.apk)
 
 **Verify downloads**
 
