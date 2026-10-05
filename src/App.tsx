@@ -103,6 +103,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { OnboardingWizardModal } from './components/OnboardingWizardModal';
 import { AndroidInstallModal } from './components/AndroidInstallModal';
 import { BlueNoteLogo } from './components/BlueNoteLogo';
+import { BlueNotePageTemplate } from './components/BlueNotePageTemplate';
 import { PredictiveListsView } from './components/PredictiveListsView';
 import {
   DEFAULT_PERSONAL_PATTERNS,
@@ -1404,9 +1405,10 @@ export default function App() {
             </div>
 
             {/* Right: Built-In AI Status, Studio, Theme Bar, Cloud Sync, AI Drawer */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="bn-header-actions flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 type="button"
+                className="bn-header-optional"
                 onClick={() => setAiKeysModalOpen(true)}
                 title={`Built-In AI Engine (${aiProviderLabel})`}
                 className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] sm:text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all shrink-0"
@@ -1418,8 +1420,9 @@ export default function App() {
               {isInstallable && !isInstalled ? (
                 <button
                   onClick={install}
+                  className="bn-header-optional hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
                   title="Install BlueNote App onto your Android or Desktop Home Screen"
-                  className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
+                  className="bn-header-optional hidden sm:flex px-2.5 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-semibold items-center gap-1.5 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden xl:inline">Install</span>
@@ -1428,7 +1431,7 @@ export default function App() {
                 <button
                   onClick={() => setAndroidModalOpen(true)}
                   title="Android APK Download"
-                  className="hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
+                  className="bn-header-optional hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
                 >
                   <Smartphone className="w-4 h-4" />
                   <span className="hidden 2xl:inline">Android</span>
@@ -1449,9 +1452,10 @@ export default function App() {
               </button>
 
               <button
+                className="bn-header-optional hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
                 onClick={() => setBrainDumpModal({ open: true, tab: 'ocr-scanner' })}
                 title="Scan Receipt, Business Card, or Handwritten Note (OCR)"
-                className="hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
+                className="bn-header-optional hidden lg:flex p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-colors items-center gap-1.5 text-xs font-medium"
               >
                 <Camera className="w-4 h-4 text-blue-500" />
                 <span className="hidden 2xl:inline">OCR</span>
@@ -1459,7 +1463,7 @@ export default function App() {
 
               {/* Interactive 12-Theme Switcher Bar (Default: White 'light') */}
               <div
-                className="hidden md:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 max-w-[360px] xl:max-w-[520px] overflow-x-auto no-scrollbar"
+                className="bn-header-optional hidden md:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 max-w-[360px] xl:max-w-[520px] overflow-x-auto no-scrollbar"
                 role="group"
                 aria-label="Quick 12-Theme Switcher"
               >
@@ -1557,6 +1561,7 @@ export default function App() {
             ref={mainScrollRef}
             className="bn-main-scroll flex-1 min-h-0 p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 overflow-y-auto overflow-x-hidden"
           >
+            <BlueNotePageTemplate section={activeSection}>
             {/* Mobile Compact Quick Capture & Theme Strip (Visible only on Mobile < 768px) */}
             <div className="md:hidden mb-3.5 p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-2">
               <form
@@ -3296,6 +3301,7 @@ export default function App() {
                 onOpenAIKeysModal={() => setAiKeysModalOpen(true)}
               />
             )}
+            </BlueNotePageTemplate>
           </main>
         </div>
 
