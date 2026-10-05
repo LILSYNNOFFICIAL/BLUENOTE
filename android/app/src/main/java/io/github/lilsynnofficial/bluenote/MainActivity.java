@@ -61,15 +61,19 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowContentAccess(true);
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setTextZoom(100);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            settings.setSafeBrowsingEnabled(true);
+        }
 
         webView.setBackgroundColor(Color.parseColor("#FFFFFF"));
 
@@ -83,13 +87,16 @@ public class MainActivity extends Activity {
                 }
                 if (uri.getHost() != null) {
                     String host = uri.getHost().toLowerCase();
-                    if (host.contains("localhost")
-                            || host.contains("127.0.0.1")
-                            || host.endsWith("firebaseapp.com")
-                            || host.endsWith("web.app")
-                            || host.endsWith("google.com")
-                            || host.endsWith("googleapis.com")
-                            || host.endsWith("lilsynnofficial.github.io")) {
+                    if (host.equals("localhost")
+                            || host.equals("127.0.0.1")
+                            || host.equals("ai-studio-applet-webapp-d45ee.firebaseapp.com")
+                            || host.equals("ai-studio-applet-webapp-d45ee.web.app")
+                            || host.equals("google.com")
+                            || host.endsWith(".google.com")
+                            || host.equals("googleapis.com")
+                            || host.endsWith(".googleapis.com")
+                            || host.equals("lilsynnofficial.github.io")
+                            || host.endsWith(".lilsynnofficial.github.io")) {
                         return false;
                     }
                 }
@@ -105,12 +112,24 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
+                Uri origin = request.getOrigin();
+                String scheme = origin != null ? origin.getScheme() : null;
+                String host = origin != null ? origin.getHost() : null;
+                boolean trustedLocalOrigin = "file".equalsIgnoreCase(scheme);
+                boolean trustedWebOrigin = "lilsynnofficial.github.io".equalsIgnoreCase(host);
+                if (!trustedLocalOrigin && !trustedWebOrigin) {
+                    request.deny();
+                    return;
+                }
                 runOnUiThread(() -> request.grant(request.getResources()));
             }
 
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                callback.invoke(origin, true, false);
+                Uri uri = Uri.parse(origin);
+                boolean trusted = "file".equalsIgnoreCase(uri.getScheme())
+                        || "lilsynnofficial.github.io".equalsIgnoreCase(uri.getHost());
+                callback.invoke(origin, trusted, false);
             }
 
             @Override
