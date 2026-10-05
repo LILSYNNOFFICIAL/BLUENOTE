@@ -1461,7 +1461,12 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
       takenAt: p.takenAt,
       group: p.groupName || 'Portfolio',
     }))
-  );
+  )
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\\u2028/g, '\\u2028')
+    .replace(/\\u2029/g, '\\u2029');
 
   return `<!DOCTYPE html>
 <html lang="en" data-theme="${initialTheme}">
@@ -1615,15 +1620,32 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     const gallery = document.getElementById('gallery');
 
     function renderGallery() {
-      gallery.innerHTML = PHOTOS.map((p, i) => \`
-        <div class="card" onclick="openLightbox(\${i})">
-          <img src="\${p.src}" alt="\${p.caption}" loading="lazy" />
-          <div class="meta">
-            <div class="caption">\${p.caption}</div>
-            <div class="filename">\${p.filename}</div>
-          </div>
-        </div>
-      \`).join('');
+      gallery.replaceChildren();
+      PHOTOS.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.addEventListener('click', () => openLightbox(i));
+
+        const image = document.createElement('img');
+        image.src = typeof p.src === 'string' && p.src.startsWith('data:image/') ? p.src : '';
+        image.alt = String(p.caption || '');
+        image.loading = 'lazy';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        caption.textContent = String(p.caption || '');
+
+        const filename = document.createElement('div');
+        filename.className = 'filename';
+        filename.textContent = String(p.filename || '');
+
+        meta.append(caption, filename);
+        card.append(image, meta);
+        gallery.appendChild(card);
+      });
     }
 
     function setTheme(themeName) {
