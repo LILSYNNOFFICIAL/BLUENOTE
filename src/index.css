@@ -960,3 +960,116 @@ html.theme-light aside.bn-sidebar button.bg-blue-600:hover {
 .bn-splash-preserve {
   isolation: isolate;
 }
+
+
+/* ============================================================================
+   MOBILE-FIRST WORKSPACE POLISH
+   Keep the full feature set, but prevent desktop density from collapsing onto
+   narrow Android/WebView screens.
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  .bn-main-scroll {
+    padding: 0.75rem 0.75rem calc(5.5rem + var(--bn-safe-bottom)) !important;
+    scrollbar-gutter: auto;
+  }
+
+  .bn-page-template,
+  .bn-page-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .bn-page-content > * {
+    max-width: 100%;
+  }
+
+  .bn-header {
+    min-height: 56px;
+    padding-inline: 0.625rem !important;
+    gap: 0.375rem !important;
+  }
+
+  .bn-header > div:first-child {
+    min-width: 0;
+  }
+
+  .bn-header-actions {
+    gap: 0.375rem !important;
+  }
+
+  .bn-header-actions > button {
+    min-width: 36px;
+    min-height: 36px;
+    justify-content: center;
+  }
+
+  .bn-header-actions .bn-header-optional {
+    display: none !important;
+  }
+
+  .bn-header button {
+    touch-action: manipulation;
+  }
+
+  /* Long labels, tables, charts, and toolbars should scroll inside themselves,
+     rather than forcing the entire workspace wider than the viewport. */
+  .bn-page-content .overflow-x-auto {
+    max-width: 100%;
+    scrollbar-width: thin;
+  }
+
+  .bn-page-content table {
+    min-width: max-content;
+  }
+
+  .bn-page-content img,
+  .bn-page-content svg {
+    max-width: 100%;
+  }
+
+  /* Make common dashboard grids collapse cleanly instead of producing tiny
+     cards side-by-side. */
+  .bn-page-content .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .bn-page-content .grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+
+  /* Preserve deliberate compact controls such as theme buttons and icon rows. */
+  .bn-page-content .grid.grid-cols-3.gap-1\.5,
+  .bn-page-content .grid.grid-cols-3.gap-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  /* Mobile drawer is a real sheet, not a shrunken desktop sidebar. */
+  .bn-mobile-sheet {
+    padding-bottom: max(1rem, var(--bn-safe-bottom));
+  }
+
+  /* Prevent fixed toast/banner controls from covering the bottom navigation. */
+  .bn-toast-mobile-safe {
+    bottom: calc(4.75rem + var(--bn-safe-bottom)) !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+  }
+}
+
+/* Slightly larger touch targets on Android/WebView without making the desktop
+   UI chunky. */
+@media (pointer: coarse) and (max-width: 767px) {
+  button,
+  a[role="button"],
+  select {
+    min-height: 42px;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea {
+    min-height: 44px;
+  }
+}
