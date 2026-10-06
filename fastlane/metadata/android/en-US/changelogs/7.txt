@@ -1,0 +1,4 @@
+BlueNote 1.0.8:
+- F-Droid release metadata aligned with Android version 1.0.8
+- Version code 7 preserves monotonic Android update ordering
+- Release continues the verified F-Droid hardening work
