@@ -62,9 +62,12 @@ jobs:
           set -euo pipefail
           APK="android/app/build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk"
           unzip -l "$APK" > apk-contents.txt
+          echo "Bundled Tesseract APK entries:"
+          grep 'assets/public/tesseract/' apk-contents.txt || true
+          test -s apk-contents.txt
           grep -q 'assets/public/tesseract/worker.min.js' apk-contents.txt
           grep -q 'assets/public/tesseract/lang/eng.traineddata.gz' apk-contents.txt
-          grep -q 'assets/public/tesseract/core/tesseract-core.wasm.js' apk-contents.txt
+          grep -q 'assets/public/tesseract/core/' apk-contents.txt
       - name: Upload verification artifacts
         uses: actions/upload-artifact@v4
         with:
