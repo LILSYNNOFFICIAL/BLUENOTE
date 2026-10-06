@@ -6,6 +6,7 @@ import {
   SuggestedAction,
   WorkspaceState,
 } from '../types/bluenote';
+import { IS_FDROID_BUILD } from '../buildConfig';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 const tomorrowISO = () => new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -628,7 +629,13 @@ export async function performOCRAndExtract(
   if (imageDataUrl && imageDataUrl.includes('base64,')) {
     try {
       const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng');
+      const ocrAssetRoot = new URL('./assets/ocr/', window.location.href).toString();
+      const worker = await createWorker('eng', 1, {
+        workerPath: new URL('worker.min.js', ocrAssetRoot).toString(),
+        corePath: ocrAssetRoot,
+        langPath: ocrAssetRoot,
+        gzip: true,
+      });
       const result = await worker.recognize(imageDataUrl);
       await worker.terminate();
       const extractedText = String(result?.data?.text || '').trim();
@@ -986,6 +993,7 @@ export async function callConfiguredOrFreeTextAI(
   prompt: string,
   systemInstruction = 'You are BlueNote AI, a helpful, concise executive assistant.'
 ): Promise<{ text: string; modelUsed: string } | null> {
+  if (IS_FDROID_BUILD) return null;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
 
   // Tier 1: Server-managed AI proxy (/api/ai/chat) — all credentials remain strictly server-side
@@ -2006,6 +2014,7 @@ async function callClientGradioFluxImage(
   width: number,
   height: number
 ): Promise<{ dataUrl: string; modelName: string } | null> {
+  if (IS_FDROID_BUILD) return null;
   const crispPrompt = `${visualPrompt}, ultra-crisp 8k UHD resolution, razor-sharp focus, intricate micro-details, professional studio lighting, DSLR masterpiece`;
   const clampedW = Math.min(1280, Math.max(512, Math.round(width / 32) * 32));
   const clampedH = Math.min(1280, Math.max(512, Math.round(height / 32) * 32));
