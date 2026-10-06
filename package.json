@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node --import tsx server.ts",
-    "build": "vite build",
+    "build": "npm run prepare:local-assets && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "android:sync": "npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/",
     "android:fdroid": "npm run android:sync:fdroid && cd android && gradle assembleFdroidRelease",
     "android:playstore": "npm run android:sync && cd android && gradle bundlePlaystoreRelease",
-    "android:sync:fdroid": "rm -rf android/app/src/main/assets/public && F_DROID_BUILD=true npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/"
+    "android:sync:fdroid": "rm -rf android/app/src/main/assets/public && F_DROID_BUILD=true npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/",
+    "prepare:local-assets": "node scripts/prepare-local-assets.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -30,7 +31,11 @@
     "vite": "^8.3.0",
     "ws": "^8.22.0",
     "react-is": "^19.3.0",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@fontsource/plus-jakarta-sans": "5.3.0",
+    "@tesseract.js-data/eng": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
