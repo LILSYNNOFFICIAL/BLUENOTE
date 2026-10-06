@@ -32,7 +32,8 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Install locked F-Droid dependencies
-        run: npm ci --omit=optional --legacy-peer-deps --no-fund --no-audit
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
+          rm -rf node_modules/firebase node_modules/@google/genai
       - name: Build F-Droid web assets
         run: npm run android:sync:fdroid
       - name: Build F-Droid APK
