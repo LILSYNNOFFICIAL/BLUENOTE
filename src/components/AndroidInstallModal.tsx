@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
+declare const __BLUENOTE_FDROID_BUILD__: boolean;
+
 interface AndroidInstallModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,7 +27,7 @@ export const AndroidInstallModal: React.FC<AndroidInstallModalProps> = ({ isOpen
   );
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen || __BLUENOTE_FDROID_BUILD__) return null;
 
   const copyCommand = (cmd: string) => {
     navigator.clipboard.writeText(cmd);
