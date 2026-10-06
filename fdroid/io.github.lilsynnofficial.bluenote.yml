@@ -20,16 +20,16 @@ RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 
 Builds:
-  - versionName: 1.0.3-fdroid
-    versionCode: 4
-    commit: dc05022788d65050218c7eb2249712c4c1344707
+  - versionName: 1.0.8-fdroid
+    versionCode: 5
+    commit: PINNED_RELEASE_COMMIT
     subdir: android/app
     sudo:
       - apt-get update
       - apt-get install -y nodejs npm
     init:
       - cd ../..
-      - npm install --legacy-peer-deps --no-fund --no-audit
+      - npm ci --legacy-peer-deps --no-fund --no-audit
       - F_DROID_BUILD=true npm run build
       - mkdir -p android/app/src/main/assets/public
       - cp -r dist/* android/app/src/main/assets/public/
@@ -39,5 +39,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.2-fdroid
-CurrentVersionCode: 3
+CurrentVersion: 1.0.8-fdroid
+CurrentVersionCode: 5
