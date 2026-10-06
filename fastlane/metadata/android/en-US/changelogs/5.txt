@@ -1,0 +1,4 @@
+BlueNote 1.0.4:
+- Publishes the post-merge F-Droid hardening as a new version because v1.0.3 is already immutable
+- Reproducible F-Droid build recipe now targets the hardened mainline commit
+- Version code 5 keeps F-Droid update ordering unambiguous

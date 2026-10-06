@@ -21,9 +21,9 @@ RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 
 Builds:
-  - versionName: 1.0.3
-    versionCode: 4
-    commit: d3ad2d703361c6af75b4b0c778246e9805626d26
+  - versionName: 1.0.4
+    versionCode: 5
+    commit: 9fec11efa7f849bf3d302e44b71ad5d8b1403b68
     subdir: android/app
     sudo:
       - apt-get update
@@ -39,5 +39,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.3
-CurrentVersionCode: 4
+CurrentVersion: 1.0.4
+CurrentVersionCode: 5
