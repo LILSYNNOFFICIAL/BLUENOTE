@@ -16,10 +16,14 @@ const tesseractRoot = path.dirname(require.resolve('tesseract.js/package.json'))
 const coreRoot = path.dirname(require.resolve('tesseract.js-core/package.json'));
 const engRoot = path.dirname(require.resolve('@tesseract.js-data/eng/package.json'));
 
-fs.copyFileSync(
-  path.join(tesseractRoot, 'dist', 'worker.min.js'),
-  path.join(publicTesseract, 'worker.min.js')
-);
+const workerPath = path.join(publicTesseract, 'worker.min.js');
+fs.copyFileSync(path.join(tesseractRoot, 'dist', 'worker.min.js'), workerPath);
+
+// The F-Droid build supplies every Tesseract runtime asset locally. Remove the
+// unused CDN fallback literal from the packaged worker so static network review
+// cannot mistake it for a runtime dependency.
+const worker = fs.readFileSync(workerPath, 'utf8');
+fs.writeFileSync(workerPath, worker.replace(/https:\\/\\/cdn\\.jsdelivr\\.net/g, ''));
 
 for (const filename of [
   'tesseract-core.wasm.js',
