@@ -2,9 +2,10 @@
 # Official submissions still belong in fdroiddata; this file makes the upstream
 # repository directly buildable with fdroidserver.
 Categories:
-  - Office
-  - Time
-  - Writing
+  - Habit Tracker
+  - Note
+  - OCR
+  - Task
 License: Apache-2.0
 AuthorName: LILSYNNOFFICIAL
 AuthorWebSite: https://github.com/LILSYNNOFFICIAL/BLUENOTE
@@ -31,9 +32,7 @@ Builds:
       - cd ../..
       - npm ci --legacy-peer-deps --no-fund --no-audit
       - rm -rf node_modules/firebase node_modules/@google/genai
-      - F_DROID_BUILD=true npm run build
-      - mkdir -p android/app/src/main/assets/public
-      - cp -r dist/* android/app/src/main/assets/public/
+      - npm run android:sync:fdroid
     gradle:
       - fdroid
     output: build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
