@@ -11,11 +11,11 @@ BlueNote is prepared for an official F-Droid submission using package ID `io.git
 - The F-Droid flavor excludes Firebase web authentication/synchronization from the APK.
 - F-Droid CI builds the local-only web bundle and `assembleFdroidRelease`.
 - The Android package ID is `io.github.lilsynnofficial.bluenote`.
-- F-Droid flavor version name is `1.0.1-fdroid`, version code `2`.
+- F-Droid flavor version name is `1.0.3`, version code `4`.
 
 ## Build
 
-The embedded recipe is pinned to the full source commit for the `1.0.1-fdroid` release. The official fdroiddata submission should use that same immutable source commit.
+The embedded recipe is pinned to the full source commit for the `1.0.3` release. The official fdroiddata submission should use that same immutable source commit.
 
 The build sequence is:
 
