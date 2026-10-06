@@ -1,5 +1,7 @@
 BlueNote 1.0.3:
-- Security hardening for Android WebView origins, file access, mixed content, Safe Browsing, and app backups
-- Updated esbuild to satisfy Vite 8 peer dependency requirements
-- Added dependency audit and CodeQL security workflow
-- Updated F-Droid recipe to version code 4
+- F-Droid build removes Firebase from the web bundle
+- F-Droid AI features no longer send workspace text or images to third-party AI services
+- Tesseract.js worker, core runtime, and English training data are bundled locally
+- Google Fonts are self-hosted through bundled OFL font packages
+- F-Droid Android install/update dialog is hidden
+- Release metadata and version code 4 are aligned with v1.0.3
