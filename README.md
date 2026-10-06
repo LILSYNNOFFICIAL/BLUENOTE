@@ -16,8 +16,8 @@
 | | Link |
 |---|---|
 | 🌐 **Web App** | [Open BlueNote](https://lilsynnofficial.github.io/BLUENOTE/) |
-| 📱 **Latest Published Android Release** | [v1.0.2](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.2) |
-| 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-playstore.apk) |
+| 📱 **Latest Published Android Release** | [v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3) |
+| 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk) |
 | 🛡️ **F-Droid APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk) |
 | 🔐 **SHA-256 Checksums** | [SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/SHA256SUMS.txt) |
 | 💻 **Source Code** | [GitHub Repository](https://github.com/LILSYNNOFFICIAL/BLUENOTE) |
@@ -26,7 +26,7 @@
 | 🤖 **Android Release Pipeline** | [Build & Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml) |
 | 🌍 **Pages Deployment** | [Deployment Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/deploy.yml) |
 
-> **Current published release: v1.0.2.** BlueNote `main` is now prepared for Android `1.0.3` with the security hardening described below; the new APK pair still requires the existing Android release workflow to publish a new tag.
+> **Release candidate: v1.0.3.** The F-Droid build is hardened to exclude Firebase, remote AI/image transports, remote OCR runtime downloads, and Google Fonts. The release workflow must publish the audited `v1.0.3` tag after CI/build verification.
 
 ## 🧠 What Is BlueNote?
 
@@ -99,7 +99,7 @@ BlueNote uses two Android product flavors:
 - **Source version:** `1.0.3`
 - **Android version code:** `4`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
-- **Release tag:** pending publication
+- **Release tag:** `v1.0.3` pending publication
 - **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
 - **APK status:** the published APK pair remains v1.0.2 until the Android release workflow publishes v1.0.3.
 
@@ -157,7 +157,7 @@ The F-Droid build metadata uses an immutable release commit rather than a moving
 ### Local F-Droid build
 
 ```bash
-npm install --legacy-peer-deps --no-fund --no-audit
+npm ci --legacy-peer-deps --no-fund --no-audit
 F_DROID_BUILD=true npm run build
 
 mkdir -p android/app/src/main/assets/public
@@ -345,4 +345,4 @@ See [LICENSE](LICENSE).
 
 ---
 
-**BlueNote v1.0.2** • Local-first organization • Android + Web • Apache 2.0
+**BlueNote v1.0.3** • Local-first organization • Android + Web • Apache 2.0
