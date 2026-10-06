@@ -21,7 +21,7 @@ function walk(dir) {
     else if (/\.(js|mjs|css|html|json|map)$/i.test(entry.name)) {
       let text = fs.readFileSync(full, 'utf8');
       const original = text;
-      for (const literal of forbidden.slice(0, 4)) {
+      for (const literal of forbidden) {
         text = text.replaceAll(literal, '');
       }
       if (text !== original) fs.writeFileSync(full, text);
