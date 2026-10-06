@@ -35,8 +35,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq librsvg2-bin
           mkdir -p fastlane/metadata/android/en-US/images
-          convert public/icon.svg -background none -resize 512x512 fastlane/metadata/android/en-US/images/icon.png
+          rsvg-convert -w 512 -h 512 public/icon.svg -o fastlane/metadata/android/en-US/images/icon.png
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add fastlane/metadata/android/en-US/images/icon.png
