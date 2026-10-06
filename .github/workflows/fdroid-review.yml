@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   fdroid-review:
@@ -31,6 +31,22 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Generate Fastlane icon from existing app icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fastlane/metadata/android/en-US/images
+          convert public/icon.svg -background none -resize 512x512 fastlane/metadata/android/en-US/images/icon.png
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fastlane/metadata/android/en-US/images/icon.png
+          if git diff --cached --quiet; then
+            echo "Fastlane icon already current."
+          else
+            git commit -m "build(fdroid): add Fastlane app icon"
+            git push
+          fi
+
       - name: Install locked F-Droid dependencies
         run: npm ci --legacy-peer-deps --no-fund --no-audit
           rm -rf node_modules/firebase node_modules/@google/genai
