@@ -1,4 +1,4 @@
-BlueNote 1.0.2:
+BlueNote 1.0.3:
 - Updated Android release pipeline and F-Droid packaging path
-- Local-only F-Droid flavor remains Firebase-free
-- Version code 3 / version 1.0.2
+- F-Droid flavor excludes Firebase, remote AI/image services, Google Fonts, and runtime OCR downloads
+- Version code 4 / version 1.0.3
