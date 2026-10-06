@@ -1,0 +1,4 @@
+BlueNote 1.0.5:
+- Publishes the verified F-Droid hardening under a new immutable release tag because v1.0.4 already exists and is immutable
+- Version code 6 keeps F-Droid update ordering unambiguous
+- F-Droid recipe targets the exact 1.0.5 version-bump commit
