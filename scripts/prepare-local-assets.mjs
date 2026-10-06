@@ -23,7 +23,7 @@ fs.copyFileSync(path.join(tesseractRoot, 'dist', 'worker.min.js'), workerPath);
 // unused CDN fallback literal from the packaged worker so static network review
 // cannot mistake it for a runtime dependency.
 const worker = fs.readFileSync(workerPath, 'utf8');
-fs.writeFileSync(workerPath, worker.replace(/https:\\/\\/cdn\\.jsdelivr\\.net/g, ''));
+fs.writeFileSync(workerPath, worker.replaceAll('https://cdn.jsdelivr.net', ''));
 
 for (const filename of [
   'tesseract-core.wasm.js',
