@@ -29,7 +29,8 @@ Builds:
       - apt-get install -y nodejs npm
     init:
       - cd ../..
-      - npm ci --omit=optional --legacy-peer-deps --no-fund --no-audit
+      - npm ci --legacy-peer-deps --no-fund --no-audit
+      - rm -rf node_modules/firebase node_modules/@google/genai
       - F_DROID_BUILD=true npm run build
       - mkdir -p android/app/src/main/assets/public
       - cp -r dist/* android/app/src/main/assets/public/
