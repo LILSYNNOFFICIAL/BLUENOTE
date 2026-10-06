@@ -90,7 +90,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-fund --no-audit
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
 
       - name: Build Play Store web bundle
         run: npm run android:sync
