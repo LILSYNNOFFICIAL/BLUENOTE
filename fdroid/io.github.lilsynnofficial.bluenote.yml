@@ -2,9 +2,10 @@
 # Official submissions still belong in fdroiddata; this file makes the upstream
 # repository directly buildable with fdroidserver.
 Categories:
-  - Office
-  - Time
-  - Writing
+  - Habit Tracker
+  - Note
+  - OCR
+  - Task
 License: Apache-2.0
 AuthorName: LILSYNNOFFICIAL
 AuthorWebSite: https://github.com/LILSYNNOFFICIAL/BLUENOTE
@@ -20,24 +21,23 @@ RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 
 Builds:
-  - versionName: 1.0.3-fdroid
+  - versionName: 1.0.3
     versionCode: 4
-    commit: dc05022788d65050218c7eb2249712c4c1344707
+    commit: d3ad2d703361c6af75b4b0c778246e9805626d26
     subdir: android/app
     sudo:
       - apt-get update
       - apt-get install -y nodejs npm
     init:
       - cd ../..
-      - npm install --legacy-peer-deps --no-fund --no-audit
-      - F_DROID_BUILD=true npm run build
-      - mkdir -p android/app/src/main/assets/public
-      - cp -r dist/* android/app/src/main/assets/public/
+      - npm ci --legacy-peer-deps --no-fund --no-audit
+      - rm -rf node_modules/firebase node_modules/@google/genai
+      - npm run android:sync:fdroid
     gradle:
       - fdroid
     output: build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.0.2-fdroid
-CurrentVersionCode: 3
+CurrentVersion: 1.0.3
+CurrentVersionCode: 4

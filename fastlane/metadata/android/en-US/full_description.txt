@@ -13,7 +13,7 @@ KEY CAPABILITIES:
 • Focus tools: use focus sessions, reminders, dashboards and energy modes without requiring an online account.
 
 F-DROID BUILD:
-The F-Droid variant is a dedicated local-only distribution flavor. It excludes the Firebase web SDK, cloud authentication and cloud workspace synchronization. The app remains useful without an account or cloud service.
+The F-Droid variant is a dedicated local-only distribution flavor. It excludes the Firebase web SDK, cloud authentication, cloud workspace synchronization, and remote AI/image services. OCR runtime code and English training data are bundled in the APK. The app remains useful without an account or cloud service.
 
 PRIVACY:
-BlueNote is open source and local-first. Optional online integrations are separated from the core local workflow. See PRIVACY_POLICY.md and the source repository for implementation details.
+BlueNote is open source and local-first. The F-Droid build keeps core capture, OCR, organization, and image synthesis on-device and does not send workspace text or images to third-party AI services. See PRIVACY_POLICY.md and the source repository for implementation details.

@@ -40,7 +40,6 @@ android {
         // F-Droid must receive an unsigned release APK and sign it itself.
         fdroid {
             dimension "distribution"
-            versionNameSuffix "-fdroid"
             buildConfigField "String", "DISTRIBUTION_CHANNEL", '"fdroid"'
         }
         // 2. Google Play Store Flavor: API 35 compliant for Android App Bundle (.aab)

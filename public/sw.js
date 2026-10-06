@@ -30,7 +30,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  if (url.pathname.includes('/api/') || url.hostname.includes('firestore.googleapis.com')) {
+  if (url.pathname.includes('/api/')) {
     return;
   }
   event.respondWith(

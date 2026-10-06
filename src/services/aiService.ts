@@ -1,3 +1,5 @@
+declare const __BLUENOTE_FDROID_BUILD__: boolean;
+
 import {
   AIAgentType,
   AIMessageSource,
@@ -628,7 +630,13 @@ export async function performOCRAndExtract(
   if (imageDataUrl && imageDataUrl.includes('base64,')) {
     try {
       const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng');
+      const worker = await createWorker('eng', 1, {
+        workerPath: './tesseract/worker.min.js',
+        corePath: './tesseract/core',
+        langPath: './tesseract/lang',
+        gzip: true,
+        workerBlobURL: false,
+      });
       const result = await worker.recognize(imageDataUrl);
       await worker.terminate();
       const extractedText = String(result?.data?.text || '').trim();
@@ -986,6 +994,8 @@ export async function callConfiguredOrFreeTextAI(
   prompt: string,
   systemInstruction = 'You are BlueNote AI, a helpful, concise executive assistant.'
 ): Promise<{ text: string; modelUsed: string } | null> {
+  // F-Droid deliberately has no cloud AI transport. Core capture/search remains local.
+  if (__BLUENOTE_FDROID_BUILD__) return null;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
 
   // Tier 1: Server-managed AI proxy (/api/ai/chat) — all credentials remain strictly server-side
@@ -2139,6 +2149,8 @@ export async function generateOrEditImage(params: {
   const visualPrompt = cleanImagePromptSubject(rawPrompt);
   const { width, height } = getAspectDimensions(params.aspectRatio || '16:9');
 
+  // F-Droid deliberately skips all remote image/AI providers and uses the local canvas engine below.
+  if (!__BLUENOTE_FDROID_BUILD__) {
   // Tier 1: Server-Side Multi-Engine Endpoint (/api/ai/image) — proxies FLUX.1-schnell, FLUX.1-Merged, Gemini, Openverse & Wikimedia!
   try {
     const resp = await fetch('/api/ai/image', {
@@ -2211,7 +2223,9 @@ export async function generateOrEditImage(params: {
     } catch {}
   }
 
-  // Tier 4: Guaranteed High-Definition On-Device Studio Subject & Scene Canvas Engine
+  }
+  
+  // F-Droid and offline fallback: Guaranteed High-Definition On-Device Studio Subject & Scene Canvas Engine
   await new Promise((r) => setTimeout(r, 220));
   const canvas = document.createElement('canvas');
   canvas.width = width;
