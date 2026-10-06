@@ -1,0 +1,7 @@
+BlueNote 1.0.8: F-Droid review fixes.
+- Removes Firebase and third-party cloud AI from the F-Droid build.
+- Bundles OCR worker, WebAssembly, and English language data locally.
+- Bundles Inter, JetBrains Mono, and Plus Jakarta Sans fonts locally.
+- Hides the developer APK install/update dialog in F-Droid builds.
+- Pins reproducible npm dependencies with package-lock.json and npm ci.
+- Aligns the Android release version and F-Droid metadata.
