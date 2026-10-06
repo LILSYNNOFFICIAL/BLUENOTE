@@ -6,17 +6,19 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node --import tsx server.ts",
-    "build": "vite build",
+    "build": "npm run prepare:ocr && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "android:sync": "npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/",
+    "android:sync": "npm run install:play-deps && npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/",
     "android:fdroid": "npm run android:sync:fdroid && cd android && gradle assembleFdroidRelease",
     "android:playstore": "npm run android:sync && cd android && gradle bundlePlaystoreRelease",
-    "android:sync:fdroid": "rm -rf android/app/src/main/assets/public && F_DROID_BUILD=true npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/"
+    "android:sync:fdroid": "rm -rf android/app/src/main/assets/public && F_DROID_BUILD=true npm run build && mkdir -p android/app/src/main/assets/public && cp -r dist/* android/app/src/main/assets/public/",
+    "install:play-deps": "npm install --no-save --package-lock=false --legacy-peer-deps firebase@12.19.0 @google/genai@2.4.0",
+    "prepare:ocr": "node scripts/prepare-local-ocr.mjs",
+    "install:ci": "npm ci --legacy-peer-deps --no-fund --no-audit"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.1.1",
@@ -30,7 +32,11 @@
     "vite": "^8.3.0",
     "ws": "^8.22.0",
     "react-is": "^19.3.0",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/plus-jakarta-sans": "^5.3.0",
+    "@tesseract.js-data/eng": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
@@ -43,9 +49,7 @@
     "typescript": "^7.0.2",
     "@types/express": "^4.17.21"
   },
-  "optionalDependencies": {
-    "firebase": "^12.19.0"
-  },
+  "optionalDependencies": {},
   "overrides": {
     "@grpc/grpc-js": "^1.14.5"
   }
