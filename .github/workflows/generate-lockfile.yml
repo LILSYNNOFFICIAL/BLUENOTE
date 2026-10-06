@@ -16,26 +16,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Generate package-lock.json when missing
+      - name: Refresh package-lock.json
+        run: npm install --package-lock-only --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile when changed
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -f package-lock.json ]]; then
-            echo "package-lock.json already exists."
-            exit 0
-          fi
-          npm install --package-lock-only --legacy-peer-deps --ignore-scripts --no-audit --no-fund
-      - name: Commit lockfile when generated
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! -f package-lock.json ]]; then
-            echo "No lockfile generated."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
           git diff --cached --quiet && exit 0
-          git commit -m "build: add reproducible npm lockfile"
+          git commit -m "build: refresh reproducible npm lockfile"
           git push
