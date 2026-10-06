@@ -5,7 +5,7 @@ BlueNote is a local-first Personal Organizer and Second Brain for notes, tasks, 
 KEY CAPABILITIES:
 • Local-first workspace: core notes, tasks, habits, projects, calendar data and settings work without an account.
 • Brain Dump & Quick Capture: turn natural-language input into organized tasks, notes, reminders, links and other items using local parsing.
-• OCR Scanner: process receipts, business cards and handwritten notes with a keyless local OCR path.
+• OCR Scanner: process receipts, business cards and handwritten notes with a bundled local OCR path that does not download executable code.
 • PROJECTS OS: organize project documents, tasks, versions, tags and research in structured workspaces.
 • Weekly Habits & Streak Analytics: track habits and review completion trends.
 • Second Brain Knowledge Graph: explore relationships between notes, tasks, projects, contacts and files.
@@ -13,7 +13,7 @@ KEY CAPABILITIES:
 • Focus tools: use focus sessions, reminders, dashboards and energy modes without requiring an online account.
 
 F-DROID BUILD:
-The F-Droid variant is a dedicated local-only distribution flavor. It excludes the Firebase web SDK, cloud authentication and cloud workspace synchronization. The app remains useful without an account or cloud service.
+The F-Droid variant is a dedicated local-only distribution flavor. It excludes the Firebase web SDK, cloud authentication, cloud workspace synchronization, third-party cloud AI providers, and online font/CDN assets. OCR worker code, WebAssembly, and English language data are bundled with the app. The app remains useful without an account or cloud service.
 
 PRIVACY:
 BlueNote is open source and local-first. Optional online integrations are separated from the core local workflow. See PRIVACY_POLICY.md and the source repository for implementation details.
