@@ -7,7 +7,11 @@ const forbidden = [
   'https://identitytoolkit.googleapis.com',
   'https://securetoken.googleapis.com',
   'https://firestore.googleapis.com',
+  'firebaseapp.com',
+  'firebasestorage.app',
+  'firebaseio.com',
   'https://',
+
 ];
 
 function walk(dir) {
