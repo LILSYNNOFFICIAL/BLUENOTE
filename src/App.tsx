@@ -1378,8 +1378,9 @@ export default function App() {
               <Smartphone className="w-4 h-4 shrink-0" />
               {!sidebarCollapsed && <span>Android APK</span>}
             </button>
+            )}
             <button
-              onClick={() => setOnboardingModalOpen(true)}
+              onClick={() => setOnboardingModalOpen(true)
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
             >
               <Sparkles className="w-4 h-4 shrink-0" />
@@ -1497,16 +1498,16 @@ export default function App() {
                   <span className="hidden xl:inline">Install</span>
                 </button>
               ) : (
-                {!IS_FDROID_BUILD && (
-                <button
-                  onClick={() => setAndroidModalOpen(true)}
-                  title="Android APK Download"
-                  className="bn-header-optional hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span className="hidden 2xl:inline">Android</span>
-                </button>
-                )}
+                !IS_FDROID_BUILD ? (
+                  <button
+                    onClick={() => setAndroidModalOpen(true)}
+                    title="Android APK Download"
+                    className="bn-header-optional hidden md:flex p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 transition-colors items-center gap-1.5 text-xs font-semibold"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    <span className="hidden 2xl:inline">Android</span>
+                  </button>
+                ) : null)
 
               <button
                 onClick={() => setActiveSection('ai-studio')}
