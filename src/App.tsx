@@ -59,6 +59,7 @@ import {
   WorkspaceState,
 } from './types/bluenote';
 import { initialWorkspace, PROJECT_TEMPLATES } from './data/initialWorkspace';
+import { IS_FDROID_BUILD } from './buildConfig';
 import {
   auth,
   db,
@@ -1369,6 +1370,7 @@ export default function App() {
               <Sparkles className="w-4 h-4 shrink-0" />
               {!sidebarCollapsed && <span>Built-In AI Engine</span>}
             </button>
+            {!IS_FDROID_BUILD && (
             <button
               onClick={() => setAndroidModalOpen(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
@@ -1495,6 +1497,7 @@ export default function App() {
                   <span className="hidden xl:inline">Install</span>
                 </button>
               ) : (
+                {!IS_FDROID_BUILD && (
                 <button
                   onClick={() => setAndroidModalOpen(true)}
                   title="Android APK Download"
@@ -1503,7 +1506,7 @@ export default function App() {
                   <Smartphone className="w-4 h-4" />
                   <span className="hidden 2xl:inline">Android</span>
                 </button>
-              )}
+                )}
 
               <button
                 onClick={() => setActiveSection('ai-studio')}
@@ -3728,10 +3731,12 @@ export default function App() {
           }}
         />
 
-        <AndroidInstallModal
-          isOpen={androidModalOpen}
-          onClose={() => setAndroidModalOpen(false)}
-        />
+        {!IS_FDROID_BUILD && (
+          <AndroidInstallModal
+            isOpen={androidModalOpen}
+            onClose={() => setAndroidModalOpen(false)}
+          />
+        )}
 
         {/* Splash Screen Startup */}
         {showSplash && (
