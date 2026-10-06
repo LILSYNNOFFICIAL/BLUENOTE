@@ -5,7 +5,7 @@ BlueNote is a local-first Personal Organizer and Second Brain for notes, tasks, 
 KEY CAPABILITIES:
 • Local-first workspace: core notes, tasks, habits, projects, calendar data and settings work without an account.
 • Brain Dump & Quick Capture: turn natural-language input into organized tasks, notes, reminders, links and other items using local parsing.
-• OCR Scanner: process receipts, business cards and handwritten notes with a bundled local OCR path that does not download executable code.
+• OCR Scanner: process receipts, business cards and handwritten notes with bundled local worker, WebAssembly, and English language data; no executable OCR code is downloaded at runtime.
 • PROJECTS OS: organize project documents, tasks, versions, tags and research in structured workspaces.
 • Weekly Habits & Streak Analytics: track habits and review completion trends.
 • Second Brain Knowledge Graph: explore relationships between notes, tasks, projects, contacts and files.
