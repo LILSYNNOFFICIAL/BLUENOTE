@@ -28,7 +28,7 @@ Builds:
     submodules: true
     sudo:
       - apt-get update
-      - apt-get install -y nodejs npm emscripten cmake make build-essential autoconf automake libtool pkg-config
+      - apt-get install -y nodejs npm emscripten cmake make build-essential autoconf automake libtool libtool-bin pkg-config
     init:
       - cd ../..
       - npm ci --legacy-peer-deps --no-fund --no-audit
