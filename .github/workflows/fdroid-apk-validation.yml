@@ -78,6 +78,13 @@ jobs:
       - name: Build and sync source-built F-Droid OCR assets
         run: npm run android:sync:fdroid
 
+      - name: Verify local-only OCR bundle
+        run: |
+          if grep -R -E 'text\\.pollinations\\.ai|\\.hf\\.space|cdn\\.jsdelivr\\.net|fonts\\.googleapis\\.com|identitytoolkit\\.googleapis\\.com|securetoken\\.googleapis\\.com|firestore\\.googleapis\\.com|firebaseapp\\.com' android/app/src/main/assets/public; then
+            echo "Unexpected third-party endpoint found in F-Droid web assets." >&2
+            exit 1
+          fi
+
       - name: Assemble unsigned F-Droid APK
         run: gradle -p android --no-daemon --stacktrace assembleFdroidRelease
 
