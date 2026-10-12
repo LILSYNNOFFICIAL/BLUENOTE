@@ -1,0 +1,51 @@
+name: F-Droid OCR source build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tesseract-source-build:
+    name: Debian source-built OCR bundle
+    runs-on: ubuntu-latest
+    container: node:22-trixie
+    steps:
+      - name: Checkout repository and pinned source submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Debian build tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git emscripten cmake make build-essential \
+            autoconf automake libtool pkg-config
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
+
+      - name: Build Tesseract.js-core from pinned source
+        run: npm run build:tesseract:fdroid
+
+      - name: Build and sync the F-Droid web bundle
+        run: npm run android:sync:fdroid
+
+      - name: Verify local OCR assets and forbidden network endpoints
+        run: |
+          test -s android/app/src/main/assets/public/tesseract/core/tesseract-core.wasm
+          test -s android/app/src/main/assets/public/tesseract/core/tesseract-core-simd.wasm
+          test -s android/app/src/main/assets/public/tesseract/worker.min.js
+          test -s android/app/src/main/assets/public/tesseract/lang/eng.traineddata.gz
+          if grep -R -E 'text\.pollinations\.ai|\.hf\.space|cdn\.jsdelivr\.net|fonts\.googleapis\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|firestore\.googleapis\.com|firebaseapp\.com' android/app/src/main/assets/public; then
+            echo "Unexpected third-party endpoint found in F-Droid web assets." >&2
+            exit 1
+          fi
