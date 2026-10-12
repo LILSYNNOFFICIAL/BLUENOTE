@@ -14,7 +14,7 @@ fs.mkdirSync(langOut, { recursive: true });
 
 const tesseractRoot = path.dirname(require.resolve('tesseract.js/package.json'));
 const coreRoot = process.env.BLUENOTE_TESSERACT_SOURCE_BUILD === 'true'
-  ? path.join(root, 'third_party', 'tesseract.js-core')
+  ? path.join(root, 'node_modules', '.cache', 'bluenote-tesseract-core')
   : path.dirname(require.resolve('tesseract.js-core/package.json'));
 if (process.env.BLUENOTE_TESSERACT_SOURCE_BUILD === 'true') {
   const sourceBuiltCore = path.join(coreRoot, 'tesseract-core.wasm');
