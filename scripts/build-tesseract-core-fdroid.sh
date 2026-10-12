@@ -66,4 +66,26 @@ for wasm_file in "$CORE_DIR"/tesseract-core*.wasm; do
   }
 done
 
-echo "Tesseract.js-core source build passed; all packaged OCR core files were generated locally."
+# Copy only the freshly built runtime outputs outside the submodule. F-Droid
+# can then remove all generated build products and the submodule's upstream
+# prebuilt WASM files from the source tree before scanning.
+CACHE_DIR="$ROOT_DIR/node_modules/.cache/bluenote-tesseract-core"
+mkdir -p "$CACHE_DIR"
+cp "${required_files[@]/#/$CORE_DIR/}" "$CACHE_DIR/"
+for filename in "${required_files[@]}"; do
+  cmp -s "$CORE_DIR/$filename" "$CACHE_DIR/$filename"
+done
+
+# Restore every submodule to its pinned source state and remove generated
+# intermediates. The copied, locally compiled files remain in node_modules
+# until the web bundle has been assembled.
+git -C "$CORE_DIR" submodule foreach --recursive 'git clean -fdx && git checkout -- .'
+git -C "$CORE_DIR" clean -fdx
+git -C "$CORE_DIR" checkout -- .
+if [ -n "$(git -C "$CORE_DIR" status --porcelain)" ]; then
+  echo "Tesseract.js-core source tree was not restored cleanly after compilation." >&2
+  git -C "$CORE_DIR" status --short >&2
+  exit 1
+fi
+
+echo "Tesseract.js-core source build passed; locally compiled OCR outputs were staged outside the source tree."
