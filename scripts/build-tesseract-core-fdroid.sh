@@ -7,7 +7,16 @@ VAR_FILE="$CORE_DIR/build-scripts/var.sh"
 TOOLCHAIN_FILE="/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake"
 EXPECTED_CORE_COMMIT="acffef2b66eb44a31df297e11d905f4b39001068"
 
-for command in emcc emconfigure emmake cmake make autoconf automake libtool pkg-config; do
+command -v emcc >/dev/null 2>&1 || {
+  echo "Missing required source-build tool: emcc" >&2
+  exit 1
+}
+EMSCRIPTEN_LLVM_BIN="$(emcc -v 2>&1 | sed -n 's/^InstalledDir: //p' | tail -n 1)"
+if [ -n "$EMSCRIPTEN_LLVM_BIN" ] && [ -d "$EMSCRIPTEN_LLVM_BIN" ]; then
+  export PATH="$EMSCRIPTEN_LLVM_BIN:$PATH"
+fi
+
+for command in emconfigure emmake cmake make autoconf automake libtool pkg-config clang llvm-ar; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "Missing required source-build tool: $command" >&2
     exit 1
