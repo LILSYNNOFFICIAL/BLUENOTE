@@ -13,7 +13,15 @@ fs.mkdirSync(coreOut, { recursive: true });
 fs.mkdirSync(langOut, { recursive: true });
 
 const tesseractRoot = path.dirname(require.resolve('tesseract.js/package.json'));
-const coreRoot = path.dirname(require.resolve('tesseract.js-core/package.json'));
+const coreRoot = process.env.BLUENOTE_TESSERACT_SOURCE_BUILD === 'true'
+  ? path.join(root, 'third_party', 'tesseract.js-core')
+  : path.dirname(require.resolve('tesseract.js-core/package.json'));
+if (process.env.BLUENOTE_TESSERACT_SOURCE_BUILD === 'true') {
+  const sourceBuiltCore = path.join(coreRoot, 'tesseract-core.wasm');
+  if (!fs.existsSync(sourceBuiltCore)) {
+    throw new Error('F-Droid OCR assets must be built from the pinned Tesseract.js-core source first.');
+  }
+}
 const engRoot = path.dirname(require.resolve('@tesseract.js-data/eng/package.json'));
 
 const workerPath = path.join(publicTesseract, 'worker.min.js');
