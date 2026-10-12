@@ -33,9 +33,6 @@ jobs:
       - name: Install locked JavaScript dependencies
         run: npm ci --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build Tesseract.js-core from pinned source
-        run: npm run build:tesseract:fdroid
-
       - name: Build and sync the F-Droid web bundle
         run: npm run android:sync:fdroid
 
