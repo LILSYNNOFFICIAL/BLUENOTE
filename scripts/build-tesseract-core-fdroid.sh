@@ -29,7 +29,7 @@ fi
 # 4.0.15); the standard, SIMD, LSTM and legacy variants are compiled from source.
 sed -i 's/^BUILD_WASM_RELAXED_SIMD=1$/BUILD_WASM_RELAXED_SIMD=0/' "$VAR_FILE"
 sed -i 's|TOOLCHAIN_FILE=\$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake|TOOLCHAIN_FILE=/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake|' "$VAR_FILE"
-sed -i '/"--closure 1"/d' "$VAR_FILE"
+sed -i '/closure 1/d' "$VAR_FILE"
 sed -i 's|^PROC=.*|PROC=1|' "$VAR_FILE"
 
 # Never let prebuilt artifacts from the source repository masquerade as build
