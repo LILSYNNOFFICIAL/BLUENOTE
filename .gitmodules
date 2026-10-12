@@ -1,0 +1,3 @@
+[submodule "third_party/tesseract.js-core"]
+	path = third_party/tesseract.js-core
+	url = https://github.com/naptha/tesseract.js-core.git
