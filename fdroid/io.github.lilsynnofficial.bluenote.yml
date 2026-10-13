@@ -23,16 +23,24 @@ Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
 Builds:
   - versionName: 1.0.8
     versionCode: 7
-    commit: 76e1ce4a99a1425b9cecdbfc3fe2de5614cf25ce
+    commit: 8081672728184ff58a5c045a17c1e97ae96ead86
     subdir: android/app
+    submodules: true
     sudo:
       - apt-get update
-      - apt-get install -y nodejs npm
+      - apt-get install -y nodejs npm emscripten cmake make build-essential autoconf automake libtool libtool-bin pkg-config
     init:
       - cd ../..
       - npm ci --legacy-peer-deps --no-fund --no-audit
       - rm -rf node_modules/firebase node_modules/@google/genai
       - npm run android:sync:fdroid
+    scanignore:
+      - android/app/src/main/assets/public/tesseract
+      - dist/tesseract
+      - public/tesseract
+    scandelete:
+      - node_modules
+      - third_party/tesseract.js-core
     gradle:
       - fdroid
     output: build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
