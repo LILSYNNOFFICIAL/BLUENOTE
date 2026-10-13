@@ -108,8 +108,8 @@ BlueNote uses two Android product flavors:
 - **Android version code:** `4`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
 - **Release tag:** historical preparation for `v1.0.3`; superseded by later releases
-- **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
-- **APK status:** use the current [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for available assets. Historical APK links below may point to older releases and should not be treated as the latest build.
+- **Security baseline:** Android backup is disabled and WebView file/content access settings are restricted. However, the current `main` activity still loads the packaged page through `file:///android_asset/public/index.html`; the proposed `WebViewAssetLoader` HTTPS-origin migration is in [draft PR #22](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) and is **not merged or shipped**. Do not treat that focused hardening as part of the published release until the PR is merged and device-tested.
+- **APK status:** use the [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) to check for actual uploaded assets. The latest 1.0.8 release currently has no uploaded APK/checksum assets.
 
 ### Historical releases and downloads
 
