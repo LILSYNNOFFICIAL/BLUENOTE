@@ -1688,6 +1688,8 @@ export const ProjectsOSModulesSubView: React.FC<ProjectsOSModulesSubViewProps> =
             <iframe
               title="Standalone HTML Photo Album Preview"
               srcDoc={generateStandalonePhotoAlbumHTML(activeAlbum)}
+              sandbox="allow-scripts"
+              referrerPolicy="no-referrer"
               className="w-full h-[460px] rounded-2xl border border-slate-800 bg-slate-950"
             />
           </div>
