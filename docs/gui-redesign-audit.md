@@ -54,10 +54,19 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 - [x] Cohesive shell and design system implemented across shared and feature UI.
 - [x] Dashboard hierarchy and responsive layout improved while keeping real data and handlers.
 - [x] All existing route conditions and feature entry points remain present in the application shell.
-- [ ] TypeScript, tests and production build run; results recorded below.
-- [ ] Visual inspection and representative workflows verified where tooling permits.
+- [x] TypeScript, existing tests, production Vite build, Android asset sync, and Android F-Droid validation APK build passed in CI run [38403564834](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/38403564834).
+- [ ] Rendered visual inspection and representative UI interaction workflows remain unverified; the branch has no preview deployment and was not merged/published.
 - [x] Android/F-Droid configuration and relative asset base are unchanged in the proposed diff.
 
 ## Verification log
 
-Tests and visual checks will be appended only after they are actually run. A successful build alone does not establish functional preservation or visual acceptance.
+### Automated checks
+
+- CI / validate run 38403564834: **passed**. TypeScript check, existing `npm test`, production Vite build, Android WebView asset sync, Android F-Droid validation APK build, and F-Droid local-only build all completed successfully.
+- Security Audit run 38403564854: **passed**. CodeQL and npm audit succeeded.
+- Dedicated F-Droid OCR source build run 38403564761: **in progress** at last inspection; no success/failure is claimed until it finishes.
+
+### Visual and interaction checks
+
+- The deployed baseline was inspected through rendered page content extraction, including the dashboard and its actual empty-state sections.
+- The redesign branch was not deployed or rendered in a browser preview. Desktop/tablet/mobile screenshot inspection, browser console inspection, and live interaction walkthroughs remain outstanding. Do not treat those acceptance gates as complete.
