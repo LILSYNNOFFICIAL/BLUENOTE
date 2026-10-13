@@ -27,6 +27,15 @@ test -f "$CORE_DIR/build.sh"
 test -f "$TOOLCHAIN_FILE"
 test -f "$VAR_FILE"
 
+# This build edits tracked source files and cleans generated outputs. Refuse to
+# run on a dirty submodule so cleanup cannot discard developer changes.
+if [ -n "$(git -C "$CORE_DIR" status --porcelain)" ]; then
+  echo "Tesseract.js-core worktree is not clean; refusing to overwrite local changes." >&2
+  echo "Commit or stash changes in third_party/tesseract.js-core, then retry." >&2
+  git -C "$CORE_DIR" status --short >&2
+  exit 1
+fi
+
 actual_core_commit="$(git -C "$CORE_DIR" rev-parse HEAD)"
 if [ "$actual_core_commit" != "$EXPECTED_CORE_COMMIT" ]; then
   echo "Unexpected Tesseract.js-core source revision: $actual_core_commit" >&2
