@@ -47,7 +47,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-fund --no-audit
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
 
       - name: Type-check
         run: npm run lint
@@ -95,7 +95,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Install F-Droid dependency set
-        run: npm install --legacy-peer-deps --no-fund --no-audit
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
 
       - name: Build F-Droid web bundle
         run: F_DROID_BUILD=true npm run build
