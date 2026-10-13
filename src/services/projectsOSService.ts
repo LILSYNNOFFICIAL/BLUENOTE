@@ -1448,10 +1448,33 @@ export function detectPhotoAlbumDuplicates(photos: ProjectPhotoItem[]): PhotoDup
  * Auto-Play Slideshow with configurable interval, responsive Grid + Masonry toggle, Lightbox, Fullscreen, Prev/Next navigation, captions & filenames.
  */
 export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): string {
-  const safeTitle = album.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const safeSub = album.subtitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const initialTheme: PhotoAlbumTheme = album.theme || 'dark-cinema';
-  const initialInterval = album.slideshowIntervalSec || 4;
+  const escapeHtml = (value: unknown): string =>
+    String(value ?? '').replace(/[&<>"']/g, (character) => {
+      const entities: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+      return entities[character] || character;
+    });
+  const safeTitle = escapeHtml(String(album.title || 'Photo Album').slice(0, 200));
+  const safeSub = escapeHtml(String(album.subtitle || '').slice(0, 500));
+  const allowedThemes: PhotoAlbumTheme[] = [
+    'dark-cinema',
+    'editorial-white',
+    'warm-gallery',
+    'neon-studio',
+  ];
+  const initialTheme: PhotoAlbumTheme = allowedThemes.includes(album.theme)
+    ? album.theme
+    : 'dark-cinema';
+  const requestedInterval = album.slideshowIntervalSec;
+  const initialInterval =
+    typeof requestedInterval === 'number' && Number.isFinite(requestedInterval)
+      ? Math.max(1, Math.min(30, Math.round(requestedInterval)))
+      : 4;
 
   const photosJson = JSON.stringify(
     album.photos.map((p) => ({
