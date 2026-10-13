@@ -1380,7 +1380,7 @@ export default function App() {
             </button>
             )}
             <button
-              onClick={() => setOnboardingModalOpen(true)
+              onClick={() => setOnboardingModalOpen(true)}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
             >
               <Sparkles className="w-4 h-4 shrink-0" />
@@ -1507,7 +1507,7 @@ export default function App() {
                     <Smartphone className="w-4 h-4" />
                     <span className="hidden 2xl:inline">Android</span>
                   </button>
-                ) : null)
+                ) : null)}
 
               <button
                 onClick={() => setActiveSection('ai-studio')}
