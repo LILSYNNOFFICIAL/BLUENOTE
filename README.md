@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/ci.yml"><img src="https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml"><img src="https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml/badge.svg" alt="Android Release"></a>
-  <a href="https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3"><img src="https://img.shields.io/github/v/release/LILSYNNOFFICIAL/BLUENOTE?display_name=tag" alt="Latest Release"></a>
+  <a href="https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8"><img src="https://img.shields.io/github/v/release/LILSYNNOFFICIAL/BLUENOTE?display_name=tag" alt="Latest Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="Apache 2.0"></a>
 </p>
 
@@ -26,7 +26,7 @@
 | 🤖 **Android Release Pipeline** | [Build & Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml) |
 | 🌍 **Pages Deployment** | [Deployment Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/deploy.yml) |
 
-> **Release candidate: v1.0.3.** The F-Droid build is hardened to exclude Firebase, remote AI/image transports, remote OCR runtime downloads, and Google Fonts. The release workflow must publish the audited `v1.0.3` tag after CI/build verification.
+> **Current published release: 1.0.8** ([release notes](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)). This is an F-Droid-focused release with Android version code 7. It does not mean the latest GUI redesign or open security-hardening work has been merged or deployed. Check the [releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for current artifacts and the open pull requests below for work not yet accepted into `main`.
 
 ## 🧠 What Is BlueNote?
 
@@ -94,14 +94,14 @@ BlueNote uses two Android product flavors:
 | `fdroid` | Local-first / free-software Android build | Excluded from F-Droid web bundle | F-Droid |
 | `playstore` | Google Play distribution | Supported where configured | Google Play |
 
-### v1.0.3 source preparation
+### Current development status (2026-10-13)\n\n- Latest published release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused release.\n- [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is open as a draft. Its CI checks were reported passing for TypeScript, tests, production build, Android asset sync, and F-Droid validation APK; the F-Droid OCR source-build result and rendered visual acceptance remain outstanding in the PR description. It has not been merged or deployed.\n- [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is open as a draft. Its description requires passing checks and Android device/emulator smoke tests before merge.\n- Other open work includes [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7). Review their current state before treating them as completed.\n\n### Historical v1.0.3 source preparation
 
-- **Source version:** `1.0.3`
+- **Historical source version:** `1.0.3`
 - **Android version code:** `4`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
-- **Release tag:** `v1.0.3` pending publication
+- **Release tag:** historical preparation for `v1.0.3`; superseded by later releases
 - **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
-- **APK status:** the published APK pair remains v1.0.2 until the Android release workflow publishes v1.0.3.
+- **APK status:** use the current [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for available assets. Historical APK links below may point to older releases and should not be treated as the latest build.
 
 ### v1.0.2
 
@@ -109,7 +109,7 @@ BlueNote uses two Android product flavors:
 - **Version code:** `3`
 - **Release tag:** `v1.0.2`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
-- **Release:** [GitHub v1.0.2](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.2)
+- **Release:** [GitHub v1.0.2](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases)
 
 ### Download Android builds
 
@@ -345,4 +345,4 @@ See [LICENSE](LICENSE).
 
 ---
 
-**BlueNote v1.0.3** • Local-first organization • Android + Web • Apache 2.0
+**BlueNote** • Local-first organization • Android + Web • Apache 2.0 • Published release: [1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)
