@@ -311,6 +311,29 @@ main input:focus, main textarea:focus, main select:focus {
 }
 main textarea { line-height: 1.65; }
 main button { font-weight: 600; }
+.theme-dark main button[class*="bg-blue-600"],
+.theme-blue main button[class*="bg-blue-600"],
+.theme-emerald main button[class*="bg-blue-600"],
+.theme-violet main button[class*="bg-blue-600"],
+.theme-rose main button[class*="bg-blue-600"],
+.theme-amber main button[class*="bg-blue-600"],
+.theme-cyber main button[class*="bg-blue-600"],
+.theme-ocean main button[class*="bg-blue-600"],
+.theme-sunset main button[class*="bg-blue-600"] {
+  background: var(--bn-accent) !important;
+  border-color: var(--bn-accent-line) !important;
+  color: #07101f !important;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--bn-accent) 14%, transparent) !important;
+}
+.theme-dark main button[class*="bg-blue-600"]:hover,
+.theme-blue main button[class*="bg-blue-600"]:hover,
+.theme-emerald main button[class*="bg-blue-600"]:hover,
+.theme-violet main button[class*="bg-blue-600"]:hover,
+.theme-rose main button[class*="bg-blue-600"]:hover,
+.theme-amber main button[class*="bg-blue-600"]:hover,
+.theme-cyber main button[class*="bg-blue-600"]:hover,
+.theme-ocean main button[class*="bg-blue-600"]:hover,
+.theme-sunset main button[class*="bg-blue-600"]:hover { filter: brightness(1.08); }
 main table { border-collapse: separate; border-spacing: 0; }
 main th { color: var(--bn-ink-muted); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
 main td, main th { border-color: var(--bn-line) !important; }
