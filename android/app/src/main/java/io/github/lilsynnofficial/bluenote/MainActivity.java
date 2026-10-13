@@ -37,6 +37,9 @@ public class MainActivity extends Activity {
     private static final String APP_HOST = "lilsynnofficial.github.io";
     private static final String APP_PATH_PREFIX = "/public/";
     private static final String APP_ORIGIN = "https://" + APP_HOST;
+    private static final String FIREBASE_AUTH_HOST = "ai-studio-applet-webapp-d45ee.firebaseapp.com";
+    private static final String FIREBASE_APP_HOST = "ai-studio-applet-webapp-d45ee.web.app";
+    private static final String GOOGLE_ACCOUNTS_HOST = "accounts.google.com";
     private static final String RELEASE_API_URL =
             "https://api.github.com/repos/LILSYNNOFFICIAL/BLUENOTE/releases/latest";
     private static final String PLAYSTORE_APK_URL =
@@ -109,7 +112,7 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                if (isTrustedAppUrl(uri)) {
+                if (isTrustedAppUrl(uri) || isTrustedAuthUrl(uri)) {
                     return false;
                 }
                 openExternalUrl(uri);
@@ -194,6 +197,22 @@ public class MainActivity extends Activity {
         return isTrustedAppOrigin(uri)
                 && uri.getPath() != null
                 && uri.getPath().startsWith(APP_PATH_PREFIX);
+    }
+
+    // Firebase Google sign-in uses the configured auth domain and accounts.google.com.
+    // Keep these HTTPS redirects inside the WebView; capture permissions remain restricted
+    // to the packaged app origin by isTrustedAppOrigin().
+    private boolean isTrustedAuthUrl(Uri uri) {
+        if (uri == null
+                || !"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getUserInfo() != null
+                || (uri.getPort() != -1 && uri.getPort() != 443)) {
+            return false;
+        }
+        String host = uri.getHost();
+        return FIREBASE_AUTH_HOST.equalsIgnoreCase(host)
+                || FIREBASE_APP_HOST.equalsIgnoreCase(host)
+                || GOOGLE_ACCOUNTS_HOST.equalsIgnoreCase(host);
     }
 
     private void openExternalUrl(Uri uri) {
