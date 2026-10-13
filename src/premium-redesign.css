@@ -39,7 +39,7 @@
 .theme-light {
   color-scheme: light;
 }
-.theme-dark, .theme-blue, .theme-ocean, .theme-forest, .theme-sunset {
+.theme-dark, .theme-blue, .theme-emerald, .theme-violet, .theme-rose, .theme-amber, .theme-cyber, .theme-ocean, .theme-forest, .theme-sunset {
   --bn-canvas: #080e1a;
   --bn-surface: #101a2b;
   --bn-surface-raised: #142036;
@@ -85,6 +85,40 @@
   --bn-accent-strong: #7ae4ba;
   --bn-accent-soft: #12372e;
   --bn-accent-line: #28584a;
+}
+.theme-emerald {
+  --bn-accent: #55d4a1;
+  --bn-accent-strong: #7ae4ba;
+  --bn-accent-soft: #12372e;
+  --bn-accent-line: #28584a;
+}
+.theme-violet {
+  --bn-accent: #b8a1ff;
+  --bn-accent-strong: #d0c2ff;
+  --bn-accent-soft: #2a1b49;
+  --bn-accent-line: #4a3477;
+  --bn-violet: #c8b6ff;
+}
+.theme-rose {
+  --bn-accent: #ff8ca9;
+  --bn-accent-strong: #ffb0c2;
+  --bn-accent-soft: #401729;
+  --bn-accent-line: #703149;
+  --bn-danger: #ff9aab;
+}
+.theme-amber {
+  --bn-accent: #f5c36b;
+  --bn-accent-strong: #ffdaa0;
+  --bn-accent-soft: #3b2a14;
+  --bn-accent-line: #68491f;
+  --bn-warning: #ffd27c;
+}
+.theme-cyber {
+  --bn-accent: #5de7ff;
+  --bn-accent-strong: #a0f3ff;
+  --bn-accent-soft: #112e48;
+  --bn-accent-line: #24556e;
+  --bn-violet: #ff8df0;
 }
 .theme-sunset {
   --bn-accent: #ffb47f;
@@ -203,6 +237,11 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 }
 .theme-dark .bn-sidebar nav button.bg-blue-600,
 .theme-blue .bn-sidebar nav button.bg-blue-600,
+.theme-emerald .bn-sidebar nav button.bg-blue-600,
+.theme-violet .bn-sidebar nav button.bg-blue-600,
+.theme-rose .bn-sidebar nav button.bg-blue-600,
+.theme-amber .bn-sidebar nav button.bg-blue-600,
+.theme-cyber .bn-sidebar nav button.bg-blue-600,
 .theme-ocean .bn-sidebar nav button.bg-blue-600,
 .theme-forest .bn-sidebar nav button.bg-blue-600,
 .theme-sunset .bn-sidebar nav button.bg-blue-600 { color: #07101f !important; }
