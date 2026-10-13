@@ -1467,9 +1467,11 @@ export function generateStandalonePhotoAlbumHTML(album: ProjectPhotoAlbum): stri
     'warm-gallery',
     'neon-studio',
   ];
-  const initialTheme: PhotoAlbumTheme = allowedThemes.includes(album.theme)
-    ? album.theme
-    : 'dark-cinema';
+  const requestedTheme = album.theme as PhotoAlbumTheme | undefined;
+  const initialTheme: PhotoAlbumTheme =
+    requestedTheme && allowedThemes.includes(requestedTheme)
+      ? requestedTheme
+      : 'dark-cinema';
   const requestedInterval = album.slideshowIntervalSec;
   const initialInterval =
     typeof requestedInterval === 'number' && Number.isFinite(requestedInterval)
