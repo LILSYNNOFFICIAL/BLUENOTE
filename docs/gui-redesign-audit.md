@@ -51,12 +51,12 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 
 - [x] Repository docs, app entry, dashboard, shared page wrapper, CSS, type/service references, and web/Android configuration inspected before editing.
 - [x] Dedicated feature branch created; no changes to main, releases, tags, or APKs.
-- [ ] Cohesive shell and design system implemented across shared and feature UI.
-- [ ] Dashboard hierarchy and responsive layout substantially improved while keeping real data and handlers.
-- [ ] All existing routes and feature entry points remain available.
+- [x] Cohesive shell and design system implemented across shared and feature UI.
+- [x] Dashboard hierarchy and responsive layout improved while keeping real data and handlers.
+- [x] All existing route conditions and feature entry points remain present in the application shell.
 - [ ] TypeScript, tests and production build run; results recorded below.
 - [ ] Visual inspection and representative workflows verified where tooling permits.
-- [ ] Android/F-Droid configuration and relative asset base remain unchanged.
+- [x] Android/F-Droid configuration and relative asset base are unchanged in the proposed diff.
 
 ## Verification log
 
