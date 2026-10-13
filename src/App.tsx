@@ -1175,7 +1175,7 @@ export default function App() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core' },
     { id: 'projects-os', label: 'PROJECTS', icon: FolderKanban, group: 'core' },
     { id: 'inbox', label: 'Universal Inbox', icon: Inbox, badge: pendingInboxCount || undefined, group: 'core' },
-    { id: 'predictive', label: '🔮 Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
+    { id: 'predictive', label: 'Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
     { id: 'tasks', label: 'Tasks & Lists', icon: CheckSquare, badge: activeTasksCount || undefined, group: 'core' },
     { id: 'calendar', label: 'Calendar & Planner', icon: Calendar, group: 'core' },
     { id: 'notes', label: 'Smart Notes', icon: FileText, group: 'knowledge' },
@@ -1195,7 +1195,7 @@ export default function App() {
         workspace.settings.largeText ? 'text-[106%]' : ''
       } ${workspace.settings.highContrast ? 'contrast-125' : ''} h-[100dvh] max-h-[100dvh] overflow-hidden`}
     >
-      <div className="bn-app-shell h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
+      <div className="bn-app-shell bn-workspace-shell h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
         {/* Left Collapsible Executive Command Sidebar */}
         <aside
           className={`bn-sidebar ${
@@ -1261,14 +1261,14 @@ export default function App() {
             </button>
 
             {/* Navigation Groups */}
-            <nav className="space-y-5">
+            <nav className="bn-primary-navigation space-y-6" aria-label="Primary workspace navigation">
               {(['core', 'knowledge', 'ai'] as const).map((groupKey) => {
                 const groupTitle =
                   groupKey === 'core'
-                    ? 'Command Center'
+                    ? 'Workspace'
                     : groupKey === 'knowledge'
-                    ? 'Knowledge Vault'
-                    : 'Neural Intelligence';
+                    ? 'Library & Records'
+                    : 'Intelligence';
                 const items = NAV_ITEMS.filter((i) => i.group === groupKey);
                 return (
                   <div key={groupKey} className="space-y-1">
@@ -1285,7 +1285,9 @@ export default function App() {
                           key={item.id}
                           onClick={() => setActiveSection(item.id)}
                           title={sidebarCollapsed ? item.label : undefined}
-                          className={`relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          aria-current={active ? 'page' : undefined}
+                          data-active={active ? 'true' : 'false'}
+                          className={`bn-nav-item relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                             active
                               ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
                               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
@@ -1665,6 +1667,7 @@ export default function App() {
           {/* Active Workspace View (Smooth Scroll on Mobile & Desktop) */}
           <main
             ref={mainScrollRef}
+            id="main-workspace-content"
             className="bn-main-scroll flex-1 min-h-0 p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 overflow-y-auto overflow-x-hidden"
           >
             <BlueNotePageTemplate section={activeSection}>
@@ -3597,7 +3600,8 @@ export default function App() {
               <button
                 key={m.id}
                 onClick={() => setActiveSection(m.id)}
-                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-[10px] font-semibold transition-all ${
                   active
                     ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                     : 'text-slate-500 dark:text-slate-400'
