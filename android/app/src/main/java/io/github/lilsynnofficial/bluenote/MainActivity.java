@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
             @SuppressWarnings("deprecation")
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 Uri uri = Uri.parse(url);
-                if (isTrustedAppUrl(uri)) {
+                if (isTrustedAppUrl(uri) || isTrustedAuthUrl(uri)) {
                     return false;
                 }
                 openExternalUrl(uri);
@@ -165,6 +165,11 @@ public class MainActivity extends Activity {
                     ValueCallback<Uri[]> filePathCallback,
                     FileChooserParams fileChooserParams
             ) {
+                Uri currentUri = webView.getUrl() == null ? null : Uri.parse(webView.getUrl());
+                if (!isTrustedAppUrl(currentUri)) {
+                    filePathCallback.onReceiveValue(null);
+                    return false;
+                }
                 if (MainActivity.this.filePathCallback != null) {
                     MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
