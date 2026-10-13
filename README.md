@@ -16,10 +16,10 @@
 | | Link |
 |---|---|
 | 🌐 **Web App** | [Open BlueNote](https://lilsynnofficial.github.io/BLUENOTE/) |
-| 📱 **Latest Published Android Release** | [v1.0.3](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.3) |
-| 📦 **Play Store APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.3/bluenote-playstore.apk) |
-| 🛡️ **F-Droid APK** | [Download APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk) |
-| 🔐 **SHA-256 Checksums** | [SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/SHA256SUMS.txt) |
+| 📱 **Latest Published Release** | [1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8) |
+| 📦 **Android build assets** | [Browse current releases](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) |
+| 🛡️ **F-Droid distribution** | [F-Droid metadata and current release information](https://github.com/LILSYNNOFFICIAL/BLUENOTE/tree/main/fdroid) |
+| 🔐 **Release checksums** | [Browse release assets](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) |
 | 💻 **Source Code** | [GitHub Repository](https://github.com/LILSYNNOFFICIAL/BLUENOTE) |
 | 🐛 **Bug Reports / Issues** | [GitHub Issues](https://github.com/LILSYNNOFFICIAL/BLUENOTE/issues) |
 | ⚙️ **CI / Validation** | [GitHub Actions](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/ci.yml) |
@@ -333,7 +333,7 @@ See [LICENSE](LICENSE).
 
 - 🌐 **Web App:** https://lilsynnofficial.github.io/BLUENOTE/
 - 💻 **GitHub:** https://github.com/LILSYNNOFFICIAL/BLUENOTE
-- 📱 **Latest Release:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/v1.0.2
+- 📱 **Latest Release:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8
 - 📦 **All Releases:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases
 - 🐛 **Issues:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/issues
 - ⚙️ **CI:** https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/ci.yml
