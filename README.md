@@ -26,7 +26,7 @@
 | 🤖 **Android Release Pipeline** | [Build & Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml) |
 | 🌍 **Pages Deployment** | [Deployment Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/deploy.yml) |
 
-> **Current published release: 1.0.8** ([release notes](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)). This is an F-Droid-focused release with Android version code 7. It does not mean the latest GUI redesign or open security-hardening work has been merged or deployed. Check the [releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for current artifacts and the open pull requests below for work not yet accepted into `main`.
+> **Current published release: 1.0.8** ([release notes](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)). This is an F-Droid-focused release with Android version code 7. The earlier premium interface layer from [PR #23](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) is merged into `main`; the newer workspace redesign in [PR #24](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) and WebView hardening in [PR #22](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) remain separate, unmerged work. Check the [releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for current artifacts and the open pull requests below for work not yet accepted into `main`.
 
 ## 🧠 What Is BlueNote?
 
@@ -98,7 +98,7 @@ BlueNote uses two Android product flavors:
 
 - Latest published GitHub release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused source release. The release page currently has **no uploaded APK/checksum assets**, so do not assume the published tag is a downloadable binary.
 - The official F-Droid submission is open as [fdroiddata MR !52169](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/52169). Its public pipeline and pinned-source build passed, but the maintainer was asked to hold merging until the newer Android WebView security changes are merged and device-smoke-tested. Reproducible-build comparison remains unverified, and BlueNote is not yet accepted into the official F-Droid repository.
-- [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is an open draft, not merged or deployed. Its own branch still needs rendered visual acceptance and source-built OCR/F-Droid validation on that branch. The separate mainline source-build success does not validate PR #24's head.
+- [PR #23: premium interface layer](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) was merged into `main` on 2026-10-13. [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is a separate open draft, not merged or deployed. Its own branch still needs rendered visual acceptance and source-built OCR/F-Droid validation on that branch. The separate mainline source-build success does not validate PR #24's head.
 - [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is an open draft. Its description requires passing checks and Android device/emulator smoke tests before merge.
 - [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7) remain separate open work. Neither should be described as merged or shipped.
 
