@@ -383,6 +383,13 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
   box-shadow: none !important;
   min-height: 118px;
 }
+.bn-dashboard-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+.bn-dashboard-metrics > div:first-child h2 { letter-spacing: -.025em; }
+.bn-dashboard-metrics > div:first-child span { text-transform: uppercase; letter-spacing: .09em; }
 .bn-dashboard-grid { align-items: start; }
 .bn-priority-panel { border-color: var(--bn-line) !important; }
 .bn-priority-panel > div:last-child > div {
