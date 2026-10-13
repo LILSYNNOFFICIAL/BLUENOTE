@@ -527,9 +527,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
         </form>
+      </div>
 
+      <section className="bn-dashboard-metrics" aria-label="Workspace metrics">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white">Your day at a glance</h2>
+          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Live workspace metrics</span>
+        </div>
         {/* Executive 4-Card Telemetry Strip */}
-        <div className="bn-metric-grid grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1" aria-label="Workspace metrics">
+        <div className="bn-metric-grid grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
           <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between gap-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -619,7 +625,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* AI Proactive Suggestions & Coach Bar */}
       {visibleWidgets.aiSuggestions && (
