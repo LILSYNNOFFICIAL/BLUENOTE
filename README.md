@@ -94,7 +94,15 @@ BlueNote uses two Android product flavors:
 | `fdroid` | Local-first / free-software Android build | Excluded from F-Droid web bundle | F-Droid |
 | `playstore` | Google Play distribution | Supported where configured | Google Play |
 
-### Current development status (2026-10-13)\n\n- Latest published release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused release.\n- [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is open as a draft. Its CI checks were reported passing for TypeScript, tests, production build, Android asset sync, and F-Droid validation APK; the F-Droid OCR source-build result and rendered visual acceptance remain outstanding in the PR description. It has not been merged or deployed.\n- [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is open as a draft. Its description requires passing checks and Android device/emulator smoke tests before merge.\n- Other open work includes [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7). Review their current state before treating them as completed.\n\n### Historical v1.0.3 source preparation
+### Current development status (2026-10-13)
+
+- Latest published GitHub release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused source release. The release page currently has **no uploaded APK/checksum assets**, so do not assume the published tag is a downloadable binary.
+- The official F-Droid submission is open as [fdroiddata MR !52169](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/52169). Its public pipeline and pinned-source build passed, but the maintainer was asked to hold merging until the newer Android WebView security changes are merged and device-smoke-tested. Reproducible-build comparison remains unverified, and BlueNote is not yet accepted into the official F-Droid repository.
+- [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is an open draft, not merged or deployed. Its own branch still needs rendered visual acceptance and source-built OCR/F-Droid validation on that branch. The separate mainline source-build success does not validate PR #24's head.
+- [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is an open draft. Its description requires passing checks and Android device/emulator smoke tests before merge.
+- [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7) remain separate open work. Neither should be described as merged or shipped.
+
+### Historical v1.0.3 source preparation
 
 - **Historical source version:** `1.0.3`
 - **Android version code:** `4`
@@ -103,35 +111,11 @@ BlueNote uses two Android product flavors:
 - **Security:** Android WebView hardened against untrusted origins and file access; app backup disabled; dependency and CodeQL security auditing enabled.
 - **APK status:** use the current [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for available assets. Historical APK links below may point to older releases and should not be treated as the latest build.
 
-### v1.0.2
+### Historical releases and downloads
 
-- **Version:** `1.0.2`
-- **Version code:** `3`
-- **Release tag:** `v1.0.2`
-- **Package ID:** `io.github.lilsynnofficial.bluenote`
-- **Release:** [GitHub v1.0.2](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases)
+Release notes and older tags remain available for reference. The old v1.0.2 APK and checksum URLs previously listed here are not reliable current download links. The v1.0.8 release page currently has no uploaded assets; check the [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for any binaries actually published.
 
-### Download Android builds
-
-**Play Store variant**
-
-[⬇️ Download BlueNote Play Store APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-playstore.apk)
-
-**F-Droid variant**
-
-[⬇️ Download BlueNote F-Droid APK](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/bluenote-fdroid.apk)
-
-**Verify downloads**
-
-[🔐 Download SHA256SUMS.txt](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/download/v1.0.2/SHA256SUMS.txt)
-
-> The F-Droid APK in the GitHub release is the upstream build artifact. Official F-Droid inclusion and signing are handled separately by F-Droid maintainers.
-
-### Google Play
-
-The Play Store flavor produces the signed Android App Bundle used for Google Play distribution.
-
-**The public Google Play listing is not linked here until the app has an official Play Store listing.**
+There is no public Google Play listing linked at this time.
 
 ## 🛡️ F-Droid / Free Software Build
 
@@ -279,30 +263,19 @@ The release pipeline:
 8. Preserves existing immutable GitHub releases.
 9. Publishes release assets for new releases.
 
-### Current verified release run
+### Recent F-Droid build evidence
 
-**v1.0.2 release workflow:** [Run #35](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/37121158449)
+The following successful runs validate a specific F-Droid candidate source revision, not every open pull request or the pending Android WebView hardening:
 
-Status: **SUCCESS**
+- [Source-built OCR workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/38206132860)
+- [Unsigned Android APK build and verification](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/38206132820)
+- [Official F-Droid MR pipeline](https://gitlab.com/fdroid/fdroiddata/-/pipelines/2937511559)
 
-Verified stages include:
-
-- Signed Play Store APK build
-- Play Store AAB build
-- F-Droid APK build
-- Release asset preparation
-- GitHub release-state check
-- Signing material cleanup
+The official F-Droid pipeline passed for the pinned source revision. Maintainer review remains open, the WebView hardening in PR #22 is not included in that pinned revision, and no reproducible-build result is being claimed.
 
 ## 📦 Release Assets
 
-For each published GitHub release, BlueNote can provide:
-
-- Play Store APK
-- F-Droid APK
-- SHA-256 checksums
-
-See the [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases).
+A GitHub release tag does not guarantee that APKs or checksums were uploaded. Inspect the [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) and use only assets that are actually present on the selected release.
 
 ## 📋 F-Droid Submission
 
@@ -315,6 +288,8 @@ The upstream repository contains:
 - Submission documentation
 
 The official F-Droid process remains a separate review. Configuration in this repository does **not** by itself mean BlueNote has been accepted into the official F-Droid repository.
+
+**Current review status:** [F-Droid MR !52169](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/52169) is open. The pinned source build and official pipeline passed, but the maintainer has been asked to wait for the separate WebView-origin hardening and Android smoke tests. The reproducible-build checklist item remains incomplete.
 
 Packaging resources:
 
