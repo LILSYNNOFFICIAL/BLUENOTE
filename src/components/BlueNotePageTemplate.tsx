@@ -14,8 +14,8 @@ export const BlueNotePageTemplate: React.FC<BlueNotePageTemplateProps> = ({
   children,
 }) => {
   return (
-    <div className="bn-page-template" data-section={section}>
-      <div className="bn-page-content">
+    <div className="bn-page-template bn-workspace-page" data-section={section}>
+      <div className={`bn-page-content bn-page-content--${section}`} role="region" aria-label={`${section.replace(/-/g, ' ')} workspace`}>
         {children}
       </div>
     </div>
