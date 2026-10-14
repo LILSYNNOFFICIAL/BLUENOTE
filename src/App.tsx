@@ -1173,7 +1173,7 @@ export default function App() {
     group: 'core' | 'knowledge' | 'ai';
   }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core' },
-    { id: 'projects-os', label: 'PROJECTS', icon: FolderKanban, group: 'core' },
+    { id: 'projects-os', label: 'PROJECTS OS', icon: FolderKanban, group: 'core' },
     { id: 'inbox', label: 'Universal Inbox', icon: Inbox, badge: pendingInboxCount || undefined, group: 'core' },
     { id: 'predictive', label: 'Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
     { id: 'tasks', label: 'Tasks & Lists', icon: CheckSquare, badge: activeTasksCount || undefined, group: 'core' },
@@ -1221,11 +1221,11 @@ export default function App() {
                         <span className="text-blue-500">Note</span>
                       </span>
                       <span className="text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                        PRO 2.0
+                        LOCAL-FIRST
                       </span>
                     </div>
                     <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 leading-none mt-1">
-                      Executive Second Brain
+                      Life & work, in one place
                     </p>
                   </div>
                 )}
@@ -1247,15 +1247,15 @@ export default function App() {
             <button
               onClick={() => setBrainDumpModal({ open: true, tab: 'brain-dump' })}
               className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-blue-600/25 border border-blue-400/20 flex items-center justify-between gap-2 transition-all group"
-              title="AI Brain Dump & Voice Capture (⇧⌘B)"
+              title="Quick capture and voice input (Ctrl/Cmd+B)"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 shrink-0 group-hover:rotate-12 transition-transform" />
-                {!sidebarCollapsed && <span>AI Brain Dump</span>}
+                {!sidebarCollapsed && <span>Quick Capture</span>}
               </div>
               {!sidebarCollapsed && (
                 <kbd className="px-1.5 py-0.5 text-[9px] font-mono bg-black/20 text-blue-100 rounded border border-white/15">
-                  ⇧⌘B
+                  ⌘/Ctrl B
                 </kbd>
               )}
             </button>
