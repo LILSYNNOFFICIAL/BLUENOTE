@@ -509,3 +509,138 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
 @media (min-width: 768px) {
   .bn-main-scroll { padding: clamp(24px, 2.6vw, 40px) !important; }
 }
+
+/* Final polish pass: sharper hierarchy, calmer surfaces, and more intentional interaction states */
+.bn-app-shell {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 92% -12%, color-mix(in srgb, var(--bn-accent) 7%, transparent), transparent 38%),
+    var(--bn-canvas) !important;
+}
+.bn-primary-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+.bn-primary-navigation > div { margin-top: 0 !important; }
+.bn-primary-navigation > div > p {
+  margin: 0 0 .45rem !important;
+  font-size: 10px !important;
+  font-weight: 750 !important;
+  letter-spacing: .14em !important;
+}
+.bn-sidebar .bn-nav-item {
+  position: relative;
+  min-height: 42px;
+  padding-inline: 12px !important;
+  border: 1px solid transparent;
+  border-radius: 11px !important;
+  letter-spacing: -.005em;
+}
+.bn-sidebar .bn-nav-item[data-active="true"] {
+  background: linear-gradient(105deg, color-mix(in srgb, var(--bn-accent) 95%, #fff 5%), var(--bn-accent-strong)) !important;
+  border-color: color-mix(in srgb, var(--bn-accent) 50%, transparent) !important;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--bn-accent) 17%, transparent) !important;
+}
+.bn-sidebar .bn-nav-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: currentColor;
+  opacity: .85;
+}
+.bn-sidebar .bn-nav-item:not([data-active="true"]):hover {
+  background: var(--bn-accent-soft) !important;
+  border-color: var(--bn-line) !important;
+  transform: translateX(2px);
+}
+.bn-sidebar > div:first-child > div:first-child > button:first-child {
+  min-width: 0;
+}
+.bn-sidebar kbd {
+  white-space: nowrap;
+}
+.bn-header {
+  min-height: 64px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--bn-line) 80%, transparent);
+}
+.bn-header-actions > button {
+  min-width: 38px;
+  min-height: 38px;
+}
+.bn-main-scroll {
+  scroll-behavior: smooth;
+  background: transparent;
+}
+.bn-dashboard {
+  width: 100%;
+}
+.bn-dashboard-hero {
+  padding: clamp(18px, 2.2vw, 30px) !important;
+  border-width: 1px !important;
+}
+.bn-dashboard-hero > .flex:first-of-type {
+  align-items: center;
+}
+.bn-dashboard-hero h1 {
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.bn-dashboard-hero .bn-omnibox-form button[type="submit"] {
+  min-height: 52px;
+  border-radius: 12px;
+  font-weight: 750;
+}
+.bn-dashboard .bn-briefing {
+  padding: clamp(18px, 2vw, 26px) !important;
+}
+.bn-dashboard .bn-briefing button {
+  min-height: 68px;
+  transition: transform var(--bn-motion-fast) var(--bn-ease), background var(--bn-motion-fast) var(--bn-ease), border-color var(--bn-motion-fast) var(--bn-ease);
+}
+.bn-dashboard .bn-briefing button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--bn-accent) 40%, transparent) !important;
+}
+.bn-dashboard .bn-metric-grid > * {
+  transition: transform var(--bn-motion-fast) var(--bn-ease), border-color var(--bn-motion-fast) var(--bn-ease);
+}
+.bn-dashboard .bn-metric-grid > *:hover {
+  transform: translateY(-2px);
+  border-color: var(--bn-accent-line) !important;
+}
+.bn-page-template {
+  width: 100%;
+}
+.bn-feature-header h1,
+.bn-dashboard h1 {
+  text-wrap: balance;
+}
+.bn-workspace-page button,
+.bn-dashboard button,
+.bn-sidebar button {
+  touch-action: manipulation;
+}
+.bn-workspace-page :where(button, a, input, textarea, select):focus-visible,
+.bn-dashboard :where(button, a, input, textarea, select):focus-visible,
+.bn-sidebar :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--bn-accent) !important;
+  outline-offset: 3px;
+}
+@media (min-width: 1280px) {
+  .bn-main-scroll { padding-inline: clamp(30px, 3vw, 52px) !important; }
+  .bn-dashboard { max-width: 1480px; }
+}
+@media (max-width: 767px) {
+  .bn-primary-navigation { gap: .9rem; }
+  .bn-sidebar nav button { min-height: 46px; }
+  .bn-dashboard-hero { padding: 17px !important; }
+  .bn-dashboard-hero > .flex:first-of-type { align-items: flex-start; }
+  .bn-dashboard-hero .bn-omnibox-form button[type="submit"] { min-height: 48px; }
+  .bn-dashboard .bn-briefing button { min-height: 62px; }
+  .bn-safe-bottom-nav { box-shadow: 0 -8px 24px rgba(15, 30, 55, .06) !important; }
+}
