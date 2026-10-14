@@ -319,6 +319,7 @@ main button { font-weight: 600; }
 .theme-amber main button[class*="bg-blue-600"],
 .theme-cyber main button[class*="bg-blue-600"],
 .theme-ocean main button[class*="bg-blue-600"],
+.theme-forest main button[class*="bg-blue-600"],
 .theme-sunset main button[class*="bg-blue-600"] {
   background: var(--bn-accent) !important;
   border-color: var(--bn-accent-line) !important;
@@ -333,6 +334,7 @@ main button { font-weight: 600; }
 .theme-amber main button[class*="bg-blue-600"]:hover,
 .theme-cyber main button[class*="bg-blue-600"]:hover,
 .theme-ocean main button[class*="bg-blue-600"]:hover,
+.theme-forest main button[class*="bg-blue-600"]:hover,
 .theme-sunset main button[class*="bg-blue-600"]:hover { filter: brightness(1.08); }
 main table { border-collapse: separate; border-spacing: 0; }
 main th { color: var(--bn-ink-muted); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
