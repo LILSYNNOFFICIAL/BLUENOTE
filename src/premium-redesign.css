@@ -583,8 +583,9 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
   padding: clamp(18px, 2.2vw, 30px) !important;
   border-width: 1px !important;
 }
-.bn-dashboard-hero > .flex:first-of-type {
+.bn-dashboard-hero-head {
   align-items: center;
+  min-width: 0;
 }
 .bn-dashboard-hero h1 {
   line-height: 1.08;
@@ -639,7 +640,7 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
   .bn-primary-navigation { gap: .9rem; }
   .bn-sidebar nav button { min-height: 46px; }
   .bn-dashboard-hero { padding: 17px !important; }
-  .bn-dashboard-hero > .flex:first-of-type { align-items: flex-start; }
+  .bn-dashboard-hero-head { align-items: flex-start; }
   .bn-dashboard-hero .bn-omnibox-form button[type="submit"] { min-height: 48px; }
   .bn-dashboard .bn-briefing button { min-height: 62px; }
   .bn-safe-bottom-nav { box-shadow: 0 -8px 24px rgba(15, 30, 55, .06) !important; }
