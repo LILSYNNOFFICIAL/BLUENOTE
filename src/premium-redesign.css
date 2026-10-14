@@ -638,6 +638,14 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
   .bn-main-scroll { padding-inline: clamp(30px, 3vw, 52px) !important; }
   .bn-dashboard { max-width: 1480px; }
 }
+@media (max-width: 380px) {
+  /* Keep the top bar usable on compact Android phones without hiding key actions. */
+  .bn-header-actions > button[title^="Built-In AI Engine"] span { display: none; }
+  .bn-header-actions > button[title^="Built-In AI Engine"] { padding-inline: 10px !important; }
+  .bn-header { gap: 4px !important; }
+  .bn-header-actions { gap: 4px !important; }
+}
+
 @media (max-width: 767px) {
   .bn-primary-navigation { gap: .9rem; }
   .bn-sidebar nav button { min-height: 46px; }
