@@ -324,7 +324,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Subtle Top Accent Hairline */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-sky-400" />
 
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div className="bn-dashboard-hero-head flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div className="flex items-start sm:items-center gap-4">
             {/* User Profile Photograph / Monogram Avatar */}
             <button
