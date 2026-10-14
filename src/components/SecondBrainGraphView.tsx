@@ -187,9 +187,9 @@ export const SecondBrainGraphView: React.FC<SecondBrainGraphViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--second-brain space-y-6 pb-12">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+      <div className="bn-feature-header bn-feature-header--second-brain bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 mb-1">

@@ -263,9 +263,9 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
     ];
 
     return (
-      <div className="space-y-5">
+      <div className="bn-feature-page bn-feature-page--projects-os space-y-5">
         {/* Top Project Workspace Header */}
-        <div className="p-5 rounded-3xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
+        <div className="bn-feature-header bn-feature-header--projects-os p-5 rounded-3xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button

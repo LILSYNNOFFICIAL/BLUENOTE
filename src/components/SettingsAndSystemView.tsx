@@ -118,9 +118,9 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
   const deletedNotes = workspace.notes.filter((n) => Boolean(n.deletedAt));
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--settings space-y-6 pb-12">
       {/* Top Executive Settings Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
+      <div className="bn-feature-header bn-feature-header--settings bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500" />
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-3.5">

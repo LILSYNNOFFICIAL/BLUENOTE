@@ -231,9 +231,9 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
   });
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--calendar space-y-6 pb-12">
       {/* Header & View Switcher */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+      <div className="bn-feature-header bn-feature-header--calendar bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">

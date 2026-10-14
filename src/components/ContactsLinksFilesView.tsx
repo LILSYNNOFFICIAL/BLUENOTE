@@ -140,9 +140,9 @@ export const ContactsLinksFilesView: React.FC<ContactsLinksFilesViewProps> = ({
   const usedMB = (totalBytes / (1024 * 1024)).toFixed(2);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--contacts space-y-6 pb-12">
       {/* Top Sub-Navigation */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bn-feature-header bn-feature-header--contacts bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
             {tab === 'contacts' && <Users className="w-6 h-6 text-blue-600" />}
