@@ -286,7 +286,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ].slice(0, 4);
 
   return (
-    <div className="bn-dashboard space-y-7 pb-12">
+    <div className="bn-dashboard space-y-6 pb-12">
       {briefingItems.length > 0 && (
         <section className="bn-briefing bg-slate-950 text-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-800" data-panel="daily-briefing">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -359,7 +359,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Executive Command Center</span>
+                  <span>Workspace Overview</span>
                   <span className="text-slate-300 dark:text-slate-600">•</span>
                   <span className="font-mono text-[10px] text-slate-600 dark:text-slate-300">
                     {new Date().toLocaleDateString('en-US', {
@@ -386,13 +386,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                   You have{' '}
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {displayedTasks.length} priority tasks
+                    {displayedTasks.length} open tasks
                   </span>{' '}
                   (~{totalEstimatedMins} mins estimated) and{' '}
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {workspace.events.length} scheduled blocks
+                    {todayEvents.length} events
                   </span>{' '}
-                  queued for today.{' '}
+                  on your calendar today.{' '}
                   <button
                     type="button"
                     onClick={() => onNavigate('settings')}
