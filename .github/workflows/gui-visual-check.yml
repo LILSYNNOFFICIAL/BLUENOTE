@@ -131,7 +131,10 @@ jobs:
                   heroScrollWidth: document.querySelector('.bn-dashboard-hero')?.scrollWidth || null
                 }), slug);
                 layoutMetrics.push({ mode: 'mobile', ...mobileMetrics });
-                results.push('mobile ' + slug + ': captured');
+                if (mobileMetrics.documentWidth > mobileMetrics.viewport) {
+                  throw new Error('Horizontal overflow on ' + slug + ' at ' + mobileMetrics.viewport + 'px: document width ' + mobileMetrics.documentWidth + 'px');
+                }
+                results.push('mobile ' + slug + ': captured (no document-level horizontal overflow)');
                 await page.setViewportSize({ width: 1440, height: 1000 });
                 await page.waitForTimeout(250);
               }
