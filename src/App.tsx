@@ -118,6 +118,10 @@ import { usePWAInstall } from './hooks/usePWAInstall';
 
 const STORAGE_KEY = 'bluenote_workspace_clean_v4';
 
+function getWorkspaceAuthLabel(label?: string | null): string {
+  return !label || /firebase|firestore/i.test(label) ? 'Supabase Auth' : label;
+}
+
 const LEGACY_DEMO_IDS = new Set([
   'pat-toilet-paper',
   'pat-paper-towels',
@@ -232,7 +236,7 @@ function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
   };
 }
 
-// Recursively remove undefined fields so Firestore native maps never fail validation
+// Recursively remove undefined fields so cloud workspace JSON never fails validation
 function sanitizeForFirestore<T>(obj: T): T {
   if (obj === null || obj === undefined) return null as unknown as T;
   if (Array.isArray(obj)) {
@@ -320,7 +324,7 @@ export default function App() {
 
   // Local autosave + lightweight undo history. Every workspace mutation is still
   // immediately persisted locally, while the previous snapshot remains available
-  // for one-tap recovery. Remote Firestore updates are not added to the undo stack.
+  // for one-tap recovery. Remote Supabase workspace updates are not added to the undo stack.
   useEffect(() => {
     const serialized = JSON.stringify(workspace);
 
@@ -401,7 +405,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [mobileMenuOpen, brainDumpModal.open, focusModalOpen, commandPaletteOpen, androidModalOpen, activeSection]);
 
-  // Listen to Firebase Auth state (including mobile OAuth redirect result)
+  // Listen to Supabase Auth state (including OAuth redirect result)
   useEffect(() => {
     getRedirectResult(auth).catch(() => {
       // Redirect errors are handled by AuthModal when initiated
@@ -485,7 +489,7 @@ export default function App() {
     return () => unsub();
   }, [authReady, currentUser]);
 
-  // Sync local changes to Firestore debounced
+  // Sync local changes to Supabase debounced
   useEffect(() => {
     if (!authReady || !currentUser || !cloudWorkspaceLoaded.current || isApplyingRemoteUpdate.current) return;
     const timer = setTimeout(async () => {
@@ -1347,7 +1351,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setAuthModalOpen(true)}
-              title="Edit Profile, Bio, Photograph & BLUENOTE-AI-APP.firebase.com Identity"
+              title="Edit Profile, Bio, Photograph & Supabase Auth Identity"
               className="w-full p-2.5 mb-2 rounded-2xl bg-slate-50 dark:bg-slate-800/70 hover:bg-blue-50/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5 text-left transition-all group"
             >
               {workspace.settings.avatarUrl ? (
@@ -1377,8 +1381,7 @@ export default function App() {
                   <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                     {workspace.settings.bio ||
                       workspace.settings.roleTitle ||
-                      workspace.settings.authDomainAlias ||
-                      'BLUENOTE-AI-APP.firebase.com'}
+                      getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
                   </div>
                 </div>
               )}
@@ -1603,7 +1606,7 @@ export default function App() {
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-400'
                 }`}
                 title={`Profile, Bio, Photo & Cloud Sync (${
-                  workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
+                  getWorkspaceAuthLabel(workspace.settings.authDomainAlias)
                 })`}
               >
                 {workspace.settings.avatarUrl ? (
@@ -3746,7 +3749,7 @@ export default function App() {
               ...prev,
               settings: { ...prev.settings, name, email },
             }));
-            showToast(`Signed in as ${name || 'BlueNote User'} on ${workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}`);
+            showToast(`Signed in as ${name || 'BlueNote User'} on ${workspace.settings.authDomainAlias || 'Supabase Auth'}`);
           }}
           onUpdateProfileSettings={(updates) => {
             setWorkspace((prev) => ({
