@@ -120,7 +120,7 @@ There is no public Google Play listing linked at this time.
 
 ## 🛡️ F-Droid / Free Software Build
 
-BlueNote includes an explicit F-Droid build path designed to keep the Android distribution independent of Firebase web authentication and cloud synchronization.
+BlueNote includes an explicit F-Droid build path designed to preserve local-first operation without requiring a proprietary SDK; optional hosted account sync uses the dedicated Supabase project.
 
 ### Build flow
 
