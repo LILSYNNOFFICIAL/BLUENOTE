@@ -68,6 +68,7 @@ import {
   onSnapshot,
   onAuthStateChanged,
   getRedirectResult,
+  isPasswordRecoveryPending,
   handleFirestoreError,
   OperationType,
   User,
@@ -417,7 +418,7 @@ export default function App() {
 
   // Prompt at launch when there is no active Supabase session.
   useEffect(() => {
-    if (authReady && !currentUser) setAuthModalOpen(true);
+    if (authReady && (!currentUser || isPasswordRecoveryPending())) setAuthModalOpen(true);
   }, [authReady, currentUser]);
 
   // Cross-device workspace listener backed by the BlueNote Supabase project
