@@ -417,9 +417,20 @@ export default function App() {
   }, []);
 
   // Prompt at launch when there is no active Supabase session.
+  // Visual-review builds inspect the local-first workspace without opening the
+  // sign-in gate. This flag is enabled only by the screenshot workflow and does
+  // not bypass authentication in normal production builds.
+  const isVisualReviewBuild = import.meta.env.VITE_VISUAL_REVIEW === 'true';
+
   useEffect(() => {
-    if (authReady && (!currentUser || isPasswordRecoveryPending())) setAuthModalOpen(true);
-  }, [authReady, currentUser]);
+    if (
+      !isVisualReviewBuild &&
+      authReady &&
+      (!currentUser || isPasswordRecoveryPending())
+    ) {
+      setAuthModalOpen(true);
+    }
+  }, [authReady, currentUser, isVisualReviewBuild]);
 
   // Cross-device workspace listener backed by the BlueNote Supabase project
   useEffect(() => {
