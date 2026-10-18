@@ -8,8 +8,10 @@ BlueNote is prepared for an official F-Droid submission using package ID `io.git
 - F-Droid build recipe is present at `.fdroid.yml`.
 - A copy of the build metadata is kept under `fdroid/io.github.lilsynnofficial.bluenote.yml` for review.
 - Fastlane Android metadata is present under `fastlane/metadata/android/en-US/`.
-- The F-Droid flavor excludes Firebase web authentication/synchronization from the APK.
-- F-Droid CI builds the local-only web bundle and `assembleFdroidRelease`.
+- The F-Droid flavor does not use Firebase or require Google Play services.
+- The current proposed build includes optional Supabase email/password authentication and cross-device workspace synchronization; core organizer workflows remain local-first and usable without an account.
+- F-Droid metadata and review materials must disclose the hosted Supabase network dependency and apply any Anti-Feature classification required by F-Droid maintainers.
+- F-Droid CI builds the local-first web bundle and `assembleFdroidRelease`.
 - The Android package ID is `io.github.lilsynnofficial.bluenote`.
 - F-Droid flavor version name is `1.0.3`, version code `4`.
 
@@ -36,4 +38,4 @@ The build sequence is:
 
 ## Important review boundary
 
-The repository still contains optional non-F-Droid integrations for other distribution channels, including the retained AI image-generation service. The F-Droid build flavor is the intended free-software Android variant and removes Firebase from the generated web bundle. F-Droid reviewers may still inspect optional integrations and network services during manual review, so their final classification remains a reviewer decision.
+The repository contains optional integrations that may contact online services. The F-Droid build does not initialize Firebase, but the proposed account feature contacts the hosted BlueNote Supabase project for sign-in, account recovery, and workspace sync when the user opts in. Core organizer workflows remain local-first. F-Droid reviewers should assess the optional hosted service and determine the appropriate Anti-Feature metadata before official inclusion.
