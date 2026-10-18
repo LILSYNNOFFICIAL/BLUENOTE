@@ -21,8 +21,8 @@ When a version is actually final:
 2. Run the normal CI/build checks.
 3. Create a semantic Git tag such as `v1.0.2` on the verified commit.
 4. The release workflow builds:
-   - `bluenote-playstore.apk` — Firebase login enabled, developer-signed.
-   - `bluenote-fdroid.apk` — Firebase-free/local-only flavor.
+   - `bluenote-playstore.apk` — Supabase account login enabled, developer-signed.
+   - `bluenote-fdroid.apk` — Supabase account login and optional cloud sync, local-first core, no Firebase.
    - `SHA256SUMS.txt`.
 5. The GitHub release is published from that exact tag.
 
