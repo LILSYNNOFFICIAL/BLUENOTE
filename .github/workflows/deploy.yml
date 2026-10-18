@@ -49,11 +49,13 @@ jobs:
 
       - name: Install preview dependencies
         working-directory: production
+        env:
+          PREVIEW_REF: ${{ github.event_name == 'pull_request' && github.head_ref || 'feat/bluenote-workspace-redesign-20261013' }}
         run: |
-          git clone --depth 1 --branch feat/bluenote-workspace-redesign-20261013 https://github.com/LILSYNNOFFICIAL/BLUENOTE.git ../preview-source
+          git clone --depth 1 --branch "$PREVIEW_REF" https://github.com/LILSYNNOFFICIAL/BLUENOTE.git ../preview-source
           npm --prefix ../preview-source install --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build PR #24 preview under /pr-24/
+      - name: Build PR preview under /pr-24/
         run: |
           npm --prefix preview-source run build
           mkdir -p production/dist/pr-24
