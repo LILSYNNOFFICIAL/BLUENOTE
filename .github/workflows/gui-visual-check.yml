@@ -93,6 +93,7 @@ jobs:
             ['AI Assistant', 'ai-assistant']
           ];
           const results = [];
+          const layoutMetrics = [];
           for (const [label, slug] of sections) {
             const navItem = page.locator('.bn-sidebar button').filter({ hasText: label }).first();
             if (await navItem.count()) {
@@ -100,10 +101,34 @@ jobs:
               await page.waitForTimeout(450);
               await page.screenshot({ path: path.join(out, slug + '-desktop.png'), fullPage: false });
               results.push('desktop ' + slug + ': captured');
+              const desktopMetrics = await page.evaluate((section) => {
+                const active = document.querySelector('.bn-sidebar .bn-nav-item[data-active="true"]');
+                const hero = document.querySelector('.bn-dashboard-hero');
+                const activeStyle = active ? getComputedStyle(active) : null;
+                return {
+                  section, viewport: window.innerWidth,
+                  documentWidth: document.documentElement.scrollWidth,
+                  activeBackground: activeStyle?.backgroundColor || null,
+                  activeBackgroundImage: activeStyle?.backgroundImage || null,
+                  activeColor: activeStyle?.color || null,
+                  heroWidth: hero?.getBoundingClientRect().width || null
+                };
+              }, slug);
+              layoutMetrics.push({ mode: 'desktop', ...desktopMetrics });
               if (['dashboard', 'tasks', 'calendar', 'notes', 'inbox', 'projects-os'].includes(slug)) {
                 await page.setViewportSize({ width: 390, height: 844 });
                 await page.waitForTimeout(250);
                 await page.screenshot({ path: path.join(out, slug + '-mobile.png'), fullPage: false });
+                const mobileMetrics = await page.evaluate((section) => ({
+                  section, viewport: window.innerWidth,
+                  documentWidth: document.documentElement.scrollWidth,
+                  bodyWidth: document.body.scrollWidth,
+                  mainClientWidth: document.querySelector('main')?.clientWidth || null,
+                  mainScrollWidth: document.querySelector('main')?.scrollWidth || null,
+                  heroClientWidth: document.querySelector('.bn-dashboard-hero')?.clientWidth || null,
+                  heroScrollWidth: document.querySelector('.bn-dashboard-hero')?.scrollWidth || null
+                }), slug);
+                layoutMetrics.push({ mode: 'mobile', ...mobileMetrics });
                 results.push('mobile ' + slug + ': captured');
                 await page.setViewportSize({ width: 1440, height: 1000 });
                 await page.waitForTimeout(250);
@@ -114,6 +139,7 @@ jobs:
           }
           await page.screenshot({ path: path.join(out, 'final-desktop.png'), fullPage: false });
           fs.writeFileSync(path.join(out, 'capture-report.txt'), results.join('\n') + '\n');
+          fs.writeFileSync(path.join(out, 'layout-metrics.json'), JSON.stringify(layoutMetrics, null, 2) + '\n');
           fs.writeFileSync(path.join(out, 'browser-errors.txt'), consoleErrors.join('\n') + (consoleErrors.length ? '\n' : 'No uncaught page errors or console errors captured.\n'));
           await browser.close();
           NODE
