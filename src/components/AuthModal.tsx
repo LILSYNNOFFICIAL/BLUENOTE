@@ -28,6 +28,8 @@ import {
   updateProfile,
   signOut,
   getFirebaseAuthDomain,
+  isPasswordRecoveryPending,
+  updatePassword,
   User,
 } from '@/src/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
@@ -55,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUpdateLocalProfileName,
   onUpdateProfileSettings,
 }) => {
-  const [mode, setMode] = useState<'signup' | 'signin' | 'reset'>('signin');
+  const [mode, setMode] = useState<'signup' | 'signin' | 'reset' | 'new-password'>('signin');
   const [email, setEmail] = useState(settings?.email || '');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState(settings?.name || '');
@@ -67,6 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(isPasswordRecoveryPending());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -81,6 +84,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setInfoMessage(null);
     }
   }, [isOpen, currentUser, settings]);
+
+  useEffect(() => {
+    if (isOpen && isPasswordRecoveryPending()) {
+      setPasswordRecoveryPending(true);
+      setMode('new-password');
+      setError(null);
+      setInfoMessage('Choose a new password for your BlueNote account.');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -211,6 +223,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
+      if (mode === 'new-password') {
+        await updatePassword(password);
+        setPasswordRecoveryPending(false);
+        onClose();
+        return;
+      }
+
       if (mode === 'signup') {
         const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const finalName =
@@ -305,10 +324,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
               </div>
               <h2 className="text-base font-extrabold tracking-tight truncate mt-0.5">
-                {currentUser
+                {currentUser && !passwordRecoveryPending
                   ? 'Executive Profile, Bio & Cloud Sync'
                   : mode === 'signup'
                   ? 'Create a BlueNote account'
+                  : mode === 'new-password'
+                  ? 'Choose a New Password'
                   : mode === 'reset'
                   ? 'Reset Account Password'
                   : 'Sign in to BlueNote'}
@@ -455,7 +476,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          {currentUser ? (
+          {currentUser && !passwordRecoveryPending ? (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
@@ -498,7 +519,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ) : (
             <>
               {/* Mode Switch Tabs: Sign Up vs Sign In */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <div className={passwordRecoveryPending ? 'hidden' : 'grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}>
                 <button
                   type="button"
                   onClick={() => {
@@ -601,6 +622,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     ? 'Authenticating...'
                     : mode === 'signup'
                     ? 'Create Account'
+                    : mode === 'new-password'
+                    ? 'Save New Password'
                     : mode === 'reset'
                     ? 'Send Password Reset Email'
                     : 'Sign In'}
