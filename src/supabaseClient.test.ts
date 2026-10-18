@@ -13,7 +13,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), 
 Object.defineProperty(globalThis, 'sessionStorage', { value: new MemoryStorage(), configurable: true });
 Object.defineProperty(globalThis, 'window', {
   value: {
-    location: { hostname: 'lilsynnofficial.github.io', href: 'https://lilsynnofficial.github.io/BLUENOTE/', hash: '', pathname: '/BLUENOTE/', search: '' },
+    location: { hostname: 'lilsynnofficial.github.io', href: 'https://lilsynnofficial.github.io/BLUENOTE/pr-24/?preview=1#stale', hash: '#stale', pathname: '/BLUENOTE/pr-24/', search: '?preview=1' },
     history: { replaceState: () => undefined },
     setInterval: () => 1,
     clearInterval: () => undefined,
@@ -77,7 +77,7 @@ test('registration handles confirmation-required accounts without inventing a se
   );
   const call = calls.find(({ url }) => url.includes('/auth/v1/signup'));
   assert.ok(call, 'registration request was sent');
-  assert.match(call.url, /redirect_to=https%3A%2F%2Flilsynnofficial\.github\.io%2FBLUENOTE%2F/);
+  assert.match(call.url, /redirect_to=https%3A%2F%2Flilsynnofficial\.github\.io%2FBLUENOTE%2Fpr-24%2F/);
   assert.equal(client.auth.currentUser, null);
 });
 
@@ -128,7 +128,7 @@ test('password recovery uses the configured BlueNote app callback', async () => 
   await client.sendPasswordResetEmail(client.auth, 'test@example.com');
   const call = calls.find(({ url }) => url.includes('/auth/v1/recover'));
   assert.ok(call);
-  assert.match(call.url, /redirect_to=https%3A%2F%2Flilsynnofficial\.github\.io%2FBLUENOTE%2F/);
+  assert.match(call.url, /redirect_to=https%3A%2F%2Flilsynnofficial\.github\.io%2FBLUENOTE%2Fpr-24%2F/);
 });
 
 test('workspace listener can load a remote account snapshot', async () => {
