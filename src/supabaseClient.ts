@@ -405,6 +405,8 @@ export function onSnapshot(
       if (!active) return;
       const row = Array.isArray(rows) ? rows[0] : null;
       if (!row) {
+        if (lastSeenWorkspaceVersion.get(ref.id) === '__missing__') return;
+        lastSeenWorkspaceVersion.set(ref.id, '__missing__');
         next({ exists: () => false, data: () => null });
         return;
       }
