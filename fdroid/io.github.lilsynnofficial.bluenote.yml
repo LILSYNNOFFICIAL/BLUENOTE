@@ -7,6 +7,8 @@ Categories:
   - OCR
   - Task
 License: Apache-2.0
+AntiFeatures:
+  - NonFreeNet
 AuthorName: LILSYNNOFFICIAL
 AuthorWebSite: https://github.com/LILSYNNOFFICIAL/BLUENOTE
 SourceCode: https://github.com/LILSYNNOFFICIAL/BLUENOTE
@@ -15,7 +17,7 @@ WebSite: https://lilsynnofficial.github.io/BLUENOTE/
 Changelog: https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases
 
 AutoName: BlueNote
-Summary: Local-first personal organizer with notes, tasks, habits and OCR
+Summary: Local-first organizer with optional cloud account sync
 
 RepoType: git
 Repo: https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
