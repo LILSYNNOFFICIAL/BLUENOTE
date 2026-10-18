@@ -72,9 +72,9 @@ jobs:
           cp -a preview-source/dist/. production/dist/pr-24/
           test -s production/dist/pr-24/index.html
           test -d production/dist/pr-24/assets
-          printf '%s\\n' "$PREVIEW_SHA" > production/dist/pr-24/preview-commit.txt
+          printf '%s\n' "$PREVIEW_SHA" > production/dist/pr-24/preview-commit.txt
           test "$(cat production/dist/pr-24/preview-commit.txt)" = "$PREVIEW_SHA"
-          printf 'Preview files staged at /pr-24/ from commit %s\\n' "$PREVIEW_SHA"
+          printf 'Preview files staged at /pr-24/ from commit %s\n' "$PREVIEW_SHA"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
