@@ -923,15 +923,18 @@ html.theme-light select:focus {
   box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.08) !important;
 }
 
-/* Black-and-white navigation hierarchy for the default theme. */
-html.theme-light aside.bn-sidebar button.bg-blue-600 {
-  background: #111111 !important;
-  color: #ffffff !important;
+/* Cool-white navigation hierarchy for the default theme. */
+html.theme-light aside.bn-sidebar button.bg-blue-600,
+html.theme-light aside.bn-sidebar button.bg-blue-600:hover {
+  background: #eaf1ff !important;
+  background-image: none !important;
+  border-color: #cfddfa !important;
+  color: #244fb8 !important;
   box-shadow: none !important;
 }
 
-html.theme-light aside.bn-sidebar button.bg-blue-600:hover {
-  background: #000000 !important;
+html.theme-light aside.bn-sidebar button.bg-blue-600 :is(svg, span) {
+  color: #244fb8 !important;
 }
 
 /* Keep the global header focused. These are still available elsewhere in the
