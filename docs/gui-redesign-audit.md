@@ -55,18 +55,24 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 - [x] Dashboard hierarchy and responsive layout improved while keeping real data and handlers.
 - [x] All existing route conditions and feature entry points remain present in the application shell.
 - [x] TypeScript, existing tests, production Vite build, Android asset sync, and Android F-Droid validation APK build passed in CI run [38403564834](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/38403564834).
-- [ ] Rendered visual inspection and representative UI interaction workflows remain unverified; the branch has no preview deployment and was not merged/published.
+- [x] Playwright rendered and captured 17 desktop workspace screens at 1440×1000 and 8 mobile screens at 390×844 in GUI visual review run [39087717435](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/39087717435).
+- [x] Browser run reported no uncaught page or console errors. At 390px, document width matched viewport width and main scroll width matched its client width across dashboard, PROJECTS OS, inbox, tasks, calendar, notes, settings, and help.
+- [ ] Full action-by-action functional walkthrough and physical Android WebView/device visual inspection remain outstanding; keep the PR unmerged until those acceptance gates are completed.
 - [x] Android/F-Droid configuration and relative asset base are unchanged in the proposed diff.
 
 ## Verification log
 
 ### Automated checks
 
-- CI / validate run 38403564834: **passed**. TypeScript check, existing `npm test`, production Vite build, Android WebView asset sync, Android F-Droid validation APK build, and F-Droid local-only build all completed successfully.
-- Security Audit run 38403564854: **passed**. CodeQL and npm audit succeeded.
-- Dedicated F-Droid OCR source build run 38403564761: **in progress** at last inspection; no success/failure is claimed until it finishes.
+- Earlier baseline: CI / validate run 38403564834 and Security Audit run 38403564854 passed before this refinement.
+- Latest implementation checks on commit `6f9910f426e13726ea88bac832eb97b408527e73`: [CI / validate run 39087717421](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/39087717421) **passed**, including TypeScript check, security regression tests, production web build, Android asset sync, and Android validation APK build; [Security Audit run 39087717420](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/39087717420) **passed**.
+- [GUI visual review run 39087717435](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/39087717435) **passed** and uploaded the `bluenote-gui-visual-review` artifact (17 desktop and 8 mobile screenshots, layout metrics, browser error report).
+- Dedicated F-Droid OCR source build run 39087717429 was still **in progress** at the last verification; no success/failure is claimed until it finishes.
 
 ### Visual and interaction checks
 
-- The deployed baseline was inspected through rendered page content extraction, including the dashboard and its actual empty-state sections.
-- The redesign branch was not deployed or rendered in a browser preview. Desktop/tablet/mobile screenshot inspection, browser console inspection, and live interaction walkthroughs remain outstanding. Do not treat those acceptance gates as complete.
+- The PR branch was built with Vite and served by `vite preview` in CI, then rendered in Chromium with Playwright at desktop (1440×1000) and mobile (390×844) viewports.
+- The visual artifact includes Dashboard, PROJECTS OS, Universal Inbox, Predictive Lists, Tasks & Lists, Calendar & Planner, Smart Notes, Projects & Goals, Contacts CRM, Saved Links, Files & OCR Vault, Knowledge Graph, Semantic Search, AI Image Generator, AI Assistant, Settings & Themes, and Help & Shortcuts desktop captures. Mobile captures cover Dashboard, PROJECTS OS, Universal Inbox, Tasks & Lists, Calendar & Planner, Smart Notes, Settings & Themes, and Help & Shortcuts.
+- The mobile screenshot inspection found clipped dashboard controls before the responsive fix. The energy selector now shrinks within its row and capture actions wrap instead of extending beyond the viewport. Follow-up metrics confirmed no document-level horizontal overflow across the eight mobile captures.
+- Browser report: no uncaught page errors or console errors were captured. The light-theme active navigation was changed from a black row to a subtle blue-tinted selection with dark-blue icon/text contrast.
+- Full action-by-action workflows and physical Android WebView rendering are still not verified. The branch remains a draft and has not been merged or deployed.
