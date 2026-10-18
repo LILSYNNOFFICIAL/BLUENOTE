@@ -1,10 +1,14 @@
-name: Deploy BlueNote to GitHub Pages
+name: Deploy BlueNote and PR #24 preview to GitHub Pages
 
 on:
   push:
     branches:
       - main
       - master
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -20,30 +24,50 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout production source
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: production
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install production dependencies
+        working-directory: production
         run: npm install --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build production bundle (zero server secrets injected into client bundle)
+      - name: Build production site
+        working-directory: production
         run: |
           npm run build
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
 
+      - name: Install preview dependencies
+        working-directory: production
+        run: |
+          git clone --depth 1 --branch feat/bluenote-workspace-redesign-20261013 https://github.com/LILSYNNOFFICIAL/BLUENOTE.git ../preview-source
+          npm --prefix ../preview-source install --legacy-peer-deps --no-fund --no-audit
+
+      - name: Build PR #24 preview under /pr-24/
+        run: |
+          npm --prefix preview-source run build
+          mkdir -p production/dist/pr-24
+          cp -a preview-source/dist/. production/dist/pr-24/
+          test -s production/dist/pr-24/index.html
+          test -d production/dist/pr-24/assets
+          printf '%s\n' 'Preview files staged at /pr-24/'
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
+      - name: Upload combined Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './production/dist'
 
   deploy:
     environment:
