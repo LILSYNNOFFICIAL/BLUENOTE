@@ -32,6 +32,8 @@ jobs:
         run: npm ci
 
       - name: Build production UI
+        env:
+          VITE_VISUAL_REVIEW: 'true'
         run: npm run build
 
       - name: Install Playwright browser for visual review
