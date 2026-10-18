@@ -2,7 +2,7 @@
 
 Branch: `feat/bluenote-workspace-redesign-20261013`
 Base: `main` at the repository state inspected before implementation.
-Scope: presentation and navigation only; preserve the current workspace schema and behavior.
+Original scope: presentation and navigation. Follow-up scope now also includes Supabase account authentication and cross-device workspace sync while preserving the workspace schema, local autosave, and core behavior.
 
 ## Architecture inspected
 
@@ -58,7 +58,7 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 - [x] Playwright rendered and captured 17 desktop workspace screens at 1440×1000 and 8 mobile screens at 390×844 in GUI visual review run [39087717435](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/runs/39087717435).
 - [x] Browser run reported no uncaught page or console errors. At 390px, document width matched viewport width and main scroll width matched its client width across dashboard, PROJECTS OS, inbox, tasks, calendar, notes, settings, and help.
 - [ ] Full action-by-action functional walkthrough and physical Android WebView/device visual inspection remain outstanding; keep the PR unmerged until those acceptance gates are completed.
-- [x] Android/F-Droid configuration and relative asset base are unchanged in the proposed diff.
+- [x] Android/F-Droid configuration and relative asset base are unchanged; the F-Droid auth adapter now points to Supabase instead of the previous local-only stub.
 
 ## Verification log
 
