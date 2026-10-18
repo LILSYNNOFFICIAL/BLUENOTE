@@ -26,7 +26,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     environment:
-      name: ${{ github.event_name == 'pull_request' && 'pages-preview-validation' || 'github-pages' }}
+      name: ${{ github.event_name == 'pull_request' && 'pages-preview-validation' || ((github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && 'github-pages' || 'github-pages-preview') }}
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout production source
