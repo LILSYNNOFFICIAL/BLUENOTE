@@ -395,6 +395,10 @@ export function onSnapshot(
     error?.(new Error('Unsupported BlueNote sync collection.'));
     return () => undefined;
   }
+  // Force a fresh first read for every sign-in, including when this account
+  // was previously used on this device and remote data changed while signed out.
+  lastWrittenWorkspace.delete(ref.id);
+  lastSeenWorkspaceVersion.delete(ref.id);
   let active = true;
   let busy = false;
   const poll = async () => {
