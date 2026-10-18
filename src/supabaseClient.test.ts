@@ -12,7 +12,12 @@ class MemoryStorage {
 Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), configurable: true });
 Object.defineProperty(globalThis, 'sessionStorage', { value: new MemoryStorage(), configurable: true });
 Object.defineProperty(globalThis, 'window', {
-  value: { setInterval: () => 1, clearInterval: () => undefined },
+  value: {
+    location: { hostname: 'lilsynnofficial.github.io', href: 'https://lilsynnofficial.github.io/BLUENOTE/', hash: '', pathname: '/BLUENOTE/', search: '' },
+    history: { replaceState: () => undefined },
+    setInterval: () => 1,
+    clearInterval: () => undefined,
+  },
   configurable: true,
 });
 
@@ -127,7 +132,7 @@ test('password recovery uses the configured BlueNote app callback', async () => 
 });
 
 test('workspace listener can load a remote account snapshot', async () => {
-  let stop = () => undefined;
+  let stop: () => void = () => undefined;
   const received = new Promise<{ exists: () => boolean; data: () => any }>((resolve, reject) => {
     stop = client.onSnapshot(
       client.doc(client.db, 'workspaces', 'user-123'),
