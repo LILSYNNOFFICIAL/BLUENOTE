@@ -62,7 +62,7 @@ jobs:
           cp -a preview-source/dist/. production/dist/pr-24/
           test -s production/dist/pr-24/index.html
           test -d production/dist/pr-24/assets
-          printf '%s\n' 'Preview files staged at /pr-24/'
+          printf '%s\\n' 'Preview files staged at /pr-24/'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -73,7 +73,10 @@ jobs:
           name: github-pages
           path: './production/dist'
 
+  # GitHub Pages does not support public PR-preview deployments through deploy-pages.
+  # Keep PR runs as build/artifact validation; deploy only trusted push/manual runs.
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
