@@ -297,6 +297,7 @@ export default function App() {
   const [localSaveState, setLocalSaveState] = useState<'saved' | 'saving' | 'offline'>('saved');
   const [canUndo, setCanUndo] = useState(false);
 
+  const cloudWorkspaceLoaded = useRef(false);
   const isApplyingRemoteUpdate = useRef(false);
   const isUndoing = useRef(false);
   const undoStack = useRef<WorkspaceState[]>([]);
@@ -414,16 +415,23 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Real-time Firestore listener when user is authenticated with Firebase Auth
+  // Prompt at launch when there is no active Supabase session.
+  useEffect(() => {
+    if (authReady && !currentUser) setAuthModalOpen(true);
+  }, [authReady, currentUser]);
+
+  // Cross-device workspace listener backed by the BlueNote Supabase project
   useEffect(() => {
     if (!authReady || !currentUser) return;
     const path = `workspaces/${currentUser.uid}`;
     const docRef = doc(db, 'workspaces', currentUser.uid);
+    cloudWorkspaceLoaded.current = false;
     setSyncStatus('syncing');
 
     const unsub = onSnapshot(
       docRef,
       (snapshot) => {
+        cloudWorkspaceLoaded.current = true;
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data?.workspace && typeof data.workspace === 'object') {
@@ -467,7 +475,7 @@ export default function App() {
 
   // Sync local changes to Firestore debounced
   useEffect(() => {
-    if (!authReady || !currentUser || isApplyingRemoteUpdate.current) return;
+    if (!authReady || !currentUser || !cloudWorkspaceLoaded.current || isApplyingRemoteUpdate.current) return;
     const timer = setTimeout(async () => {
       const path = `workspaces/${currentUser.uid}`;
       const docRef = doc(db, 'workspaces', currentUser.uid);
