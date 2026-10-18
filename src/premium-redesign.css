@@ -779,3 +779,15 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
     justify-content: center;
   }
 }
+
+/* In the light theme, active navigation is a calm blue-tinted row, not a heavy filled block. */
+.theme-light .bn-sidebar .bn-nav-item[data-active="true"] {
+  background: var(--bn-accent-soft) !important;
+  background-image: none !important;
+  border-color: var(--bn-accent-line) !important;
+  color: var(--bn-accent-strong) !important;
+  box-shadow: none !important;
+}
+.theme-light .bn-sidebar .bn-nav-item[data-active="true"] :is(svg, span) {
+  color: var(--bn-accent-strong) !important;
+}
