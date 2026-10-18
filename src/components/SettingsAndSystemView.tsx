@@ -195,12 +195,12 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                   Executive Profile, Bio &amp; Photograph
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Upload your profile photograph, customize your personal bio, and manage your BLUENOTE-AI-APP.firebase.com cloud identity.
+                  Upload your profile photograph, customize your personal bio, and manage your BlueNote account and cloud sync.
                 </p>
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 self-start sm:self-auto">
                 <Globe className="w-3.5 h-3.5" />
-                {workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}
+                {workspace.settings.authDomainAlias || 'Supabase Auth'}
               </span>
             </div>
 
@@ -324,15 +324,15 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5 text-blue-500" />
-                      Sign-Up / Cloud Auth Domain Label
+                      Account Provider Label
                     </label>
                     <input
                       type="text"
                       value={
-                        workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
+                        workspace.settings.authDomainAlias || 'Supabase Auth'
                       }
                       onChange={(e) => onUpdateSettings({ authDomainAlias: e.target.value })}
-                      placeholder="BLUENOTE-AI-APP.firebase.com"
+                      placeholder="Supabase Auth"
                       className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
@@ -759,14 +759,14 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               {emailPreviewSent ? 'Test Daily Summary Queued!' : 'Send Test Daily Email Now'}
             </button>
 
-            {/* Firebase-Authenticated Google Access-Token Gmail Connection (Zero Developer Credentials) */}
+            {/* Optional Gmail integration (not configured) */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
               <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-blue-500" />
-                <span>Gmail Sync (Firebase Google Authorization)</span>
+                <span>Gmail Sync (not configured)</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Uses your signed-in Firebase Google account access token directly. No Google Client ID, Client Secret, or API keys are ever required.
+                Gmail access requires a separate Google OAuth and Gmail API configuration. BlueNote account sign-in is handled by Supabase and does not grant Gmail access.
               </p>
               <button
                 type="button"
@@ -784,10 +784,10 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                     if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
                       const host = getDetectedHostname();
                       setGmailError(
-                        `Firebase rejected hostname "${host}" (URL: ${getDetectedAppUrl()}). Add "${host}" under Firebase Console (ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains.`
+                        `Google OAuth is not configured for Gmail access. The current app URL is ${getDetectedAppUrl()}.`
                       );
                     } else {
-                      setGmailError(msg || 'Could not complete Firebase Google authorization.');
+                      setGmailError(msg || 'Could not complete Google OAuth authorization.');
                     }
                   } finally {
                     setGmailConnecting(false);
@@ -798,7 +798,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600" />
                 <span>
                   {gmailConnecting
-                    ? 'Authorizing with Firebase Google...'
+                    ? 'Authorizing with Google OAuth...'
                     : gmailConnectedEmail
                     ? `Gmail Authorized (${gmailConnectedEmail})`
                     : 'Connect Gmail with Google Sign-In'}
