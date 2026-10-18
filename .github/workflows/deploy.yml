@@ -54,9 +54,13 @@ jobs:
       - name: Install preview dependencies
         working-directory: production
         env:
-          PREVIEW_REF: ${{ github.event_name == 'pull_request' && github.head_ref || 'feat/bluenote-workspace-redesign-20261013' }}
+          PREVIEW_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
-          git clone --depth 1 --branch "$PREVIEW_REF" https://github.com/LILSYNNOFFICIAL/BLUENOTE.git ../preview-source
+          git init ../preview-source
+          git -C ../preview-source remote add origin https://github.com/LILSYNNOFFICIAL/BLUENOTE.git
+          git -C ../preview-source fetch --depth 1 origin "$PREVIEW_SHA"
+          git -C ../preview-source checkout --detach FETCH_HEAD
+          test "$(git -C ../preview-source rev-parse HEAD)" = "$PREVIEW_SHA"
           npm --prefix ../preview-source install --legacy-peer-deps --no-fund --no-audit
 
       - name: Build PR preview under /pr-24/
@@ -77,9 +81,9 @@ jobs:
           name: github-pages
           path: './production/dist'
 
-      # Keep pull-request runs as build/artifact validation. Deploy trusted pushes
-      # and manual runs in the same runner job that built and uploaded the artifact.
-      # This avoids the repeatedly failing separate deployment-job initialization.
+      # Pull-request events validate the combined artifact without deployment.
+      # A push to the PR branch deploys the preview and records its exact source SHA.
+      # Deploy in the same runner job that built and uploaded the artifact.
       - name: Deploy to GitHub Pages
         if: github.event_name != 'pull_request'
         id: deployment
