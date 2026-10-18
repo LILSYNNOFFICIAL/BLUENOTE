@@ -17,7 +17,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: 'pages'
+  # PR preview builds must not cancel the production Pages deployment, or vice versa.
+  group: pages-${{ github.event_name == 'pull_request' && 'pr-preview' || 'production' }}
   cancel-in-progress: true
 
 jobs:
