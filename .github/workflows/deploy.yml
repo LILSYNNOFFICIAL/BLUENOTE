@@ -64,13 +64,17 @@ jobs:
           npm --prefix ../preview-source install --legacy-peer-deps --no-fund --no-audit
 
       - name: Build PR preview under /pr-24/
+        env:
+          PREVIEW_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           npm --prefix preview-source run build
           mkdir -p production/dist/pr-24
           cp -a preview-source/dist/. production/dist/pr-24/
           test -s production/dist/pr-24/index.html
           test -d production/dist/pr-24/assets
-          printf '%s\n' 'Preview files staged at /pr-24/'
+          printf '%s\\n' "$PREVIEW_SHA" > production/dist/pr-24/preview-commit.txt
+          test "$(cat production/dist/pr-24/preview-commit.txt)" = "$PREVIEW_SHA"
+          printf 'Preview files staged at /pr-24/ from commit %s\\n' "$PREVIEW_SHA"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
