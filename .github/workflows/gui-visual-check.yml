@@ -90,7 +90,9 @@ jobs:
             ['Knowledge Graph', 'knowledge-graph'],
             ['Semantic Search', 'semantic-search'],
             ['AI Image Generator', 'ai-image-generator'],
-            ['AI Assistant', 'ai-assistant']
+            ['AI Assistant', 'ai-assistant'],
+            ['Settings & Themes', 'settings'],
+            ['Help & Shortcuts', 'help']
           ];
           const results = [];
           const layoutMetrics = [];
@@ -115,7 +117,7 @@ jobs:
                 };
               }, slug);
               layoutMetrics.push({ mode: 'desktop', ...desktopMetrics });
-              if (['dashboard', 'tasks', 'calendar', 'notes', 'inbox', 'projects-os'].includes(slug)) {
+              if (['dashboard', 'tasks', 'calendar', 'notes', 'inbox', 'projects-os', 'settings', 'help'].includes(slug)) {
                 await page.setViewportSize({ width: 390, height: 844 });
                 await page.waitForTimeout(250);
                 await page.screenshot({ path: path.join(out, slug + '-mobile.png'), fullPage: false });
