@@ -983,14 +983,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               {/* Events */}
               <div className="space-y-2">
-                {workspace.events.length === 0 ? (
+                {todayEvents.length === 0 ? (
                   <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
                     <p className="text-xs text-slate-500">
                       No events scheduled today. Open Planner to block focus time or meetings.
                     </p>
                   </div>
                 ) : (
-                  workspace.events.slice(0, 3).map((evt) => (
+                  todayEvents.slice(0, 3).map((evt) => (
                     <div
                       key={evt.id}
                       className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-l-4"
