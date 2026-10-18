@@ -171,7 +171,7 @@ BlueNote uses the dedicated BlueNote Supabase project for email/password registr
 
 ### F-Droid distribution
 
-The F-Droid flavor excludes Firebase from its web bundle and retains local-first core workflows. The optional Supabase account/sync feature is a hosted network dependency and is disclosed in F-Droid metadata with the `NonFreeNet` Anti-Feature. Core organizer workflows do not require an account or internet connection.
+The F-Droid flavor uses the same open-source Supabase account adapter as other builds and retains local-first core workflows. The optional Supabase account/sync feature is a hosted network dependency and is disclosed in F-Droid metadata with the `NonFreeNet` Anti-Feature. Core organizer workflows do not require an account or internet connection.
 
 - User API keys are not required for the core organizer.
 - Keyless browser OCR fallback is available through Tesseract.js.
