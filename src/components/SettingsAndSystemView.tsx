@@ -33,6 +33,10 @@ import {
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
 import { authorizeGmailWithFirebaseGoogle, getDetectedHostname, getDetectedAppUrl } from '@/src/firebase';
+
+function getWorkspaceAuthLabel(label?: string | null): string {
+  return !label || /firebase|firestore/i.test(label) ? 'Supabase Auth' : label;
+}
 import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
 
 interface SettingsAndSystemViewProps {
@@ -200,7 +204,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 self-start sm:self-auto">
                 <Globe className="w-3.5 h-3.5" />
-                {workspace.settings.authDomainAlias || 'Supabase Auth'}
+                {getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
               </span>
             </div>
 
@@ -316,7 +320,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                       type="email"
                       value={workspace.settings.email || ''}
                       onChange={(e) => onUpdateSettings({ email: e.target.value })}
-                      placeholder="you@bluenote-ai-app.firebase.com"
+                      placeholder="you@example.com"
                       className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
@@ -770,7 +774,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               </p>
               <button
                 type="button"
-                disabled={gmailConnecting}
+                disabled={true}
                 onClick={async () => {
                   setGmailConnecting(true);
                   setGmailError(null);
@@ -801,7 +805,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                     ? 'Authorizing with Google OAuth...'
                     : gmailConnectedEmail
                     ? `Gmail Authorized (${gmailConnectedEmail})`
-                    : 'Connect Gmail with Google Sign-In'}
+                    : 'Gmail integration not configured'}
                 </span>
               </button>
               {gmailError && (
