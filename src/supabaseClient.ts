@@ -15,7 +15,19 @@ const SUPABASE_PUBLISHABLE_KEY =
   'sb_publishable_JVc0GXWoQZmpDLYO5b-8vQ_I1c_BI_Z';
 const SESSION_KEY = 'bluenote_supabase_session_v1';
 const PASSWORD_RECOVERY_KEY = 'bluenote_password_recovery_pending';
-const AUTH_REDIRECT_URL = 'https://lilsynnofficial.github.io/BLUENOTE/';
+const DEFAULT_AUTH_REDIRECT_URL = 'https://lilsynnofficial.github.io/BLUENOTE/';
+
+function getAuthRedirectUrl(): string {
+  if (typeof window === 'undefined') return DEFAULT_AUTH_REDIRECT_URL;
+  try {
+    const current = new URL(window.location.href);
+    current.search = '';
+    current.hash = '';
+    return current.toString();
+  } catch {
+    return DEFAULT_AUTH_REDIRECT_URL;
+  }
+}
 
 export interface User {
   uid: string;
@@ -286,7 +298,7 @@ export async function signInWithEmailAndPassword(_auth: typeof auth, email: stri
 }
 
 export async function createUserWithEmailAndPassword(_auth: typeof auth, email: string, password: string): Promise<{ user: User }> {
-  const data = await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(AUTH_REDIRECT_URL)}`, {
+  const data = await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(getAuthRedirectUrl())}`, {
     method: 'POST',
     body: JSON.stringify({ email: email.trim(), password }),
   }, false);
@@ -303,7 +315,7 @@ export async function createUserWithEmailAndPassword(_auth: typeof auth, email: 
 }
 
 export async function sendPasswordResetEmail(_auth: typeof auth, email: string): Promise<void> {
-  await request(`/auth/v1/recover?redirect_to=${encodeURIComponent(AUTH_REDIRECT_URL)}`, {
+  await request(`/auth/v1/recover?redirect_to=${encodeURIComponent(getAuthRedirectUrl())}`, {
     method: 'POST',
     body: JSON.stringify({ email: email.trim() }),
   }, false);
