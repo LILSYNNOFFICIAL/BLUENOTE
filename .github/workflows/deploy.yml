@@ -62,7 +62,7 @@ jobs:
           cp -a preview-source/dist/. production/dist/pr-24/
           test -s production/dist/pr-24/index.html
           test -d production/dist/pr-24/assets
-          printf '%s\\n' 'Preview files staged at /pr-24/'
+          printf '%s\n' 'Preview files staged at /pr-24/'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
