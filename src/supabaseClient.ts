@@ -21,6 +21,10 @@ function getAuthRedirectUrl(): string {
   if (typeof window === 'undefined') return DEFAULT_AUTH_REDIRECT_URL;
   try {
     const current = new URL(window.location.href);
+    const isGitHubPagesApp =
+      current.origin === 'https://lilsynnofficial.github.io' &&
+      current.pathname.startsWith('/BLUENOTE/');
+    if (!isGitHubPagesApp) return DEFAULT_AUTH_REDIRECT_URL;
     current.search = '';
     current.hash = '';
     return current.toString();
