@@ -11,6 +11,8 @@ const SUPABASE_PUBLISHABLE_KEY =
   (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim() ||
   'sb_publishable_JVc0GXWoQZmpDLYO5b-8vQ_I1c_BI_Z';
 const SESSION_KEY = 'bluenote_supabase_session_v1';
+const PASSWORD_RECOVERY_KEY = 'bluenote_password_recovery_pending';
+const AUTH_REDIRECT_URL = 'https://lilsynnofficial.github.io/BLUENOTE/';
 
 export interface User {
   uid: string;
@@ -235,6 +237,11 @@ export async function getRedirectResult(_auth: typeof auth): Promise<null> {
     app_metadata: claims.app_metadata || {},
     email_confirmed_at: claims.email_confirmed_at,
   });
+  if (hash.get('type') === 'recovery') {
+    try { sessionStorage.setItem(PASSWORD_RECOVERY_KEY, '1'); } catch { /* Recovery state is also reflected in the auth hash during initial load. */ }
+  } else {
+    try { sessionStorage.removeItem(PASSWORD_RECOVERY_KEY); } catch { /* Optional browser storage. */ }
+  }
   const expiresIn = Number(hash.get('expires_in') || 3600);
   saveSession({
     access_token: accessToken,
@@ -276,7 +283,7 @@ export async function signInWithEmailAndPassword(_auth: typeof auth, email: stri
 }
 
 export async function createUserWithEmailAndPassword(_auth: typeof auth, email: string, password: string): Promise<{ user: User }> {
-  const data = await request('/auth/v1/signup', {
+  const data = await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(AUTH_REDIRECT_URL)}`, {
     method: 'POST',
     body: JSON.stringify({ email: email.trim(), password }),
   }, false);
@@ -293,11 +300,27 @@ export async function createUserWithEmailAndPassword(_auth: typeof auth, email: 
 }
 
 export async function sendPasswordResetEmail(_auth: typeof auth, email: string): Promise<void> {
-  const redirectTo = typeof window !== 'undefined' ? window.location.href.split('#')[0] : undefined;
-  await request(`/auth/v1/recover${redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ''}`, {
+  await request(`/auth/v1/recover?redirect_to=${encodeURIComponent(AUTH_REDIRECT_URL)}`, {
     method: 'POST',
     body: JSON.stringify({ email: email.trim() }),
   }, false);
+}
+
+export function isPasswordRecoveryPending(): boolean {
+  try {
+    return sessionStorage.getItem(PASSWORD_RECOVERY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const data = await request('/auth/v1/user', {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+  });
+  try { sessionStorage.removeItem(PASSWORD_RECOVERY_KEY); } catch { /* Optional browser storage. */ }
+  if (session) saveSession({ ...session, user: toUser(data) });
 }
 
 export async function updateProfile(user: User, profile: { displayName?: string; photoURL?: string }): Promise<void> {
