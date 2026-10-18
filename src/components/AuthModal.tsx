@@ -28,8 +28,6 @@ import {
   updateProfile,
   signOut,
   getFirebaseAuthDomain,
-  getDetectedHostname,
-  getDetectedAppUrl,
   User,
 } from '@/src/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
