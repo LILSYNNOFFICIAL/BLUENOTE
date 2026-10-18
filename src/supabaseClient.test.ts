@@ -141,6 +141,16 @@ test('production password recovery returns to the production app root without st
   assert.doesNotMatch(call.url, /utm_source|%23old/);
 });
 
+test('untrusted origins fall back to the canonical BlueNote callback', async () => {
+  (window.location as { href: string }).href = 'https://untrusted.example/BLUENOTE/pr-24/?next=evil#old';
+  await client.sendPasswordResetEmail(client.auth, 'test@example.com');
+  const callsForRecovery = calls.filter(({ url }) => url.includes('/auth/v1/recover'));
+  const call = callsForRecovery[callsForRecovery.length - 1];
+  assert.ok(call);
+  assert.match(call.url, /redirect_to=https%3A%2F%2Flilsynnofficial\.github\.io%2FBLUENOTE%2F/);
+  assert.doesNotMatch(call.url, /untrusted|next%3Devil|%23old/);
+});
+
 test('workspace listener can load a remote account snapshot', async () => {
   let stop: () => void = () => undefined;
   const received = new Promise<{ exists: () => boolean; data: () => any }>((resolve, reject) => {
