@@ -12,7 +12,7 @@ export const initialWorkspace: WorkspaceState = {
     avatarUrl: '',
     bio: '',
     roleTitle: '',
-    authDomainAlias: 'BLUENOTE-AI-APP.firebase.com',
+    authDomainAlias: 'Supabase Auth',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
     language: 'English (US)',
     timeFormat: '12h',
