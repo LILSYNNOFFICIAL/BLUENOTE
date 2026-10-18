@@ -3749,7 +3749,7 @@ export default function App() {
               ...prev,
               settings: { ...prev.settings, name, email },
             }));
-            showToast(`Signed in as ${name || 'BlueNote User'} on ${workspace.settings.authDomainAlias || 'Supabase Auth'}`);
+            showToast(`Signed in as ${name || 'BlueNote User'} on ${getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}`);
           }}
           onUpdateProfileSettings={(updates) => {
             setWorkspace((prev) => ({
