@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - feat/bluenote-workspace-redesign-20261013
   pull_request:
     branches:
       - main
