@@ -4,11 +4,14 @@
  * Only the project URL and publishable key belong in this client. Never place
  * a Supabase secret/service-role key in browser or Android assets.
  */
+const runtimeEnv = (import.meta as ImportMeta & {
+  env?: Record<string, string | undefined>;
+}).env || {};
 const SUPABASE_URL =
-  (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() ||
+  runtimeEnv.VITE_SUPABASE_URL?.trim() ||
   'https://eemnfovvxlefhsfszzhk.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY =
-  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim() ||
+  runtimeEnv.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
   'sb_publishable_JVc0GXWoQZmpDLYO5b-8vQ_I1c_BI_Z';
 const SESSION_KEY = 'bluenote_supabase_session_v1';
 const PASSWORD_RECOVERY_KEY = 'bluenote_password_recovery_pending';
