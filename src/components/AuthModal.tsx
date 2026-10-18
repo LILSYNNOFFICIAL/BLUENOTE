@@ -27,7 +27,7 @@ import {
   isPasswordRecoveryPending,
   updatePassword,
   User,
-} from '@/src/supabaseClient';
+} from '@/src/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
 
 export interface AuthModalProps {
