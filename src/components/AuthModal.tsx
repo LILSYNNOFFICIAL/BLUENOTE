@@ -27,7 +27,7 @@ import {
   isPasswordRecoveryPending,
   updatePassword,
   User,
-} from '@/src/firebase';
+} from '@/src/supabaseClient';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
 
 export interface AuthModalProps {
@@ -131,7 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const formatFirebaseAuthError = (err: unknown): string => {
+  const formatSupabaseAuthError = (err: unknown): string => {
     const code = (err as { code?: string })?.code || '';
     const message = err instanceof Error ? err.message : String(err || '');
 
@@ -209,7 +209,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setPassword('');
         return;
       }
-      setError(formatFirebaseAuthError(err));
+      setError(formatSupabaseAuthError(err));
     } finally {
       setLoading(false);
     }
