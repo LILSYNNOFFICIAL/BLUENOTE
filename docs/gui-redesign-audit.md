@@ -41,9 +41,9 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 ## Persistence and platform constraints
 
 - Workspace persistence key is `bluenote_workspace_clean_v4`; redesign must not clear, migrate, or rewrite stored user data.
-- Existing local/cloud sync and offline state remain authoritative.
+- Local workspace persistence remains authoritative for offline use. When signed in, the dedicated Supabase workspace row provides cross-device sync, protected by per-user Row Level Security.
 - Keep local fontsource assets; do not add remotely fetched fonts.
-- Preserve Vite `base: './'`, F-Droid Firebase alias/build behavior, Capacitor app ID `io.github.lilsynnofficial.bluenote`, and `webDir: 'dist'`.
+- Preserve Vite `base: './'`, the F-Droid build path, Capacitor app ID `io.github.lilsynnofficial.bluenote`, and `webDir: 'dist'`. Account authentication and workspace sync use the dedicated BlueNote Supabase project; Firebase is no longer the account backend.
 - Do not alter Android WebView security, product flavors, release workflows, or the separate security-hardening work.
 - Use existing React, Tailwind v4, Motion, Lucide and Recharts dependencies.
 
@@ -76,3 +76,13 @@ Scope: presentation and navigation only; preserve the current workspace schema a
 - The mobile screenshot inspection found clipped dashboard controls before the responsive fix. The energy selector now shrinks within its row and capture actions wrap instead of extending beyond the viewport. Follow-up metrics confirmed no document-level horizontal overflow across the eight mobile captures.
 - Browser report: no uncaught page errors or console errors were captured. The light-theme active navigation was changed from a black row to a subtle blue-tinted selection with dark-blue icon/text contrast.
 - Full action-by-action workflows and physical Android WebView rendering are still not verified. The branch remains a draft and has not been merged or deployed.
+
+
+## Supabase account integration follow-up (2026-10-18)
+
+- Created dedicated Supabase project `BlueNote` in the `NeuroSyn DEV` organization, project ref `eemnfovvxlefhsfszzhk`, region `us-west-1`. This is separate from every other project.
+- Applied migration `bluenote_workspace_sync` to create `public.bluenote_workspaces`, enable RLS, grant authenticated access, and restrict SELECT/INSERT/UPDATE/DELETE to rows where `auth.uid() = user_id`.
+- Verified the table exists with RLS enabled, all four ownership policies are present, and Supabase security advisors returned no lints.
+- Replaced the old Firebase adapter behavior with the Supabase Auth REST API and per-user workspace REST sync. Added a launch-time sign-in prompt, email/password registration and sign-in, password recovery request, session refresh, and five-second remote workspace polling. Local autosave remains enabled.
+- Updated the F-Droid sanitizer to preserve HTTPS so it does not corrupt the Supabase endpoint.
+- **Not yet verified:** the current auth changes still require a fresh CI run on the latest branch head, live end-to-end account registration/email confirmation/password recovery, and a second-device sync test. Supabase's Auth URL/redirect allowlist must include the intended app callback URL before email links/OAuth can be considered ready. Google OAuth is not verified/configured. Keep PR #24 unmerged.
