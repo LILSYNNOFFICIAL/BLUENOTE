@@ -49,18 +49,17 @@ jobs:
       - name: Install preview dependencies
         working-directory: production
         run: |
-          git -C .. status --short
           git clone --depth 1 --branch feat/bluenote-workspace-redesign-20261013 https://github.com/LILSYNNOFFICIAL/BLUENOTE.git ../preview-source
           npm --prefix ../preview-source install --legacy-peer-deps --no-fund --no-audit
 
       - name: Build PR #24 preview under /pr-24/
         run: |
-          npm --prefix ../preview-source run build
+          npm --prefix preview-source run build
           mkdir -p production/dist/pr-24
-          cp -a ../preview-source/dist/. production/dist/pr-24/
+          cp -a preview-source/dist/. production/dist/pr-24/
           test -s production/dist/pr-24/index.html
           test -d production/dist/pr-24/assets
-          printf '%s\n' 'Preview files staged at /pr-24/' 
+          printf '%s\n' 'Preview files staged at /pr-24/'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
