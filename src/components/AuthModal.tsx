@@ -9,7 +9,6 @@ import {
   LogOut,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   Camera,
   Upload,
   Trash2,
@@ -19,9 +18,6 @@ import {
 } from 'lucide-react';
 import {
   auth,
-  googleProvider,
-  signInWithPopup,
-  signInWithRedirect,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -158,49 +154,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return 'No account found with this email. Switch to Create Account.';
     }
     return message || 'Authentication could not complete.';
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setInfoMessage(null);
-    setLoading(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user) {
-        const finalName =
-          displayName.trim() || result.user.displayName || 'BlueNote User';
-        const finalEmail = result.user.email || email.trim();
-        const finalAvatar = avatarUrl || result.user.photoURL || '';
-        onUpdateLocalProfileName(finalName, finalEmail);
-        if (onUpdateProfileSettings) {
-          onUpdateProfileSettings({
-            name: finalName,
-            email: finalEmail,
-            roleTitle: roleTitle.trim(),
-            bio: bio.trim(),
-            avatarUrl: finalAvatar,
-            authDomainAlias: getFirebaseAuthDomain(),
-          });
-        }
-      }
-      onClose();
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || '';
-      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
-        try {
-          setInfoMessage('Redirecting to Google Sign-In...');
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr: unknown) {
-          setError(formatFirebaseAuthError(redirectErr));
-          setLoading(false);
-          return;
-        }
-      }
-      setError(formatFirebaseAuthError(err));
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -630,24 +583,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </form>
 
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                <span className="bg-white dark:bg-slate-900 px-3 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-                  or single sign-on
-                </span>
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                BlueNote accounts use email and password. Google sign-in is hidden until its provider is configured in the dedicated BlueNote Supabase project.
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600" />
-                  Continue with Google
-                </button>
+              <div className="grid grid-cols-1 gap-2.5">
                 <button
                   type="button"
                   onClick={handleSaveProfileOnly}
