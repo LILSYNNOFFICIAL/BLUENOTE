@@ -738,3 +738,44 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
   .bn-feature-page { gap: .9rem; }
   .bn-feature-header { padding: 16px !important; }
 }
+
+/* Mobile fit pass: keep long selectors and capture actions inside the viewport. */
+@media (max-width: 767px) {
+  .bn-dashboard-hero-head > div:last-child {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .bn-dashboard-hero-head > div:last-child > div:first-child {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+  .bn-dashboard-hero-head > div:last-child > div:first-child select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bn-omnibox-form,
+  .bn-omnibox-form > div:first-child,
+  .bn-omnibox-form > div:first-child input {
+    width: 100%;
+    min-width: 0;
+  }
+  .bn-omnibox-form > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+  }
+  .bn-omnibox-form > div:last-child button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
