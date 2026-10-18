@@ -128,26 +128,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const formatFirebaseAuthError = (err: unknown): string => {
     const code = (err as { code?: string })?.code || '';
     const message = err instanceof Error ? err.message : String(err || '');
-    const hostname = getDetectedHostname();
-    const appUrl = getDetectedAppUrl();
 
-    if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
-      return `Firebase Authentication rejected hostname "${hostname}" (deployed application URL: ${appUrl}). Firebase Authorized Domains uses the hostname only—never include the "/BLUENOTE/" path. To authorize this host: open Firebase Console (project: ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains, and add "${hostname}" (while keeping authDomain set to ai-studio-applet-webapp-d45ee.firebaseapp.com).`;
+    if (code === 'auth/unauthorized-domain' || message.toLowerCase().includes('redirect url')) {
+      return `Supabase rejected this app's redirect URL. In the BlueNote Supabase dashboard, add the current app URL to Authentication → URL Configuration → Redirect URLs, then try again.`;
     }
-    if (code === 'auth/popup-closed-by-user' || message.includes('popup-closed-by-user')) {
-      return 'Sign-in popup was closed before completing.';
+    if (code === 'auth/popup-closed-by-user') {
+      return 'Sign-in was cancelled before it completed.';
     }
-    if (code === 'auth/operation-not-allowed' || message.includes('PASSWORD_LOGIN_DISABLED')) {
-      return 'Email/Password sign-in is currently disabled in Firebase Console (Authentication → Sign-in method). Use "Continue with Google" or enable the Email/Password provider in Firebase Console.';
+    if (code === 'auth/operation-not-allowed') {
+      return 'Email/password sign-in is disabled in BlueNote Supabase Auth settings.';
     }
     if (code === 'auth/email-already-in-use') {
-      return 'An account with this email already exists. Switch to "Sign In" above.';
+      return 'An account with this email already exists. Switch to Sign In.';
     }
     if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
       return 'Invalid email or password. Please check your credentials and try again.';
     }
     if (code === 'auth/user-not-found') {
-      return 'No account found with this email. Switch to "Create Account (Sign Up)" above.';
+      return 'No account found with this email. Switch to Create Account.';
     }
     return message || 'Authentication could not complete.';
   };
@@ -234,6 +232,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       onClose();
     } catch (err: unknown) {
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/email-confirmation-required') {
+        setInfoMessage(err instanceof Error ? err.message : 'Check your email to confirm the account, then sign in.');
+        setMode('signin');
+        setPassword('');
+        return;
+      }
       setError(formatFirebaseAuthError(err));
     } finally {
       setLoading(false);
