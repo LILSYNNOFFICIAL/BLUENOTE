@@ -332,9 +332,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={
-                        workspace.settings.authDomainAlias || 'Supabase Auth'
-                      }
+                      value={getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
                       onChange={(e) => onUpdateSettings({ authDomainAlias: e.target.value })}
                       placeholder="Supabase Auth"
                       className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
