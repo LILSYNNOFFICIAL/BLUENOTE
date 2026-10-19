@@ -11,6 +11,7 @@ test('allows compressed base64 raster avatar images', () => {
 
 test('allows same-origin relative paths and rejects external URL loads', () => {
   assert.equal(getSafeAvatarSrc('/avatars/me.png', origin), 'https://bluenote.example/avatars/me.png');
+  assert.equal(getSafeAvatarSrc('https://bluenote.example/avatars/me.png', origin), 'https://bluenote.example/avatars/me.png');
   assert.equal(getSafeAvatarSrc('https://cdn.example/avatar.jpg', origin), null);
 });
 

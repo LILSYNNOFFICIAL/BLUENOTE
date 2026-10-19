@@ -11,7 +11,7 @@ export function getSafeAvatarSrc(value: unknown, baseOrigin = 'https://bluenote.
   if (!candidate) return null;
   if (BASE64_IMAGE_DATA_URL.test(candidate)) return candidate;
 
-  const hasExplicitScheme = /^[a-z][a-z\\d+.-]*:/i.test(candidate);
+  const hasExplicitScheme = /^[a-z][a-z\d+.-]*:/i.test(candidate);
   const isRootRelative = candidate.startsWith('/') && !candidate.startsWith('//');
   if (!hasExplicitScheme && !isRootRelative) return null;
 
