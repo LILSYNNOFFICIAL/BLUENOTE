@@ -156,6 +156,9 @@ test('invalid credentials map to a stable user-facing error', async () => {
 });
 
 test('workspace upsert is authenticated and scoped to the active user', async () => {
+  // Earlier tests deliberately rotate the refresh token; isolate this assertion
+  // with a fresh sign-in so it does not depend on another test's session state.
+  await client.signInWithEmailAndPassword(client.auth, 'test@example.com', 'a-strong-test-password');
   await client.setDoc(client.doc(client.db, 'workspaces', 'user-123'), {
     uid: 'user-123',
     email: 'test@example.com',
