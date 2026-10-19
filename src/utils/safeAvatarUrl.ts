@@ -14,7 +14,8 @@ export function getSafeAvatarSrc(value: unknown, baseOrigin = 'https://bluenote.
   try {
     const base = new URL(baseOrigin);
     const parsed = new URL(candidate, base);
-    if (parsed.protocol === 'https:' && parsed.hostname) return parsed.href;
+    // Persisted avatar values may be tampered with. Keep network loads same-origin;
+    // uploaded photos use the validated base64 image-data path above.
     if (
       parsed.origin === base.origin &&
       parsed.protocol === base.protocol &&

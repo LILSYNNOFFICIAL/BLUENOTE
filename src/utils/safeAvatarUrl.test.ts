@@ -9,9 +9,9 @@ test('allows compressed base64 raster avatar images', () => {
   assert.equal(getSafeAvatarSrc('data:image/webp;base64,QUJD', origin), 'data:image/webp;base64,QUJD');
 });
 
-test('allows HTTPS avatar URLs and same-origin relative paths', () => {
-  assert.equal(getSafeAvatarSrc('https://cdn.example/avatar.jpg', origin), 'https://cdn.example/avatar.jpg');
+test('allows same-origin relative paths and rejects external URL loads', () => {
   assert.equal(getSafeAvatarSrc('/avatars/me.png', origin), 'https://bluenote.example/avatars/me.png');
+  assert.equal(getSafeAvatarSrc('https://cdn.example/avatar.jpg', origin), null);
 });
 
 test('rejects scriptable, non-image, and unsafe external schemes', () => {
