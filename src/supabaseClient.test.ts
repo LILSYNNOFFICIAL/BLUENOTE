@@ -165,7 +165,7 @@ test('workspace upsert is authenticated and scoped to the active user', async ()
     name: 'Test User',
     workspace: { tasks: [{ id: 'local-task' }] },
   });
-  const call = calls.find(({ url }) => url.includes('/rest/v1/bluenote_workspaces?on_conflict=user_id'));
+  const call = calls.filter(({ url }) => url.includes('/rest/v1/bluenote_workspaces?on_conflict=user_id')).pop();
   assert.ok(call);
   const headers = new Headers(call.init.headers);
   assert.equal(headers.get('Authorization'), 'Bearer test-access-token');
