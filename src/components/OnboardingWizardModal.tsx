@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 import {
   Sparkles,
   CheckCircle2,
@@ -322,7 +323,7 @@ export const OnboardingWizardModal: React.FC<OnboardingWizardModalProps> = ({
                     <div className="relative shrink-0">
                       {avatarUrl ? (
                         <img
-                          src={avatarUrl}
+                          src={getSafeAvatarSrc(avatarUrl, window.location.origin) || undefined}
                           alt={name || 'Profile'}
                           className="w-14 h-14 rounded-2xl object-cover border-2 border-blue-500 shadow-xs"
                         />

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 import {
   Settings,
   Palette,
@@ -214,7 +215,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 <div className="relative group">
                   {workspace.settings.avatarUrl ? (
                     <img
-                      src={workspace.settings.avatarUrl}
+                      src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                       alt={workspace.settings.name || 'User Photograph'}
                       className="w-28 h-28 rounded-3xl object-cover border-2 border-blue-500 shadow-lg"
                     />

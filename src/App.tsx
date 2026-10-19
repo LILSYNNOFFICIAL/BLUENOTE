@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getSafeAvatarSrc } from './utils/safeAvatarUrl';
 import {
   Sparkles,
   LayoutDashboard,
@@ -1356,7 +1357,7 @@ export default function App() {
             >
               {workspace.settings.avatarUrl ? (
                 <img
-                  src={workspace.settings.avatarUrl}
+                  src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                   alt={workspace.settings.name || 'User'}
                   className="w-9 h-9 rounded-xl object-cover border border-blue-500 shrink-0"
                 />
@@ -1611,7 +1612,7 @@ export default function App() {
               >
                 {workspace.settings.avatarUrl ? (
                   <img
-                    src={workspace.settings.avatarUrl}
+                    src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                     alt={workspace.settings.name || 'Profile'}
                     className="w-5 h-5 rounded-full object-cover border border-blue-500 shrink-0"
                   />

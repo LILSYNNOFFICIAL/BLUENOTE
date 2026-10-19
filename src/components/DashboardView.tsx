@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 import {
   Sparkles,
   CheckCircle2,
@@ -335,7 +336,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               {workspace.settings.avatarUrl ? (
                 <img
-                  src={workspace.settings.avatarUrl}
+                  src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                   alt={workspace.settings.name || 'Profile'}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-blue-500 shadow-md group-hover:scale-105 transition-transform"
                 />
