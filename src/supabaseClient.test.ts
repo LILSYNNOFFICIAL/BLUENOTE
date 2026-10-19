@@ -23,6 +23,9 @@ Object.defineProperty(globalThis, 'window', {
 
 const calls: Array<{ url: string; init: RequestInit }> = [];
 let rejectPasswordSignIn = false;
+let expireNextSession = false;
+let activeRefreshToken = 'test-refresh-token';
+let refreshRequestCount = 0;
 const remoteWorkspace = {
   user_id: 'user-123',
   email: 'test@example.com',
@@ -45,9 +48,27 @@ globalThis.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => 
         status: 400, headers: { 'Content-Type': 'application/json' },
       });
     }
+    const shouldExpire = expireNextSession;
+    expireNextSession = false;
     return new Response(JSON.stringify({
       access_token: 'test-access-token',
       refresh_token: 'test-refresh-token',
+      expires_at: shouldExpire ? Math.floor(Date.now() / 1000) - 1 : Math.floor(Date.now() / 1000) + 3600,
+      user: { id: 'user-123', email: 'test@example.com', email_confirmed_at: '2026-10-18T00:00:00Z' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+  if (url.includes('/auth/v1/token?grant_type=refresh_token')) {
+    const body = JSON.parse(String(init.body || '{}'));
+    if (body.refresh_token !== activeRefreshToken) {
+      return new Response(JSON.stringify({ msg: 'Invalid refresh token' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    refreshRequestCount += 1;
+    activeRefreshToken = 'rotated-refresh-token-' + refreshRequestCount;
+    return new Response(JSON.stringify({
+      access_token: 'refreshed-access-token-' + refreshRequestCount,
+      refresh_token: activeRefreshToken,
       expires_at: Math.floor(Date.now() / 1000) + 3600,
       user: { id: 'user-123', email: 'test@example.com', email_confirmed_at: '2026-10-18T00:00:00Z' },
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -89,6 +110,33 @@ test('email sign-in persists a session and notifies auth listeners', async () =>
   assert.equal(client.auth.currentUser?.email, 'test@example.com');
   assert.ok(changes.includes('user-123'));
   unsubscribe();
+});
+
+test('concurrent workspace writes share one rotating refresh-token request', async () => {
+  expireNextSession = true;
+  await client.signInWithEmailAndPassword(client.auth, 'test@example.com', 'a-strong-test-password');
+  const before = refreshRequestCount;
+
+  await Promise.all([
+    client.setDoc(client.doc(client.db, 'workspaces', 'user-123'), {
+      uid: 'user-123', email: 'test@example.com', name: 'Test User', workspace: { tasks: [{ id: 'a' }] },
+    }),
+    client.setDoc(client.doc(client.db, 'workspaces', 'user-123'), {
+      uid: 'user-123', email: 'test@example.com', name: 'Test User', workspace: { tasks: [{ id: 'b' }] },
+    }),
+    client.setDoc(client.doc(client.db, 'workspaces', 'user-123'), {
+      uid: 'user-123', email: 'test@example.com', name: 'Test User', workspace: { tasks: [{ id: 'c' }] },
+    }),
+  ]);
+
+  assert.equal(refreshRequestCount - before, 1, 'only one refresh request should rotate the refresh token');
+  const writes = calls.filter(({ url, init }) =>
+    url.includes('/rest/v1/bluenote_workspaces?on_conflict=user_id') && init.method === 'POST'
+  ).slice(-3);
+  assert.equal(writes.length, 3);
+  for (const write of writes) {
+    assert.equal(new Headers(write.init.headers).get('Authorization'), 'Bearer refreshed-access-token-' + refreshRequestCount);
+  }
 });
 
 test('invalid credentials map to a stable user-facing error', async () => {

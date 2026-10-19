@@ -208,16 +208,37 @@ async function request(path: string, options: RequestInit = {}, useSession = tru
   return body;
 }
 
+let refreshInFlight: Promise<string> | null = null;
+
 async function getAccessToken(): Promise<string> {
   if (!session) throw new SupabaseAuthError('Sign in to sync this BlueNote workspace.', 'auth/no-current-user');
   if (session.expires_at > Math.floor(Date.now() / 1000) + 60) return session.access_token;
-  const refreshed = await request('/auth/v1/token?grant_type=refresh_token', {
-    method: 'POST',
-    body: JSON.stringify({ refresh_token: session.refresh_token }),
-  }, false);
-  const next = makeSession(refreshed);
-  saveSession(next);
-  return next.access_token;
+
+  // Supabase refresh tokens rotate. Concurrent requests must share one refresh
+  // promise or the second request can reuse an invalidated refresh token.
+  if (!refreshInFlight) {
+    const sessionBeingRefreshed = session;
+    refreshInFlight = (async () => {
+      const refreshed = await request('/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: sessionBeingRefreshed.refresh_token }),
+      }, false);
+      const next = makeSession(refreshed);
+
+      // A sign-out or a newer sign-in may have replaced the session while the
+      // refresh was in flight. Never overwrite that newer authentication state.
+      if (session?.refresh_token !== sessionBeingRefreshed.refresh_token) {
+        if (session) return session.access_token;
+        throw new SupabaseAuthError('Your session ended while refreshing. Please sign in again.', 'auth/session-expired');
+      }
+      saveSession(next);
+      return next.access_token;
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+
+  return refreshInFlight;
 }
 
 function makeSession(data: any): Session {
