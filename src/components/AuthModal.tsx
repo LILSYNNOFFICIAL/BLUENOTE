@@ -29,6 +29,7 @@ import {
   User,
 } from '@/src/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -307,7 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="relative group shrink-0">
                 {avatarUrl ? (
                   <img
-                    src={avatarUrl}
+                    src={getSafeAvatarSrc(avatarUrl, window.location.origin) || undefined}
                     alt={displayName || 'Profile Photograph'}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-blue-500 shadow-md"
                   />
