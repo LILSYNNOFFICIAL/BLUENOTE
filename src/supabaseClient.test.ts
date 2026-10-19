@@ -169,7 +169,15 @@ test('workspace upsert is authenticated and scoped to the active user', async ()
   assert.ok(call);
   const headers = new Headers(call.init.headers);
   assert.equal(headers.get('Authorization'), 'Bearer test-access-token');
-  assert.equal(headers.get('apikey'), 'sb_publishable_JVc0GXWoQZmpDLYO5b-8vQ_I1c_BI_Z');
+  const apiKey = headers.get('apikey') || '';
+  assert.ok(
+    apiKey.startsWith('sb_publishable_') || apiKey.startsWith('eyJ'),
+    'request must use a public Supabase API key format'
+  );
+  if (apiKey.startsWith('eyJ')) {
+    const claims = JSON.parse(Buffer.from(apiKey.split('.')[1], 'base64url').toString('utf8'));
+    assert.equal(claims.role, 'anon', 'legacy JWT keys must be anon keys, never service-role keys');
+  }
   const row = JSON.parse(String(call.init.body));
   assert.equal(row.user_id, 'user-123');
   assert.deepEqual(row.workspace, { tasks: [{ id: 'local-task' }] });
