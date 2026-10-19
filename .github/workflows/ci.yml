@@ -112,3 +112,15 @@ jobs:
       - name: Build F-Droid validation APK
         working-directory: ./android
         run: gradle assembleFdroidRelease --no-daemon
+
+      - name: Build installable F-Droid debug APK for smoke testing
+        working-directory: ./android
+        run: gradle assembleFdroidDebug --no-daemon
+
+      - name: Upload F-Droid debug APK for device smoke testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluenote-fdroid-debug-apk
+          path: android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
+          if-no-files-found: error
+          retention-days: 7

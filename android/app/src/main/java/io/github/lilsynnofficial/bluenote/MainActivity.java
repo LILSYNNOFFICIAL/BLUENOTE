@@ -19,7 +19,9 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
+import android.webkit.WebResourceResponse;
+import androidx.webkit.WebViewAssetLoader;
+import androidx.webkit.WebViewClientCompat;
 
 import org.json.JSONObject;
 
@@ -32,6 +34,12 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1001;
+    private static final String APP_HOST = "lilsynnofficial.github.io";
+    private static final String APP_PATH_PREFIX = "/public/";
+    private static final String APP_ORIGIN = "https://" + APP_HOST;
+    private static final String FIREBASE_AUTH_HOST = "ai-studio-applet-webapp-d45ee.firebaseapp.com";
+    private static final String FIREBASE_APP_HOST = "ai-studio-applet-webapp-d45ee.web.app";
+    private static final String GOOGLE_ACCOUNTS_HOST = "accounts.google.com";
     private static final String RELEASE_API_URL =
             "https://api.github.com/repos/LILSYNNOFFICIAL/BLUENOTE/releases/latest";
     private static final String PLAYSTORE_APK_URL =
@@ -77,34 +85,48 @@ public class MainActivity extends Activity {
 
         webView.setBackgroundColor(Color.parseColor("#FFFFFF"));
 
-        webView.setWebViewClient(new WebViewClient() {
+        // Serve packaged assets through an HTTPS origin instead of file://. The
+        // asset handler is called only for our exact app host and packaged path.
+        final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .setDomain(APP_HOST)
+                .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
+
+        webView.setWebViewClient(new WebViewClientCompat() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(
+                    WebView view,
+                    WebResourceRequest request
+            ) {
+                Uri uri = request.getUrl();
+                return isTrustedAppUrl(uri) ? assetLoader.shouldInterceptRequest(uri) : null;
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                Uri uri = Uri.parse(url);
+                return isTrustedAppUrl(uri) ? assetLoader.shouldInterceptRequest(uri) : null;
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                String scheme = uri.getScheme();
-                if ("file".equals(scheme)) {
+                if (isTrustedAppUrl(uri) || isTrustedAuthUrl(uri)) {
                     return false;
                 }
-                if (uri.getHost() != null) {
-                    String host = uri.getHost().toLowerCase();
-                    if (host.equals("localhost")
-                            || host.equals("127.0.0.1")
-                            || host.equals("ai-studio-applet-webapp-d45ee.firebaseapp.com")
-                            || host.equals("ai-studio-applet-webapp-d45ee.web.app")
-                            || host.equals("google.com")
-                            || host.endsWith(".google.com")
-                            || host.equals("googleapis.com")
-                            || host.endsWith(".googleapis.com")
-                            || host.equals("lilsynnofficial.github.io")
-                            || host.endsWith(".lilsynnofficial.github.io")) {
-                        return false;
-                    }
+                openExternalUrl(uri);
+                return true;
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                Uri uri = Uri.parse(url);
+                if (isTrustedAppUrl(uri) || isTrustedAuthUrl(uri)) {
+                    return false;
                 }
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    startActivity(intent);
-                } catch (Exception ignored) {
-                }
+                openExternalUrl(uri);
                 return true;
             }
         });
@@ -112,24 +134,29 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                Uri origin = request.getOrigin();
-                String scheme = origin != null ? origin.getScheme() : null;
-                String host = origin != null ? origin.getHost() : null;
-                boolean trustedLocalOrigin = "file".equalsIgnoreCase(scheme);
-                boolean trustedWebOrigin = "lilsynnofficial.github.io".equalsIgnoreCase(host);
-                if (!trustedLocalOrigin && !trustedWebOrigin) {
+                if (!isTrustedAppOrigin(request.getOrigin())) {
                     request.deny();
                     return;
                 }
-                runOnUiThread(() -> request.grant(request.getResources()));
+
+                java.util.ArrayList<String> allowedResources = new java.util.ArrayList<>();
+                for (String resource : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
+                            || PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                        allowedResources.add(resource);
+                    }
+                }
+                if (allowedResources.isEmpty()) {
+                    request.deny();
+                    return;
+                }
+                runOnUiThread(() -> request.grant(allowedResources.toArray(new String[0])));
             }
 
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
-                Uri uri = Uri.parse(origin);
-                boolean trusted = "file".equalsIgnoreCase(uri.getScheme())
-                        || "lilsynnofficial.github.io".equalsIgnoreCase(uri.getHost());
-                callback.invoke(origin, trusted, false);
+                // BlueNote does not require browser geolocation. Fail closed.
+                callback.invoke(origin, false, false);
             }
 
             @Override
@@ -138,6 +165,11 @@ public class MainActivity extends Activity {
                     ValueCallback<Uri[]> filePathCallback,
                     FileChooserParams fileChooserParams
             ) {
+                Uri currentUri = webView.getUrl() == null ? null : Uri.parse(webView.getUrl());
+                if (!isTrustedAppUrl(currentUri)) {
+                    filePathCallback.onReceiveValue(null);
+                    return false;
+                }
                 if (MainActivity.this.filePathCallback != null) {
                     MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
@@ -153,11 +185,48 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) {
-            webView.loadUrl("file:///android_asset/public/index.html");
-            checkForPlaystoreUpdate();
-        } else {
-            webView.restoreState(savedInstanceState);
+        // Never restore a previously saved file:// WebView origin.
+        webView.loadUrl(APP_ORIGIN + APP_PATH_PREFIX + "index.html");
+        checkForPlaystoreUpdate();
+    }
+
+    private boolean isTrustedAppOrigin(Uri uri) {
+        return uri != null
+                && "https".equalsIgnoreCase(uri.getScheme())
+                && APP_HOST.equalsIgnoreCase(uri.getHost())
+                && (uri.getPort() == -1 || uri.getPort() == 443)
+                && uri.getUserInfo() == null;
+    }
+
+    private boolean isTrustedAppUrl(Uri uri) {
+        return isTrustedAppOrigin(uri)
+                && uri.getPath() != null
+                && uri.getPath().startsWith(APP_PATH_PREFIX);
+    }
+
+    // Firebase Google sign-in uses the configured auth domain and accounts.google.com.
+    // Keep these HTTPS redirects inside the WebView; capture permissions remain restricted
+    // to the packaged app origin by isTrustedAppOrigin().
+    private boolean isTrustedAuthUrl(Uri uri) {
+        if (uri == null
+                || !"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getUserInfo() != null
+                || (uri.getPort() != -1 && uri.getPort() != 443)) {
+            return false;
+        }
+        String host = uri.getHost();
+        return FIREBASE_AUTH_HOST.equalsIgnoreCase(host)
+                || FIREBASE_APP_HOST.equalsIgnoreCase(host)
+                || GOOGLE_ACCOUNTS_HOST.equalsIgnoreCase(host);
+    }
+
+    private void openExternalUrl(Uri uri) {
+        if (uri == null || uri.getScheme() == null) return;
+        String scheme = uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+        if (!"https".equals(scheme) && !"mailto".equals(scheme) && !"tel".equals(scheme)) return;
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, uri));
+        } catch (Exception ignored) {
         }
     }
 
