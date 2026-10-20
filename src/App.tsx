@@ -483,8 +483,8 @@ export default function App() {
           // Initialize cloud workspace with current local workspace
           const initialPayload = {
             uid: currentUser.uid,
-            email: (currentUser.email || workspace.settings.email || '').slice(0, 250),
-            name: (currentUser.displayName || workspace.settings.name || 'BlueNote User').slice(0, 120),
+            email: (currentUser.email || accountWorkspace.workspace.settings.email || '').slice(0, 250),
+            name: (currentUser.displayName || accountWorkspace.workspace.settings.name || 'BlueNote User').slice(0, 120),
             updatedAt: new Date().toISOString(),
             workspace: sanitizeForFirestore(accountWorkspace.workspace),
           };
