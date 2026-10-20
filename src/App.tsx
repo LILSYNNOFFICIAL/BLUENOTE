@@ -451,12 +451,27 @@ export default function App() {
       initialWorkspace
     );
     if (accountWorkspace.accountChanged) {
-      // Do not let a previous account's local data be uploaded to this account.
+      // Replace the shared local cache before changing its owner marker. If the
+      // storage write fails, fail closed and do not start cloud sync for this account.
+      const isolatedWorkspace = stripLegacyDemoData(accountWorkspace.workspace);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(isolatedWorkspace));
+      } catch (err) {
+        setSyncStatus('offline');
+        handleFirestoreError(err, OperationType.WRITE, path);
+        return;
+      }
       isApplyingRemoteUpdate.current = true;
-      setWorkspace(stripLegacyDemoData(accountWorkspace.workspace));
+      setWorkspace(isolatedWorkspace);
       setTimeout(() => { isApplyingRemoteUpdate.current = false; }, 0);
     }
-    localStorage.setItem(WORKSPACE_OWNER_KEY, currentUser.uid);
+    try {
+      localStorage.setItem(WORKSPACE_OWNER_KEY, currentUser.uid);
+    } catch (err) {
+      setSyncStatus('offline');
+      handleFirestoreError(err, OperationType.WRITE, path);
+      return;
+    }
     cloudWorkspaceLoaded.current = false;
     setSyncStatus('syncing');
 
