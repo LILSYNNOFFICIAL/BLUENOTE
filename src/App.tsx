@@ -116,6 +116,7 @@ import {
   recordUserObservation,
 } from './services/patternEngine';
 import { usePWAInstall } from './hooks/usePWAInstall';
+import { resolveWorkspaceForAccount, WORKSPACE_OWNER_KEY } from './utils/workspaceOwnership';
 
 const STORAGE_KEY = 'bluenote_workspace_clean_v4';
 
@@ -442,6 +443,20 @@ export default function App() {
     if (!authReady || !currentUser) return;
     const path = `workspaces/${currentUser.uid}`;
     const docRef = doc(db, 'workspaces', currentUser.uid);
+    const storedOwnerId = localStorage.getItem(WORKSPACE_OWNER_KEY);
+    const accountWorkspace = resolveWorkspaceForAccount(
+      storedOwnerId,
+      currentUser.uid,
+      workspace,
+      initialWorkspace
+    );
+    if (accountWorkspace.accountChanged) {
+      // Do not let a previous account's local data be uploaded to this account.
+      isApplyingRemoteUpdate.current = true;
+      setWorkspace(stripLegacyDemoData(accountWorkspace.workspace));
+      setTimeout(() => { isApplyingRemoteUpdate.current = false; }, 0);
+    }
+    localStorage.setItem(WORKSPACE_OWNER_KEY, currentUser.uid);
     cloudWorkspaceLoaded.current = false;
     setSyncStatus('syncing');
 
@@ -455,7 +470,7 @@ export default function App() {
             isApplyingRemoteUpdate.current = true;
             setWorkspace((prev) =>
               stripLegacyDemoData({
-                ...prev,
+                ...(accountWorkspace.accountChanged ? initialWorkspace : prev),
                 ...(data.workspace as WorkspaceState),
               })
             );
@@ -471,7 +486,7 @@ export default function App() {
             email: (currentUser.email || workspace.settings.email || '').slice(0, 250),
             name: (currentUser.displayName || workspace.settings.name || 'BlueNote User').slice(0, 120),
             updatedAt: new Date().toISOString(),
-            workspace: sanitizeForFirestore(workspace),
+            workspace: sanitizeForFirestore(accountWorkspace.workspace),
           };
           setDoc(docRef, initialPayload)
             .then(() => setSyncStatus('synced'))
