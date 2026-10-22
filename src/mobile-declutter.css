@@ -152,3 +152,127 @@
     padding: 13px !important;
   }
 }
+
+
+/*
+ * Mobile hierarchy pass: fewer competing panels above the fold.
+ * Keep all actions and data available, but make the first screen task-first.
+ */
+@media (max-width: 767px) {
+  .bn-dashboard {
+    gap: 14px !important;
+    padding-bottom: 1rem !important;
+  }
+
+  /* The briefing duplicates the date/task counts shown in the dashboard hero.
+     Keep it available on larger screens; let the mobile dashboard lead with capture. */
+  .bn-dashboard > .bn-briefing {
+    display: none !important;
+  }
+
+  .bn-dashboard .bn-dashboard-hero {
+    padding: 14px !important;
+    gap: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .bn-dashboard .bn-dashboard-hero-head {
+    gap: 10px !important;
+  }
+
+  .bn-dashboard .bn-dashboard-hero-head h1,
+  .bn-dashboard .bn-dashboard-hero-head h2 {
+    margin-top: 0 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .bn-dashboard .bn-omnibox-form {
+    gap: 8px !important;
+  }
+
+  .bn-dashboard .bn-omnibox-control {
+    padding: 10px 12px !important;
+    border-radius: 13px !important;
+  }
+
+  .bn-dashboard .bn-dashboard-metrics {
+    padding-top: 0 !important;
+    gap: 8px !important;
+  }
+
+  .bn-dashboard .bn-dashboard-metrics > :first-child {
+    margin-bottom: 0 !important;
+  }
+
+  .bn-dashboard .bn-metric-grid {
+    padding-top: 0 !important;
+  }
+
+  .bn-dashboard .bn-metric-grid > * {
+    min-height: 76px !important;
+    gap: 5px !important;
+  }
+
+  .bn-dashboard .bn-dashboard-grid {
+    gap: 12px !important;
+  }
+
+  .bn-dashboard .bn-priority-panel {
+    padding: 14px !important;
+    gap: 12px !important;
+  }
+
+  .bn-feature-header--projects-os {
+    padding: 14px !important;
+    gap: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .bn-feature-header--projects-os > .p-6,
+  .bn-feature-header--projects-os > .p-5 {
+    padding: 0 !important;
+  }
+
+  /* Compact the Projects OS intro so search and project content appear sooner. */
+  main .bn-feature-header--projects-os h1 {
+    font-size: 1.35rem !important;
+    line-height: 1.2 !important;
+  }
+
+  main .bn-feature-header--projects-os p {
+    font-size: 0.75rem !important;
+    line-height: 1.4 !important;
+  }
+
+  main .bn-feature-header--projects-os .flex.flex-wrap {
+    gap: 6px !important;
+  }
+
+  main .bn-feature-header--projects-os button {
+    min-height: 36px;
+    padding: 8px 10px !important;
+    border-radius: 11px !important;
+  }
+
+  /* Give the fixed mobile navigation its own breathing room without covering content. */
+  .bn-main-scroll {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  main .bn-feature-header + .p-4.rounded-3xl {
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .bn-dashboard .bn-dashboard-hero {
+    padding: 12px !important;
+  }
+
+  .bn-dashboard .bn-metric-grid > * {
+    min-height: 72px !important;
+    padding: 9px !important;
+  }
+}
