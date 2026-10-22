@@ -27,7 +27,6 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
 }) => {
   const today = iso(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [weekOffset, setWeekOffset] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
   const [kind, setKind] = useState<CreateKind>('event');
   const [title, setTitle] = useState('');
@@ -40,13 +39,13 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
   const week = useMemo(() => {
     const anchor = new Date(selectedDate + 'T12:00:00');
     const startOfWeek = new Date(anchor);
-    startOfWeek.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7) + weekOffset * 7);
+    startOfWeek.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7));
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(startOfWeek);
       d.setDate(startOfWeek.getDate() + i);
       return { date: iso(d), day: d.toLocaleDateString(undefined, { weekday: 'short' }), number: d.getDate() };
     });
-  }, [selectedDate, weekOffset]);
+  }, [selectedDate]);
 
   const events = useMemo(() => workspace.events.filter(e => !e.deletedAt && e.date === selectedDate).sort((a,b) => a.startTime.localeCompare(b.startTime)), [workspace.events, selectedDate]);
   const tasks = useMemo(() => workspace.tasks.filter(t => !t.deletedAt && t.status !== 'Archived' && t.dueDate === selectedDate).sort((a,b) => (a.dueTime || '').localeCompare(b.dueTime || '')), [workspace.tasks, selectedDate]);
@@ -74,7 +73,7 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
         tags: ['Calendar'], subtasks: [], linkedItems: [],
       });
     }
-    setPanelOpen(false); setTitle(void 0 as unknown as string);
+    setPanelOpen(false); setTitle('');
   };
 
   return (
@@ -97,9 +96,9 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
           <div className="bn-week-toolbar">
             <div><h2>{new Date(week[0].date + 'T12:00:00').toLocaleDateString(undefined,{month:'long'})} {new Date(week[0].date + 'T12:00:00').getFullYear()}</h2><span>Week view</span></div>
             <div className="bn-week-controls">
-              <button type="button" onClick={() => { setWeekOffset(v => v - 1); setSelectedDate(shift(selectedDate,-7)); }} aria-label="Previous week"><ChevronLeft size={17}/></button>
+              <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,-7)); }} aria-label="Previous week"><ChevronLeft size={17}/></button>
               <button type="button" onClick={() => { setSelectedDate(today); setWeekOffset(0); }}>Today</button>
-              <button type="button" onClick={() => { setWeekOffset(v => v + 1); setSelectedDate(shift(selectedDate,7)); }} aria-label="Next week"><ChevronRight size={17}/></button>
+              <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,7)); }} aria-label="Next week"><ChevronRight size={17}/></button>
             </div>
           </div>
           <div className="bn-week-grid" role="group" aria-label="Choose a day">
