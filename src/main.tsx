@@ -13,6 +13,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './premium-redesign.css';
+import './mobile-declutter.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
