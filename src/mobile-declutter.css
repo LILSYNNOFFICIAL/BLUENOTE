@@ -1,0 +1,157 @@
+/*
+ * BlueNote mobile decluttering layer.
+ * Loaded after the shared redesign styles so desktop presentation is unchanged.
+ * Presentation-only: no controls, routes, or features are removed.
+ */
+@media (max-width: 767px) {
+  :root {
+    --bn-mobile-gutter: 12px;
+    --bn-mobile-card-radius: 16px;
+  }
+
+  .bn-main-scroll {
+    padding: 10px var(--bn-mobile-gutter) calc(5.25rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .bn-page-template,
+  .bn-page-content,
+  .bn-dashboard,
+  .bn-feature-page,
+  .bn-workspace-page {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .bn-page-content,
+  .bn-dashboard,
+  .bn-feature-page {
+    gap: 12px !important;
+  }
+
+  .bn-page-content > *,
+  .bn-dashboard > *,
+  .bn-feature-page > * {
+    min-width: 0 !important;
+    margin-block: 0 !important;
+  }
+
+  /* One clear page title and calmer, tighter feature headers. */
+  main h1 {
+    font-size: clamp(1.35rem, 6vw, 1.7rem) !important;
+    line-height: 1.2 !important;
+    letter-spacing: -.035em !important;
+  }
+
+  main h2 {
+    font-size: 1.05rem !important;
+    line-height: 1.3 !important;
+  }
+
+  main p {
+    line-height: 1.45 !important;
+  }
+
+  .bn-feature-header,
+  .bn-dashboard-hero {
+    padding: 16px !important;
+    border-radius: var(--bn-mobile-card-radius) !important;
+    box-shadow: none !important;
+  }
+
+  /* Reduce nested-card noise and excessive desktop padding on phones. */
+  main .rounded-3xl,
+  main .rounded-2xl {
+    border-radius: var(--bn-mobile-card-radius) !important;
+  }
+
+  main .p-8 { padding: 16px !important; }
+  main .p-7 { padding: 14px !important; }
+  main .p-6 { padding: 14px !important; }
+  main .p-5 { padding: 12px !important; }
+
+  main .shadow-2xs,
+  main .shadow-xs,
+  main .shadow-sm,
+  main .shadow-md,
+  .bn-dashboard-hero,
+  .bn-feature-header {
+    box-shadow: none !important;
+  }
+
+  /* Dashboard: compact metrics, readable cards, no squeezed desktop columns. */
+  .bn-dashboard-hero > * { min-width: 0 !important; }
+  .bn-dashboard-grid,
+  .bn-dashboard [class*="grid-cols-2"],
+  .bn-dashboard [class*="grid-cols-3"],
+  .bn-dashboard [class*="grid-cols-4"],
+  .bn-feature-page [class*="grid-cols-3"],
+  .bn-feature-page [class*="grid-cols-4"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .bn-metric-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .bn-metric-grid > * {
+    min-height: 88px !important;
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .bn-dashboard .bn-priority-panel,
+  .bn-dashboard .bn-card,
+  .bn-dashboard .rounded-2xl.border,
+  .bn-dashboard .rounded-3xl.border {
+    box-shadow: none !important;
+  }
+
+  /* Toolbars and action rows wrap instead of crowding or clipping. */
+  .bn-feature-header :is(.flex, [class*="flex-row"]),
+  .bn-page-content :is(.bn-toolbar, .bn-page-actions) {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .bn-page-content .overflow-x-auto {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+  }
+
+  .bn-page-content :is(input, textarea, select) {
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .bn-page-content :is(button, a[role="button"]) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Preserve compact three-choice controls (theme pickers and segmented rows). */
+  .bn-page-content .grid.grid-cols-3.gap-1\.5,
+  .bn-page-content .grid.grid-cols-3.gap-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Extra-small phones: favor breathing room over side-by-side content. */
+@media (max-width: 380px) {
+  .bn-main-scroll {
+    padding-inline: 9px !important;
+  }
+
+  .bn-metric-grid > * {
+    padding: 10px !important;
+    min-height: 82px !important;
+  }
+
+  .bn-feature-header,
+  .bn-dashboard-hero {
+    padding: 13px !important;
+  }
+}
