@@ -61,7 +61,6 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    const now = new Date().toISOString();
     if (kind === 'event') {
       onAddEvent({
         title: title.trim(), description: '', date, startTime: start, endTime: end, allDay: false,
@@ -99,7 +98,7 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
             <div><h2>{new Date(week[0].date + 'T12:00:00').toLocaleDateString(undefined,{month:'long'})} {new Date(week[0].date + 'T12:00:00').getFullYear()}</h2><span>Week view</span></div>
             <div className="bn-week-controls">
               <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,-7)); }} aria-label="Previous week"><ChevronLeft size={17}/></button>
-              <button type="button" onClick={() => { setSelectedDate(today); setWeekOffset(0); }}>Today</button>
+              <button type="button" onClick={() => { setSelectedDate(today); }}>Today</button>
               <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,7)); }} aria-label="Next week"><ChevronRight size={17}/></button>
             </div>
           </div>
