@@ -79,12 +79,9 @@
     box-shadow: none !important;
   }
 
-  /* Dashboard: compact metrics, readable cards, no squeezed desktop columns. */
-  .bn-dashboard-hero > * { min-width: 0 !important; }
+  /* Stack the main dashboard and wide feature grids, but retain useful 2-up
+     layouts such as metric tiles and deliberate compact choice controls. */
   .bn-dashboard-grid,
-  .bn-dashboard [class*="grid-cols-2"],
-  .bn-dashboard [class*="grid-cols-3"],
-  .bn-dashboard [class*="grid-cols-4"],
   .bn-feature-page [class*="grid-cols-3"],
   .bn-feature-page [class*="grid-cols-4"] {
     grid-template-columns: minmax(0, 1fr) !important;
