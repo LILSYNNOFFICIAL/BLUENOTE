@@ -1726,7 +1726,7 @@ export default function App() {
           >
             <BlueNotePageTemplate section={activeSection}>
             {/* Mobile Compact Quick Capture */}
-            <div className="md:hidden mb-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm p-2">
+            <div className={`${activeSection === 'dashboard' ? 'hidden' : 'md:hidden'} mb-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm p-2`}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
