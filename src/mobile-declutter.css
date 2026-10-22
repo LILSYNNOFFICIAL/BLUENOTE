@@ -401,3 +401,17 @@
  .bn-week-count { font-size:7px; }
  .bn-calendar-header-actions { gap:5px; }
 }
+
+
+/* Calendar week/month view controls */
+.bn-calendar-view-switch{display:flex;align-items:center;gap:3px;padding:3px;border:1px solid var(--bn-border, #e2e8f0);border-radius:12px;background:var(--bn-surface-soft, #f8fafc)}
+.bn-calendar-view-switch button{border:0;background:transparent;color:var(--bn-muted, #64748b);padding:7px 11px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
+.bn-calendar-view-switch button.active{background:var(--bn-surface, #fff);color:var(--bn-text, #0f172a);box-shadow:0 1px 3px #0f172a14}
+.bn-month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.bn-month-grid .bn-week-day{min-height:94px;align-items:flex-start;padding:10px;gap:7px}
+.bn-month-grid .bn-week-day-name{font-size:11px}
+.bn-month-grid .bn-week-day-number{font-size:18px}
+.bn-month-grid .bn-week-count{font-size:10px}
+.bn-month-grid .bn-week-dots{justify-content:flex-start}
+.bn-month-grid .bn-week-day.is-outside-month{opacity:.42}
+@media(max-width:640px){.bn-calendar-view-switch button{padding:7px 8px}.bn-month-grid{gap:4px}.bn-month-grid .bn-week-day{min-height:68px;padding:6px 4px;gap:5px}.bn-month-grid .bn-week-day-number{font-size:15px}.bn-month-grid .bn-week-count{font-size:9px}.bn-month-grid .bn-week-dots{gap:2px}}
