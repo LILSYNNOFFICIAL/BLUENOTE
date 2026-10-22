@@ -80,7 +80,7 @@ import {
   parseQuickCaptureLocally,
 } from './services/aiService';
 import { AIKeysAndFreeAIModal } from './components/AIKeysAndFreeAIModal';
-import { DashboardView } from './components/DashboardView';
+import { CalendarHomeView } from './components/CalendarHomeView';
 import { UniversalInboxView } from './components/UniversalInboxView';
 import { TasksAndChecklistsView } from './components/TasksAndChecklistsView';
 import { NotesEditorView } from './components/NotesEditorView';
@@ -1751,110 +1751,20 @@ export default function App() {
                 </button>
               </form>
             </div>            {activeSection === 'dashboard' && (
-              <DashboardView
+              <CalendarHomeView
                 workspace={workspace}
                 onNavigate={handleNavigate}
                 onToggleTask={handleToggleTask}
-                onStartFocus={(task) => {
-                  setFocusTask(task);
-                  setFocusModalOpen(true);
-                }}
-                onOpenBrainDump={(tab = 'brain-dump') =>
-                  setBrainDumpModal({ open: true, tab })
-                }
-                onQuickCapture={handleQuickCapture}
-                onChangeEnergyMode={(mode: EnergyMode) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    settings: { ...prev.settings, energyMode: mode },
-                  }));
-                  showToast(`Switched to ${mode} Energy Mode — dashboard adapted`);
-                }}
-                onSnoozeReminder={(id, mins) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    reminders: prev.reminders.map((r) =>
-                      r.id === id ? { ...r, status: 'Snoozed' } : r
-                    ),
-                  }));
-                  showToast(`Reminder snoozed for ${mins} minutes`);
-                }}
-                onCompleteReminder={(id) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    reminders: prev.reminders.map((r) =>
-                      r.id === id ? { ...r, status: 'Completed' } : r
-                    ),
-                  }));
-                  showToast('Reminder marked completed');
-                }}
-                onToggleHabit={(habitId, dateStr) => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const targetDate = dateStr || today;
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: prev.habits.map((h) => {
-                      if (h.id !== habitId) return h;
-                      const isTodayTarget = targetDate === today;
-                      const currentlyChecked = isTodayTarget
-                        ? h.completedToday || h.historyDates.includes(today)
-                        : h.historyDates.includes(targetDate);
-                      const nextChecked = !currentlyChecked;
-                      const nextHistory = nextChecked
-                        ? Array.from(new Set([...h.historyDates, targetDate]))
-                        : h.historyDates.filter((d) => d !== targetDate);
-
-                      return {
-                        ...h,
-                        completedToday: isTodayTarget ? nextChecked : h.completedToday,
-                        streak: nextChecked ? h.streak + 1 : Math.max(0, h.streak - 1),
-                        historyDates: nextHistory,
-                      };
-                    }),
-                  }));
-                }}
-                onAddHabit={(newHab) => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: [
-                      {
-                        id: `hab-${Date.now()}`,
-                        name: newHab.name,
-                        icon: 'Flame',
-                        schedule: newHab.schedule,
-                        streak: 1,
-                        completedToday: true,
-                        historyDates: [today],
-                        targetPerWeek: newHab.targetPerWeek,
-                        reminderTime: newHab.reminderTime,
-                      },
-                      ...prev.habits,
-                    ],
-                  }));
-                  showToast(`Added daily habit "${newHab.name}"`);
-                }}
-                onDeleteHabit={(habitId) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: prev.habits.filter((h) => h.id !== habitId),
-                  }));
-                  showToast('Habit removed');
-                }}
-                onRedistributeWorkload={() => {
-                  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-                  const nextWeek = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    tasks: prev.tasks.map((t, idx) => {
-                      if (t.status === 'Completed' || t.priority === 'Critical') return t;
-                      return {
-                        ...t,
-                        dueDate: idx % 2 === 0 ? tomorrow : nextWeek,
-                      };
-                    }),
-                  }));
-                  showToast('AI balanced your schedule and moved non-critical tasks to open slots');
+                onAddTask={handleAddTask}
+                onOpenBrainDump={(tab = 'brain-dump') => setBrainDumpModal({ open: true, tab })}
+                onAddEvent={(evt) => {
+                  const created: CalendarEvent = {
+                    ...evt,
+                    id: `evt-${Date.now()}`,
+                    createdAt: new Date().toISOString(),
+                  };
+                  setWorkspace((prev) => ({ ...prev, events: [...prev.events, created] }));
+                  showToast(`Added "${created.title}" to your calendar`);
                 }}
               />
             )}
