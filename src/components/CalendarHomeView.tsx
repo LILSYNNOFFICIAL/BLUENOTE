@@ -27,6 +27,7 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
 }) => {
   const today = iso(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [panelOpen, setPanelOpen] = useState(false);
   const [kind, setKind] = useState<CreateKind>('event');
   const [title, setTitle] = useState('');
@@ -53,6 +54,17 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
   const weekTasks = useMemo(() => workspace.tasks.filter(t => !t.deletedAt && t.status !== 'Archived' && t.status !== 'Completed' && t.dueDate >= week[0].date && t.dueDate <= week[6].date), [workspace.tasks, week]);
   const weekProjectTasks = useMemo(() => (workspace.osProjects || []).filter(p => !p.isArchived).flatMap(p => p.tasks.filter(t => t.status !== 'Done' && t.dueDate >= week[0].date && t.dueDate <= week[6].date).map(t => ({ ...t, projectName: p.name }))), [workspace.osProjects, week]);
   const dayProjectTasks = useMemo(() => (workspace.osProjects || []).filter(p => !p.isArchived).flatMap(p => p.tasks.filter(t => t.status !== 'Done' && t.dueDate === selectedDate).map(t => ({ ...t, projectName: p.name }))), [workspace.osProjects, selectedDate]);
+  const monthDays = useMemo(() => {
+    const anchor = new Date(selectedDate + 'T12:00:00');
+    const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1, 12);
+    const gridStart = new Date(first);
+    gridStart.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(gridStart);
+      d.setDate(gridStart.getDate() + i);
+      return { date: iso(d), day: d.toLocaleDateString(undefined, { weekday: 'short' }), number: d.getDate(), inMonth: d.getMonth() === anchor.getMonth() };
+    });
+  }, [selectedDate]);
   const selectedLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   const openCreate = (nextKind: CreateKind) => {
@@ -95,19 +107,20 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
       <section className="bn-calendar-layout">
         <div className="bn-calendar-main">
           <div className="bn-week-toolbar">
-            <div><h2>{new Date(week[0].date + 'T12:00:00').toLocaleDateString(undefined,{month:'long'})} {new Date(week[0].date + 'T12:00:00').getFullYear()}</h2><span>Week view</span></div>
+            <div><h2>{new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined,{month:'long', year:'numeric'})}</h2><span>{viewMode === 'week' ? 'Week view' : 'Month view'}</span></div>
+            <div className="bn-calendar-view-switch" role="group" aria-label="Calendar view"><button type="button" className={viewMode === 'week' ? 'active' : ''} onClick={() => setViewMode('week')}>Week</button><button type="button" className={viewMode === 'month' ? 'active' : ''} onClick={() => setViewMode('month')}>Month</button></div>
             <div className="bn-week-controls">
-              <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,-7)); }} aria-label="Previous week"><ChevronLeft size={17}/></button>
-              <button type="button" onClick={() => { setSelectedDate(today); }}>Today</button>
-              <button type="button" onClick={() => { setSelectedDate(shift(selectedDate,7)); }} aria-label="Next week"><ChevronRight size={17}/></button>
+              <button type="button" onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); if (viewMode === 'week') d.setDate(d.getDate() - 7); else d.setMonth(d.getMonth() - 1); setSelectedDate(iso(d)); }} aria-label={viewMode === 'week' ? 'Previous week' : 'Previous month'}><ChevronLeft size={17}/></button>
+              <button type="button" onClick={() => setSelectedDate(today)}>Today</button>
+              <button type="button" onClick={() => { const d = new Date(selectedDate + 'T12:00:00'); if (viewMode === 'week') d.setDate(d.getDate() + 7); else d.setMonth(d.getMonth() + 1); setSelectedDate(iso(d)); }} aria-label={viewMode === 'week' ? 'Next week' : 'Next month'}><ChevronRight size={17}/></button>
             </div>
           </div>
-          <div className="bn-week-grid" role="group" aria-label="Choose a day">
-            {week.map(day => {
+          <div className={viewMode === 'week' ? 'bn-week-grid' : 'bn-month-grid'} role="group" aria-label="Choose a day">
+            {(viewMode === 'week' ? week : monthDays).map(day => {
               const dayEvents = allDayItems.filter(e => e.date === day.date);
               const dayTasks = weekTasks.filter(t => t.dueDate === day.date);
               const dayProjects = weekProjectTasks.filter(t => t.dueDate === day.date);
-              return <button key={day.date} type="button" onClick={() => setSelectedDate(day.date)} className={'bn-week-day' + (selectedDate === day.date ? ' is-selected' : '') + (day.date === today ? ' is-today' : '')}>
+              return <button key={day.date} type="button" onClick={() => setSelectedDate(day.date)} className={'bn-week-day' + (selectedDate === day.date ? ' is-selected' : '') + (day.date === today ? ' is-today' : '') + ('inMonth' in day && !day.inMonth ? ' is-outside-month' : '')}>
                 <span className="bn-week-day-name">{day.day}</span><span className="bn-week-day-number">{day.number}</span>
                 <span className="bn-week-dots">{dayEvents.slice(0,3).map(e => <i key={e.id} style={{background:e.color || '#2563eb'}}/>)}{dayTasks.slice(0,3).map(t => <i key={t.id} className="task-dot"/>)}</span>
                 <span className="bn-week-count">{dayEvents.length + dayTasks.length + dayProjects.length ? `${dayEvents.length + dayTasks.length + dayProjects.length} planned` : '—'}</span>
