@@ -51,6 +51,8 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
   const tasks = useMemo(() => workspace.tasks.filter(t => !t.deletedAt && t.status !== 'Archived' && t.dueDate === selectedDate).sort((a,b) => (a.dueTime || '').localeCompare(b.dueTime || '')), [workspace.tasks, selectedDate]);
   const allDayItems = useMemo(() => workspace.events.filter(e => !e.deletedAt && e.date >= week[0].date && e.date <= week[6].date), [workspace.events, week]);
   const weekTasks = useMemo(() => workspace.tasks.filter(t => !t.deletedAt && t.status !== 'Archived' && t.status !== 'Completed' && t.dueDate >= week[0].date && t.dueDate <= week[6].date), [workspace.tasks, week]);
+  const weekProjectTasks = useMemo(() => (workspace.osProjects || []).filter(p => !p.isArchived).flatMap(p => p.tasks.filter(t => t.status !== 'Done' && t.dueDate >= week[0].date && t.dueDate <= week[6].date).map(t => ({ ...t, projectName: p.name }))), [workspace.osProjects, week]);
+  const dayProjectTasks = useMemo(() => (workspace.osProjects || []).filter(p => !p.isArchived).flatMap(p => p.tasks.filter(t => t.status !== 'Done' && t.dueDate === selectedDate).map(t => ({ ...t, projectName: p.name }))), [workspace.osProjects, selectedDate]);
   const selectedLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   const openCreate = (nextKind: CreateKind) => {
@@ -105,10 +107,11 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
             {week.map(day => {
               const dayEvents = allDayItems.filter(e => e.date === day.date);
               const dayTasks = weekTasks.filter(t => t.dueDate === day.date);
+              const dayProjects = weekProjectTasks.filter(t => t.dueDate === day.date);
               return <button key={day.date} type="button" onClick={() => setSelectedDate(day.date)} className={'bn-week-day' + (selectedDate === day.date ? ' is-selected' : '') + (day.date === today ? ' is-today' : '')}>
                 <span className="bn-week-day-name">{day.day}</span><span className="bn-week-day-number">{day.number}</span>
                 <span className="bn-week-dots">{dayEvents.slice(0,3).map(e => <i key={e.id} style={{background:e.color || '#2563eb'}}/>)}{dayTasks.slice(0,3).map(t => <i key={t.id} className="task-dot"/>)}</span>
-                <span className="bn-week-count">{dayEvents.length + dayTasks.length ? `${dayEvents.length + dayTasks.length} planned` : '—'}</span>
+                <span className="bn-week-count">{dayEvents.length + dayTasks.length + dayProjects.length ? `${dayEvents.length + dayTasks.length + dayProjects.length} planned` : '—'}</span>
               </button>;
             })}
           </div>
@@ -117,14 +120,15 @@ export const CalendarHomeView: React.FC<CalendarHomeViewProps> = ({
             <div className="bn-day-add-actions"><button type="button" onClick={() => openCreate('task')}><Plus size={14}/> Task</button><button type="button" onClick={() => openCreate('event')}><Plus size={14}/> Event</button></div>
           </div>
           <div className="bn-agenda-list">
-            {events.length === 0 && tasks.length === 0 && <div className="bn-calendar-empty"><CalendarDays size={24}/><strong>Your day is clear</strong><span>Add an event or schedule a task for this date.</span><button type="button" onClick={() => openCreate('event')}>Plan something</button></div>}
+            {events.length === 0 && tasks.length === 0 && dayProjectTasks.length === 0 && <div className="bn-calendar-empty"><CalendarDays size={24}/><strong>Your day is clear</strong><span>Add an event or schedule a task for this date.</span><button type="button" onClick={() => openCreate('event')}>Plan something</button></div>}
             {events.map(event => <article className="bn-agenda-item" key={event.id}><span className="bn-agenda-time">{event.startTime}<small>{event.endTime}</small></span><span className="bn-agenda-color" style={{background:event.color || '#2563eb'}}/><div className="bn-agenda-copy"><strong>{event.title}</strong><span>{event.category}{event.location ? ' · ' + event.location : ''}</span></div><button type="button" className="bn-agenda-open" onClick={() => onNavigate('calendar',event.id)} aria-label={'Open ' + event.title}>↗</button></article>)}
+            {dayProjectTasks.map(task => <article className="bn-agenda-item bn-agenda-task" key={task.id}><span className="bn-agenda-time">Project<small>Due today</small></span><span className="bn-agenda-color task-color"/><div className="bn-agenda-copy"><strong>{task.title}</strong><span>{task.projectName} · Project task</span></div><button type="button" className="bn-agenda-open" onClick={() => onNavigate('projects-os',task.projectId)} aria-label={'Open project task ' + task.title}>↗</button></article>)}
             {tasks.map(task => <article className={'bn-agenda-item bn-agenda-task' + (task.status === 'Completed' ? ' is-complete' : '')} key={task.id}><button type="button" className="bn-task-check" onClick={() => onToggleTask(task.id)} aria-label={'Complete ' + task.title}><CheckSquare size={17}/></button><span className="bn-agenda-time">{task.dueTime || 'Any time'}<small>{task.estimatedMinutes} min</small></span><span className="bn-agenda-color task-color"/><div className="bn-agenda-copy"><strong>{task.title}</strong><span>{task.priority} priority{task.projectId ? ' · Project linked' : ' · Task'}</span></div><button type="button" className="bn-agenda-open" onClick={() => onNavigate('tasks',task.id)} aria-label={'Open ' + task.title}>↗</button></article>)}
           </div>
         </div>
 
         <aside className="bn-calendar-side">
-          <div className="bn-calendar-side-top"><div><span className="bn-calendar-eyebrow">UP NEXT</span><h2>{selectedDate === today ? 'Today’s agenda' : 'Day overview'}</h2></div><span className="bn-agenda-total">{events.length + tasks.length}</span></div>
+          <div className="bn-calendar-side-top"><div><span className="bn-calendar-eyebrow">UP NEXT</span><h2>{selectedDate === today ? 'Today’s agenda' : 'Day overview'}</h2></div><span className="bn-agenda-total">{events.length + tasks.length + dayProjectTasks.length}</span></div>
           <div className="bn-calendar-stats"><div><strong>{events.length}</strong><span>Events</span></div><div><strong>{tasks.filter(t=>t.status!=='Completed').length}</strong><span>Open tasks</span></div><div><strong>{workspace.reminders.filter(r=>r.triggerDate===selectedDate && r.status==='Active').length}</strong><span>Reminders</span></div></div>
           <div className="bn-calendar-side-section"><h3>Scheduled</h3>{events.length ? events.map(e=><button type="button" className="bn-side-event" key={e.id} onClick={()=>onNavigate('calendar',e.id)}><i style={{background:e.color || '#2563eb'}}/><span><strong>{e.title}</strong><small>{e.startTime}–{e.endTime}</small></span></button>) : <p className="bn-calendar-muted">Nothing scheduled yet.</p>}</div>
           <div className="bn-calendar-side-section"><h3>Tasks due</h3>{tasks.length ? tasks.map(t=><button type="button" className="bn-side-event" key={t.id} onClick={()=>onNavigate('tasks',t.id)}><i className="task-dot"/><span><strong>{t.title}</strong><small>{t.dueTime || 'No time set'} · {t.priority}</small></span></button>) : <p className="bn-calendar-muted">No tasks due on this day.</p>}</div>
