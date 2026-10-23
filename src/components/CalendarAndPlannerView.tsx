@@ -41,7 +41,9 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
   onAutoGenerateTimeBlocks,
 }) => {
   const todayISO = new Date().toISOString().split('T')[0];
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'agenda'>('day');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'agenda'>('month');
+  const [eventEditorOpen, setEventEditorOpen] = useState(false);
+  const [eventNote, setEventNote] = useState('');
   const [selectedDate, setSelectedDate] = useState(todayISO);
 
   // New Event Form
@@ -66,9 +68,16 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
 
   const shiftDate = (days: number) => {
     const base = new Date(`${selectedDate}T12:00:00`);
-    base.setDate(base.getDate() + days);
-    const iso = base.toISOString().split('T')[0];
-    handleSelectDate(iso);
+    if (viewMode === 'month') {
+      const day = base.getDate();
+      base.setDate(1);
+      base.setMonth(base.getMonth() + (days < 0 ? -1 : 1));
+      const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+      base.setDate(Math.min(day, lastDay));
+    } else {
+      base.setDate(base.getDate() + days);
+    }
+    handleSelectDate(base.toISOString().split('T')[0]);
   };
 
   // Detect overlapping events on the same date
@@ -171,7 +180,7 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
     if (!title.trim()) return;
     onAddEvent({
       title: title.trim(),
-      description: `${category} scheduled in Calendar`,
+      description: eventNote.trim() || `${category} scheduled in Calendar`,
       date,
       startTime,
       endTime,
@@ -191,6 +200,8 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
     });
     setTitle('');
     setLocation('');
+    setEventNote('');
+    setEventEditorOpen(false);
   };
 
   const handleTimeBlockTask = (task: Task) => {
@@ -231,672 +242,177 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
   });
 
   return (
-    <div className="bn-feature-page bn-feature-page--calendar space-y-6 pb-12">
-      {/* Header & View Switcher */}
-      <div className="bn-feature-header bn-feature-header--calendar bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-              <Calendar className="w-6 h-6 text-blue-600" />
-              Calendar, Time-Blocking & Smart Reminders
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Day, Week, Month & Agenda planner with AI time-blocking, conflict detection, and flexible snooze reminders.
-            </p>
+    <div className="bn-calendar-reference min-w-0 pb-8">
+      <div className="bn-calendar-frame overflow-hidden rounded-[28px] border border-slate-700/70 bg-slate-950 text-slate-100 shadow-2xl">
+        <div className="bn-calendar-topbar flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-300">
+              <Calendar className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Calendar &amp; Planner</h1>
+              <p className="mt-0.5 text-xs text-slate-400 sm:text-sm">Your schedule, deadlines, and focus time in one place.</p>
+            </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Date Navigation Controls */}
-            <div className="inline-flex items-center gap-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-              <button
-                type="button"
-                onClick={() => shiftDate(viewMode === 'week' ? -7 : viewMode === 'month' ? -30 : -1)}
-                className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300"
-                title="Previous"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSelectDate(todayISO)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                  selectedDate === todayISO
-                    ? 'bg-blue-600 text-white'
-                    : 'hover:bg-white dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                Today
-              </button>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
               <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => e.target.value && handleSelectDate(e.target.value)}
-                className="bg-transparent text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 px-1.5 py-0.5 focus:outline-none"
+                aria-label="Search activities"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setEventEditorOpen(true); }}
+                placeholder="Search or name an activity"
+                className="w-full rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
               />
-              <button
-                type="button"
-                onClick={() => shiftDate(viewMode === 'week' ? 7 : viewMode === 'month' ? 30 : 1)}
-                className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-900 text-slate-600 dark:text-slate-300"
-                title="Next"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
             </div>
-
-            {/* View Mode Switcher */}
-            <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
-              {(['day', 'week', 'month', 'agenda'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setViewMode(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
-                    viewMode === m
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-
-            {onAutoGenerateTimeBlocks && (
-              <button
-                type="button"
-                onClick={onAutoGenerateTimeBlocks}
-                className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:text-indigo-300 text-indigo-700 text-xs font-semibold flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5" /> AI Auto-Block Tasks
-              </button>
-            )}
+            <button type="button" onClick={() => { setDate(selectedDate); setEventEditorOpen(true); }} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-sky-500 px-4 text-sm font-semibold text-slate-950 transition hover:bg-sky-400">
+              <Plus className="h-4 w-4" /><span className="hidden sm:inline">New event</span><span className="sm:hidden">Add</span>
+            </button>
           </div>
         </div>
 
-        {/* Conflict Alert Banner */}
-        {conflicts.length > 0 && (
-          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>AI Conflict Detector: {conflicts.join(' • ')}</span>
+        <div className="bn-calendar-workspace grid min-w-0 grid-cols-1 lg:grid-cols-[58px_minmax(0,1fr)_292px]">
+          <nav aria-label="Calendar shortcuts" className="hidden flex-col items-center gap-3 border-r border-white/10 bg-black/10 py-5 lg:flex">
+            {[
+              { label: 'Month view', icon: CalendarDays, mode: 'month' as const },
+              { label: 'Week view', icon: Calendar, mode: 'week' as const },
+              { label: 'Day view', icon: Clock, mode: 'day' as const },
+              { label: 'Agenda view', icon: CheckSquare, mode: 'agenda' as const },
+            ].map((item) => {
+              const Icon = item.icon;
+              return <button key={item.mode} type="button" aria-label={item.label} title={item.label} onClick={() => setViewMode(item.mode)} className={`flex h-10 w-10 items-center justify-center rounded-2xl transition ${viewMode === item.mode ? 'bg-sky-500 text-slate-950 shadow-lg shadow-sky-500/20' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}><Icon className="h-4 w-4" /></button>;
+            })}
+            <div className="mt-auto flex flex-col gap-2">
+              <button type="button" aria-label="Add reminder" title="Add reminder" onClick={() => document.getElementById('bn-calendar-reminder-title')?.focus()} className="flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition hover:bg-white/10 hover:text-white"><Bell className="h-4 w-4" /></button>
             </div>
-          </div>
-        )}
+          </nav>
 
-        {/* Quick Schedule Event / Time-Block Form */}
-        <form onSubmit={handleAddEvt} className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Schedule event or focus block (e.g. 'Deep Work: Product Spec')..."
-            className="md:col-span-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 text-xs text-slate-900 dark:text-white"
-          />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="md:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-2 text-xs font-mono"
-          />
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="md:col-span-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2 text-xs font-mono"
-          />
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="md:col-span-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2 text-xs font-mono"
-          />
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Location / Room / Link..."
-            className="md:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-2 text-xs"
-          />
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as CalendarEvent['category'])}
-            className="md:col-span-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-2 text-xs font-medium"
-          >
-            <option value="Focus Block">🎯 Focus Block</option>
-            <option value="Meeting">👥 Meeting</option>
-            <option value="Appointment">📅 Appointment</option>
-            <option value="Deadline">⏰ Deadline</option>
-            <option value="Personal">🏠 Personal</option>
-            <option value="Birthday">🎂 Birthday</option>
-          </select>
-          <button
-            type="submit"
-            className="md:col-span-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 flex items-center justify-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Block Time
-          </button>
-        </form>
-      </div>
-
-      {/* Main Split: Calendar View (Left 7 cols) + Smart Reminders Center (Right 5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left 7 Cols: Dynamic View (Day / Week / Month / Agenda) */}
-        <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-blue-600" />
-                {viewMode === 'day' && `Daily Time-Blocking — ${formattedSelectedDate}`}
-                {viewMode === 'week' && `7-Day Weekly Planner`}
-                {viewMode === 'month' &&
-                  new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                {viewMode === 'agenda' && `Chronological Master Agenda (${workspace.events.length} Events)`}
-              </h2>
-            </div>
-            <span className="text-xs text-blue-600 font-semibold flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> AI Time-Blocking Active
-            </span>
-          </div>
-
-          {/* VIEW MODE 1: DAY VIEW */}
-          {viewMode === 'day' && (
-            <div className="space-y-5">
-              <div className="space-y-3">
-                {dayEvents.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-1.5">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      No events scheduled on {selectedDate}
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Use the Block Time bar above or click &ldquo;Time-Block&rdquo; on any due task below.
-                    </p>
-                  </div>
-                ) : (
-                  dayEvents.map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 border-l-4 flex items-start justify-between gap-4"
-                      style={{ borderLeftColor: evt.color || '#2563eb' }}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400">
-                            {evt.startTime} – {evt.endTime}
-                          </span>
-                          <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                            {evt.category}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                          {evt.title}
-                        </h3>
-                        {evt.location && (
-                          <p className="text-xs text-slate-500 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {evt.location}
-                          </p>
-                        )}
-                      </div>
-                      {onDeleteEvent && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteEvent(evt.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                          title="Delete event"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Unscheduled Tasks Due on Selected Date -> 1-Click Time-Block */}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <CheckSquare className="w-3.5 h-3.5 text-blue-600" />
-                    Tasks Due on {selectedDate} ({dayTasks.length})
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    1-click to convert task into a calendar Focus Block
-                  </span>
+          <main className="min-w-0 p-3 sm:p-5 lg:p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h2 className="text-xl font-medium text-slate-100 sm:text-2xl">
+                    {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'long' })}
+                  </h2>
+                  <span className="text-lg text-slate-400 sm:text-xl">{new Date(`${selectedDate}T12:00:00`).getFullYear()}</span>
                 </div>
-                {dayTasks.length === 0 ? (
-                  <p className="text-xs text-slate-400">
-                    No open tasks due on {selectedDate}.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {dayTasks.map((t) => (
-                      <div
-                        key={t.id}
-                        className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            {t.title}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            {t.priority} Priority • {t.estimatedMinutes}m est
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleTimeBlockTask(t)}
-                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold shrink-0 flex items-center gap-1"
-                        >
-                          <Clock className="w-3 h-3" /> Time-Block
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* PROJECTS OS Deadlines Due on Selected Date */}
-                {dayOSProjectTasks.length > 0 && (
-                  <div className="pt-2 space-y-2">
-                    <div className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                      PROJECTS Workspace Deadlines ({dayOSProjectTasks.length})
-                    </div>
-                    {dayOSProjectTasks.map((pt) => (
-                      <div
-                        key={pt.id}
-                        className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200/70 dark:border-indigo-900/60 flex items-center justify-between gap-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                            [{pt.projectName}] {pt.title}
-                          </div>
-                          <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                            PROJECTS Task • {pt.priority} Priority
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onAddEvent({
-                              title: `[${pt.projectName}] ${pt.title}`,
-                              description: `Time-blocked from PROJECTS ("${pt.projectName}")`,
-                              date: selectedDate,
-                              startTime: '14:00',
-                              endTime: '15:00',
-                              allDay: false,
-                              category: 'Focus Block',
-                              location: 'PROJECTS Workspace',
-                              tags: ['PROJECTS', 'Focus-Block'],
-                              linkedContactIds: [],
-                              color: '#4f46e5',
-                            })
-                          }
-                          className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold shrink-0 flex items-center gap-1"
-                        >
-                          <Clock className="w-3 h-3" /> Time-Block
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <p className="mt-1 text-xs text-slate-500">{formattedSelectedDate}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" aria-label="Previous period" onClick={() => shiftDate(viewMode === 'week' ? -7 : viewMode === 'month' ? -30 : -1)} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-slate-300 transition hover:border-sky-400/60 hover:bg-white/5"><ChevronLeft className="h-4 w-4" /></button>
+                <button type="button" onClick={() => handleSelectDate(todayISO)} className="rounded-full border border-white/15 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:border-sky-400/60 hover:text-white">Today</button>
+                <button type="button" aria-label="Next period" onClick={() => shiftDate(viewMode === 'week' ? 7 : viewMode === 'month' ? 30 : 1)} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-slate-300 transition hover:border-sky-400/60 hover:bg-white/5"><ChevronRight className="h-4 w-4" /></button>
               </div>
             </div>
-          )}
 
-          {/* VIEW MODE 2: WEEK VIEW */}
-          {viewMode === 'week' && (
-            <div className="grid grid-cols-1 sm:grid-cols-7 gap-2.5">
-              {weekDays.map((wd) => {
-                const evts = workspace.events
-                  .filter((e) => e.date === wd.dateStr)
-                  .sort((a, b) => a.startTime.localeCompare(b.startTime));
-                const tasksDue = workspace.tasks.filter(
-                  (t) => !t.deletedAt && t.status !== 'Completed' && t.dueDate === wd.dateStr
-                );
-                const isSelected = wd.dateStr === selectedDate;
-
-                return (
-                  <div
-                    key={wd.dateStr}
-                    onClick={() => handleSelectDate(wd.dateStr)}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all space-y-2 min-h-[170px] ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-50/30 dark:bg-blue-950/30'
-                        : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:border-blue-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-1.5">
-                      <span className="text-[10px] font-bold uppercase text-slate-400">
-                        {wd.dayShort}
-                      </span>
-                      <span
-                        className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded-md ${
-                          wd.isToday
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-700 dark:text-slate-200'
-                        }`}
-                      >
-                        {wd.dayNum}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {evts.map((e) => (
-                        <div
-                          key={e.id}
-                          className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border-l-2 border border-slate-200/70 dark:border-slate-700 text-[10px]"
-                          style={{ borderLeftColor: e.color || '#2563eb' }}
-                        >
-                          <div className="font-mono font-bold text-blue-600">{e.startTime}</div>
-                          <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                            {e.title}
-                          </div>
-                        </div>
-                      ))}
-                      {tasksDue.map((t) => (
-                        <div
-                          key={t.id}
-                          className="p-1.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/60 text-[10px] text-amber-800 dark:text-amber-300 truncate font-medium"
-                        >
-                          ✓ {t.title}
-                        </div>
-                      ))}
-                      {evts.length === 0 && tasksDue.length === 0 && (
-                        <div className="text-[10px] text-slate-400 pt-2 text-center">Open</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.035] p-1 lg:hidden">
+              {(['month', 'week', 'day', 'agenda'] as const).map((mode) => <button key={mode} type="button" onClick={() => setViewMode(mode)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-semibold capitalize transition ${viewMode === mode ? 'bg-sky-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}>{mode}</button>)}
             </div>
-          )}
 
-          {/* VIEW MODE 3: MONTH VIEW */}
-          {viewMode === 'month' && (
-            <div className="space-y-2">
-              <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 pb-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
+            {conflicts.length > 0 && <div role="status" className="mb-4 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>Schedule conflict: {conflicts.join(' • ')}</span></div>}
+
+            {viewMode === 'month' && <>
+              <div className="grid grid-cols-7 gap-1 pb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:gap-2 sm:text-xs">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day} className="py-1">{day}</div>)}
               </div>
-              <div className="grid grid-cols-7 gap-1.5">
+              <div className="bn-calendar-month-grid grid grid-cols-7 gap-1 sm:gap-2">
                 {monthCells.map((cell, idx) => {
-                  if (!cell.dateStr || !cell.dayNum) {
-                    return (
-                      <div
-                        key={`blank-${idx}`}
-                        className="h-20 rounded-xl bg-slate-50/40 dark:bg-slate-900/30 border border-transparent"
-                      />
-                    );
-                  }
-                  const evts = workspace.events.filter((e) => e.date === cell.dateStr);
-                  const tasksDue = workspace.tasks.filter(
-                    (t) => !t.deletedAt && t.status !== 'Completed' && t.dueDate === cell.dateStr
-                  );
+                  if (!cell.dateStr || !cell.dayNum) return <div key={`blank-${idx}`} aria-hidden="true" className="min-h-[62px] rounded-xl border border-transparent sm:min-h-[94px] lg:min-h-[112px]" />;
+                  const evts = workspace.events.filter((e) => e.date === cell.dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                  const tasksDue = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived' && t.dueDate === cell.dateStr);
                   const isSelected = cell.dateStr === selectedDate;
                   const isToday = cell.dateStr === todayISO;
-
-                  return (
-                    <button
-                      key={cell.dateStr}
-                      type="button"
-                      onClick={() => {
-                        handleSelectDate(cell.dateStr!);
-                        setViewMode('day');
-                      }}
-                      className={`h-20 p-2 rounded-xl border text-left flex flex-col justify-between transition-all ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/40 dark:bg-blue-950/40'
-                          : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-blue-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span
-                          className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
-                            isToday
-                              ? 'bg-blue-600 text-white'
-                              : 'text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          {cell.dayNum}
-                        </span>
-                        {(evts.length > 0 || tasksDue.length > 0) && (
-                          <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">
-                            {evts.length + tasksDue.length}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-0.5 overflow-hidden w-full">
-                        {evts.slice(0, 2).map((e) => (
-                          <div
-                            key={e.id}
-                            className="text-[9px] truncate px-1 py-0.2 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium"
-                          >
-                            {e.startTime} {e.title}
-                          </div>
-                        ))}
-                        {evts.length === 0 && tasksDue.length > 0 && (
-                          <div className="text-[9px] truncate px-1 py-0.2 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 font-medium">
-                            {tasksDue.length} task(s) due
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
+                  return <button key={cell.dateStr} type="button" onClick={() => { handleSelectDate(cell.dateStr!); setEventEditorOpen(true); }} aria-label={`${cell.dateStr}, ${evts.length} events`} aria-pressed={isSelected} className={`bn-calendar-day min-w-0 rounded-xl border p-1.5 text-left transition sm:rounded-2xl sm:p-2.5 ${isSelected ? 'border-sky-400 bg-sky-500/20 shadow-[inset_0_0_0_1px_rgba(56,189,248,.12)]' : 'border-white/[0.08] bg-white/[0.035] hover:border-sky-400/40 hover:bg-white/[0.06]'}`}>
+                    <div className="mb-1 flex items-center justify-between gap-1">
+                      <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs ${isToday ? 'bg-sky-500 font-bold text-slate-950' : isSelected ? 'font-bold text-sky-200' : 'text-slate-200'}`}>{cell.dayNum}</span>
+                      {(evts.length + tasksDue.length > 0) && <span className="text-[9px] text-slate-500 sm:text-[10px]">{evts.length + tasksDue.length}</span>}
+                    </div>
+                    <div className="space-y-1">
+                      {evts.slice(0, 2).map((evt) => <div key={evt.id} className="truncate rounded px-1 py-0.5 text-[9px] leading-tight text-slate-200 sm:text-[10px]" style={{ backgroundColor: `${evt.color || '#38bdf8'}22`, borderLeft: `2px solid ${evt.color || '#38bdf8'}` }} title={evt.title}>{viewMode === 'month' && <><span className="hidden sm:inline">{evt.startTime} </span>{evt.title}</>}</div>)}
+                      {tasksDue.length > 0 && evts.length < 2 && <div className="hidden truncate rounded bg-amber-400/10 px-1 py-0.5 text-[9px] text-amber-200 sm:block">{tasksDue.length} task{tasksDue.length === 1 ? '' : 's'}</div>}
+                      {evts.length > 2 && <div className="text-[9px] text-slate-500">+{evts.length - 2} more</div>}
+                    </div>
+                  </button>;
                 })}
               </div>
-            </div>
-          )}
+            </>}
 
-          {/* VIEW MODE 4: AGENDA VIEW */}
-          {viewMode === 'agenda' && (
+            {viewMode === 'week' && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-7">
+              {weekDays.map((day) => {
+                const evts = workspace.events.filter((e) => e.date === day.dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                return <button key={day.dateStr} type="button" onClick={() => { handleSelectDate(day.dateStr); setViewMode('day'); }} className={`min-h-24 rounded-xl border p-3 text-left transition ${day.dateStr === selectedDate ? 'border-sky-400 bg-sky-500/15' : 'border-white/10 bg-white/[0.035] hover:border-sky-400/40'}`}>
+                  <div className="mb-2 flex items-center justify-between"><span className="text-[10px] uppercase text-slate-500">{day.dayShort}</span><span className={`text-sm ${day.isToday ? 'font-bold text-sky-300' : 'text-slate-200'}`}>{day.dayNum}</span></div>
+                  {evts.slice(0, 3).map((evt) => <div key={evt.id} className="mb-1 truncate rounded px-1.5 py-1 text-[10px]" style={{ backgroundColor: `${evt.color || '#38bdf8'}22`, borderLeft: `2px solid ${evt.color || '#38bdf8'}` }}>{evt.title}</div>)}
+                  {evts.length === 0 && <span className="text-[10px] text-slate-600">No events</span>}
+                </button>;
+              })}
+            </div>}
+
+            {(viewMode === 'day' || viewMode === 'agenda') && <div className="space-y-2">
+              {(viewMode === 'agenda' ? [...workspace.events].sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center"><CalendarDays className="mx-auto mb-2 h-7 w-7 text-slate-600" /><p className="text-sm text-slate-400">Nothing scheduled here yet.</p><button type="button" onClick={() => setEventEditorOpen(true)} className="mt-3 rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-slate-950">Create an event</button></div> :
+                (viewMode === 'agenda' ? [...workspace.events].sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).map((evt) => <div key={evt.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 sm:p-4">
+                  <div className="mt-1 h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: evt.color || '#38bdf8' }} />
+                  <div className="min-w-0 flex-1"><div className="text-[11px] text-slate-400">{evt.date} · {evt.startTime}–{evt.endTime}</div><h3 className="mt-1 truncate text-sm font-semibold text-slate-100">{evt.title}</h3>{evt.location && <p className="mt-1 flex items-center gap-1 text-xs text-slate-400"><MapPin className="h-3 w-3" />{evt.location}</p>}</div>
+                  {onDeleteEvent && <button type="button" aria-label={`Delete ${evt.title}`} onClick={() => onDeleteEvent(evt.id)} className="rounded-lg p-2 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300"><Trash2 className="h-4 w-4" /></button>}
+                </div>)}
+            </div>}
+
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold text-slate-200">Tasks due this day</h3><span className="text-xs text-slate-500">{dayTasks.length + dayOSProjectTasks.length} open</span></div>
+              {[...dayTasks.map((t) => ({ id: t.id, title: t.title, priority: t.priority, projectName: '', task: t })), ...dayOSProjectTasks.map((t) => ({ ...t, task: undefined }))].length === 0 ? <p className="text-xs text-slate-600">No tasks due on this date.</p> :
+                <div className="space-y-2">{dayTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3"><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-200">{task.title}</p><p className="mt-0.5 text-[10px] text-slate-500">{task.priority} priority · {task.estimatedMinutes} min</p></div><button type="button" onClick={() => handleTimeBlockTask(task)} className="shrink-0 rounded-full bg-indigo-500/20 px-3 py-1.5 text-[10px] font-semibold text-indigo-200 hover:bg-indigo-500/30"><Clock className="mr-1 inline h-3 w-3" />Time-block</button></div>)}
+                  {dayOSProjectTasks.map((task) => <div key={task.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.025] p-3"><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium text-slate-200">{task.projectName}: {task.title}</p><p className="mt-0.5 text-[10px] text-slate-500">PROJECTS · {task.priority} priority</p></div><button type="button" onClick={() => onAddEvent({ title: `[${task.projectName}] ${task.title}`, description: `Time-blocked from PROJECTS (${task.projectName})`, date: selectedDate, startTime: '14:00', endTime: '15:00', allDay: false, category: 'Focus Block', location: 'PROJECTS Workspace', tags: ['PROJECTS', 'Focus-Block'], linkedContactIds: [], color: '#4f46e5' })} className="shrink-0 rounded-full bg-indigo-500/20 px-3 py-1.5 text-[10px] font-semibold text-indigo-200 hover:bg-indigo-500/30"><Clock className="mr-1 inline h-3 w-3" />Time-block</button></div>)}
+                </div>}
+            </div>
+          </main>
+
+          <aside className="bn-calendar-agenda min-w-0 border-t border-white/10 bg-black/10 p-4 sm:p-5 lg:border-l lg:border-t-0">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div><h2 className="text-base font-semibold text-white">Scheduled</h2><p className="mt-0.5 text-[11px] text-slate-500">{new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+              <button type="button" aria-label="Add event for selected date" onClick={() => { setDate(selectedDate); setEventEditorOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-slate-300 hover:border-sky-400/40 hover:text-sky-200"><Plus className="h-4 w-4" /></button>
+            </div>
             <div className="space-y-3">
-              {workspace.events.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
-                  <p className="text-xs text-slate-500">
-                    Your agenda is empty. Schedule an event or focus block above.
-                  </p>
-                </div>
-              ) : (
-                [...workspace.events]
-                  .sort((a, b) =>
-                    a.date !== b.date
-                      ? a.date.localeCompare(b.date)
-                      : a.startTime.localeCompare(b.startTime)
-                  )
-                  .map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 border-l-4 flex items-start justify-between gap-4"
-                      style={{ borderLeftColor: evt.color || '#2563eb' }}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                            {evt.date}
-                          </span>
-                          <span className="text-xs font-mono font-bold text-blue-600">
-                            {evt.startTime} – {evt.endTime}
-                          </span>
-                          <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                            {evt.category}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                          {evt.title}
-                        </h3>
-                        {evt.location && (
-                          <p className="text-xs text-slate-500 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {evt.location}
-                          </p>
-                        )}
-                      </div>
-                      {onDeleteEvent && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteEvent(evt.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                          title="Delete event"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))
-              )}
+              {dayEvents.length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-4 text-center"><Clock className="mx-auto mb-2 h-5 w-5 text-slate-600" /><p className="text-xs text-slate-500">No events scheduled.</p><button type="button" onClick={() => { setDate(selectedDate); setEventEditorOpen(true); }} className="mt-2 text-xs font-semibold text-sky-300 hover:text-sky-200">+ Add an event</button></div> :
+                dayEvents.map((evt) => <article key={evt.id} className="overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.045]">
+                  <div className="h-1.5" style={{ backgroundColor: evt.color || '#38bdf8' }} />
+                  <div className="p-3"><p className="text-[10px] font-semibold text-slate-400">{evt.startTime}</p><h3 className="mt-1 text-sm font-semibold text-slate-100">{evt.title}</h3><p className="mt-1 text-[11px] text-slate-400">{evt.category}</p>{evt.location && <p className="mt-2 flex items-center gap-1 text-[10px] text-slate-400"><MapPin className="h-3 w-3" />{evt.location}</p>}<div className="mt-3 flex items-center justify-between border-t border-white/[0.07] pt-2 text-[10px] text-slate-500"><span>{evt.startTime}–{evt.endTime}</span>{onDeleteEvent && <button type="button" onClick={() => onDeleteEvent(evt.id)} className="font-medium text-slate-400 hover:text-rose-300">Delete</button>}</div></div>
+                </article>)}
             </div>
-          )}
-        </div>
 
-        {/* Right 5 Cols: Smart Reminders & Follow-Up Center */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Bell className="w-5 h-5 text-amber-500" />
-              Smart Reminders & Follow-Up Alerts
-            </h2>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!remTitle.trim()) return;
-                onAddReminder({
-                  title: remTitle.trim(),
-                  triggerDate: remDate,
-                  triggerTime: remTime,
-                  repeatRule: remRepeat,
-                  status: 'Active',
-                  notificationType: 'Both',
-                  smartSuggestionReason: `Scheduled (${remRepeat}) from Calendar & Reminder planner`,
-                });
-                setRemTitle('');
-              }}
-              className="space-y-2"
-            >
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={remTitle}
-                  onChange={(e) => setRemTitle(e.target.value)}
-                  placeholder="New reminder (e.g. 'Pay electricity bill')..."
-                  className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs"
-                />
-                <button
-                  type="submit"
-                  className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0"
-                >
-                  + Add
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  type="date"
-                  value={remDate}
-                  onChange={(e) => setRemDate(e.target.value)}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
-                />
-                <input
-                  type="time"
-                  value={remTime}
-                  onChange={(e) => setRemTime(e.target.value)}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs font-mono"
-                />
-                <select
-                  value={remRepeat}
-                  onChange={(e) => setRemRepeat(e.target.value as Reminder['repeatRule'])}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs"
-                >
-                  <option value="Once">Once</option>
-                  <option value="Daily">Daily</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Monthly">Monthly</option>
-                  <option value="Yearly">Yearly</option>
-                </select>
-              </div>
-            </form>
-
-            <div className="space-y-2.5">
-              {workspace.reminders.length === 0 ? (
-                <p className="text-xs text-slate-400">
-                  No smart reminders set yet. Add one above to get notified on time.
-                </p>
-              ) : (
-                workspace.reminders.map((rem) => (
-                  <div
-                    key={rem.id}
-                    className={`p-3.5 rounded-xl border space-y-2 ${
-                      rem.status === 'Completed'
-                        ? 'bg-slate-50 dark:bg-slate-900 opacity-60 border-slate-200 dark:border-slate-800'
-                        : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/80 dark:border-amber-900/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-white">
-                          {rem.title}
-                        </div>
-                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {rem.triggerDate} at {rem.triggerTime} ({rem.repeatRule})
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {rem.status !== 'Completed' && (
-                          <button
-                            onClick={() => onCompleteReminder(rem.id)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold flex items-center gap-1"
-                          >
-                            <Check className="w-3 h-3" /> Done
-                          </button>
-                        )}
-                        {onDeleteReminder && (
-                          <button
-                            type="button"
-                            onClick={() => onDeleteReminder(rem.id)}
-                            className="p-1 text-slate-400 hover:text-red-500"
-                            title="Delete reminder"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {rem.smartSuggestionReason && (
-                      <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-blue-500 shrink-0" />
-                        {rem.smartSuggestionReason}
-                      </p>
-                    )}
-
-                    {rem.status !== 'Completed' && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <AlarmClock className="w-3 h-3 text-amber-600" />
-                        <span className="text-[10px] text-slate-500">Snooze:</span>
-                        {[
-                          [5, '5m'],
-                          [15, '15m'],
-                          [30, '30m'],
-                          [60, '1h'],
-                          [1440, 'Tomorrow'],
-                        ].map(([m, label]) => (
-                          <button
-                            key={label}
-                            onClick={() => onSnoozeReminder(rem.id, Number(m))}
-                            className="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-medium hover:border-blue-400"
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <div className="mb-3 flex items-center justify-between"><h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Bell className="h-4 w-4 text-amber-300" />Reminders</h3><span className="text-[10px] text-slate-500">{workspace.reminders.filter((r) => r.status !== 'Completed').length} active</span></div>
+              <form onSubmit={(e) => { e.preventDefault(); if (!remTitle.trim()) return; onAddReminder({ title: remTitle.trim(), triggerDate: remDate, triggerTime: remTime, repeatRule: remRepeat, status: 'Active', notificationType: 'Both', smartSuggestionReason: `Scheduled (${remRepeat}) from Calendar & Reminder planner` }); setRemTitle(''); }} className="space-y-2">
+                <input id="bn-calendar-reminder-title" value={remTitle} onChange={(e) => setRemTitle(e.target.value)} placeholder="Add a reminder…" className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-slate-500 outline-none focus:border-sky-400/50" />
+                <div className="grid grid-cols-2 gap-2"><input aria-label="Reminder date" type="date" value={remDate} onChange={(e) => setRemDate(e.target.value)} className="min-w-0 rounded-lg border border-white/10 bg-slate-900 px-2 py-2 text-xs text-slate-200" /><input aria-label="Reminder time" type="time" value={remTime} onChange={(e) => setRemTime(e.target.value)} className="min-w-0 rounded-lg border border-white/10 bg-slate-900 px-2 py-2 text-xs text-slate-200" /></div>
+                <div className="flex gap-2"><select aria-label="Reminder repeat" value={remRepeat} onChange={(e) => setRemRepeat(e.target.value as Reminder['repeatRule'])} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-slate-900 px-2 py-2 text-xs text-slate-200"><option value="Once">Once</option><option value="Daily">Daily</option><option value="Weekly">Weekly</option><option value="Monthly">Monthly</option><option value="Yearly">Yearly</option></select><button type="submit" className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-sky-400">Add</button></div>
+              </form>
+              <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
+                {workspace.reminders.map((rem) => <div key={rem.id} className={`rounded-lg border p-3 ${rem.status === 'Completed' ? 'border-white/5 bg-white/[0.02] opacity-60' : 'border-amber-300/10 bg-amber-300/[0.04]'}`}>
+                  <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium text-slate-200">{rem.title}</p><p className="mt-1 text-[10px] text-slate-500">{rem.triggerDate} · {rem.triggerTime} · {rem.repeatRule}</p></div>
+                    <div className="flex shrink-0 gap-1">{rem.status !== 'Completed' && <button type="button" aria-label={`Complete ${rem.title}`} onClick={() => onCompleteReminder(rem.id)} className="rounded-md p-1 text-emerald-300 hover:bg-emerald-400/10"><Check className="h-3.5 w-3.5" /></button>}{onDeleteReminder && <button type="button" aria-label={`Delete reminder ${rem.title}`} onClick={() => onDeleteReminder(rem.id)} className="rounded-md p-1 text-slate-500 hover:bg-rose-400/10 hover:text-rose-300"><Trash2 className="h-3.5 w-3.5" /></button>}</div>
                   </div>
-                ))
-              )}
+                  {rem.status !== 'Completed' && <div className="mt-2 flex flex-wrap gap-1">{[[5, '5m'], [15, '15m'], [30, '30m'], [60, '1h'], [1440, 'Tomorrow']].map(([mins, label]) => <button key={label} type="button" onClick={() => onSnoozeReminder(rem.id, Number(mins))} className="rounded-md border border-white/10 px-2 py-1 text-[9px] text-slate-400 hover:border-sky-400/40 hover:text-sky-200">{label}</button>)}</div>}
+                </div>)}
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
+
+      {eventEditorOpen && <div className="bn-calendar-modal fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/75 p-0 backdrop-blur-sm sm:items-center sm:p-5" onMouseDown={(e) => { if (e.target === e.currentTarget) setEventEditorOpen(false); }}>
+        <form onSubmit={handleAddEvt} className="bn-calendar-editor w-full max-w-lg rounded-t-3xl border border-white/10 bg-slate-900 p-5 text-slate-100 shadow-2xl sm:rounded-3xl sm:p-6">
+          <div className="mb-5 flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-300">Calendar event</p><h2 className="mt-1 text-xl font-semibold">Plan something</h2><p className="mt-1 text-xs text-slate-400">Choose a time, add details, and save it to your calendar.</p></div><button type="button" aria-label="Close event editor" onClick={() => setEventEditorOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white">×</button></div>
+          <div className="space-y-4">
+            <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Event title</span><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Project planning" className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-sky-400/60" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Date</span><input type="date" value={date} onChange={(e) => { setDate(e.target.value); if (e.target.value) handleSelectDate(e.target.value); }} className="w-full rounded-xl border border-white/10 bg-slate-800 px-3.5 py-3 text-sm text-white outline-none focus:border-sky-400/60" /></label>
+            <div className="grid grid-cols-2 gap-3"><label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Start time</span><input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full min-w-0 rounded-xl border border-white/10 bg-slate-800 px-3 py-3 text-sm text-white" /></label><label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">End time</span><input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-full min-w-0 rounded-xl border border-white/10 bg-slate-800 px-3 py-3 text-sm text-white" /></label></div>
+            <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Category</span><select value={category} onChange={(e) => setCategory(e.target.value as CalendarEvent['category'])} className="w-full rounded-xl border border-white/10 bg-slate-800 px-3.5 py-3 text-sm text-white"><option value="Meeting">Meeting</option><option value="Appointment">Appointment</option><option value="Focus Block">Focus Block</option><option value="Deadline">Deadline</option><option value="Personal">Personal</option><option value="Birthday">Birthday</option></select></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Location or meeting link</span><input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Optional" className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-sky-400/60" /></label>
+            <label className="block"><span className="mb-1.5 block text-xs font-medium text-slate-300">Notes</span><textarea value={eventNote} onChange={(e) => setEventNote(e.target.value)} rows={2} placeholder="Add context or a reminder…" className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-sky-400/60" /></label>
+          </div>
+          <div className="mt-5 flex gap-2"><button type="button" onClick={() => setEventEditorOpen(false)} className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5">Cancel</button><button type="submit" className="flex-1 rounded-xl bg-sky-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-400">Save event</button></div>
+        </form>
+      </div>}
     </div>
   );
 };
