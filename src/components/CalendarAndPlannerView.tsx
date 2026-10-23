@@ -163,14 +163,22 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
     const leadingBlanks = firstDay.getDay();
     const totalDays = lastDay.getDate();
 
-    const cells: { dateStr: string | null; dayNum: number | null }[] = [];
-    for (let i = 0; i < leadingBlanks; i++) {
-      cells.push({ dateStr: null, dayNum: null });
+    const cells: { dateStr: string | null; dayNum: number | null; isCurrentMonth: boolean }[] = [];
+    const previousMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = leadingBlanks - 1; i >= 0; i--) {
+      const dayNum = previousMonthLastDay - i;
+      const d = new Date(year, month - 1, dayNum);
+      cells.push({ dateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`, dayNum, isCurrentMonth: false });
     }
     for (let d = 1; d <= totalDays; d++) {
       const mStr = String(month + 1).padStart(2, '0');
       const dStr = String(d).padStart(2, '0');
-      cells.push({ dateStr: `${year}-${mStr}-${dStr}`, dayNum: d });
+      cells.push({ dateStr: `${year}-${mStr}-${dStr}`, dayNum: d, isCurrentMonth: true });
+    }
+    const trailingDays = (7 - (cells.length % 7)) % 7;
+    for (let d = 1; d <= trailingDays; d++) {
+      const nextMonthDate = new Date(year, month + 1, d);
+      cells.push({ dateStr: `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`, dayNum: d, isCurrentMonth: false });
     }
     return cells;
   }, [selectedDate]);
@@ -322,9 +330,10 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
                   const tasksDue = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived' && t.dueDate === cell.dateStr);
                   const isSelected = cell.dateStr === selectedDate;
                   const isToday = cell.dateStr === todayISO;
-                  return <button key={cell.dateStr} type="button" onClick={() => { handleSelectDate(cell.dateStr!); setEventEditorOpen(true); }} aria-label={`${cell.dateStr}, ${evts.length} events`} aria-pressed={isSelected} className={`bn-calendar-day min-w-0 rounded-xl border p-1.5 text-left transition sm:rounded-2xl sm:p-2.5 ${isSelected ? 'border-sky-400 bg-sky-500/20 shadow-[inset_0_0_0_1px_rgba(56,189,248,.12)]' : 'border-white/[0.08] bg-white/[0.035] hover:border-sky-400/40 hover:bg-white/[0.06]'}`}>
+                  const isCurrentMonth = cell.isCurrentMonth;
+                  return <button key={cell.dateStr} type="button" onClick={() => { handleSelectDate(cell.dateStr!); setEventEditorOpen(true); }} aria-label={`${cell.dateStr}, ${evts.length} events`} aria-pressed={isSelected} className={`bn-calendar-day min-w-0 rounded-xl border p-1.5 text-left transition sm:rounded-2xl sm:p-2.5 ${isSelected ? 'border-sky-400 bg-sky-500/20 shadow-[inset_0_0_0_1px_rgba(56,189,248,.12)]' : isCurrentMonth ? 'border-white/[0.08] bg-white/[0.035] hover:border-sky-400/40 hover:bg-white/[0.06]' : 'border-white/[0.04] bg-white/[0.015] text-slate-500 hover:border-sky-400/25'}`}>
                     <div className="mb-1 flex items-center justify-between gap-1">
-                      <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs ${isToday ? 'bg-sky-500 font-bold text-slate-950' : isSelected ? 'font-bold text-sky-200' : 'text-slate-200'}`}>{cell.dayNum}</span>
+                      <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs ${isToday ? 'bg-sky-500 font-bold text-slate-950' : isSelected ? 'font-bold text-sky-200' : isCurrentMonth ? 'text-slate-200' : 'text-slate-600'}`}>{cell.dayNum}</span>
                       {(evts.length + tasksDue.length > 0) && <span className="text-[9px] text-slate-500 sm:text-[10px]">{evts.length + tasksDue.length}</span>}
                     </div>
                     <div className="space-y-1">
@@ -339,7 +348,8 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
 
             {viewMode === 'week' && <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-7">
               {weekDays.map((day) => {
-                const evts = workspace.events.filter((e) => e.date === day.dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                const query = searchQuery.trim().toLocaleLowerCase();
+                const evts = workspace.events.filter((e) => e.date === day.dateStr && (!query || e.title.toLocaleLowerCase().includes(query) || e.category.toLocaleLowerCase().includes(query) || (e.location || '').toLocaleLowerCase().includes(query))).sort((a, b) => a.startTime.localeCompare(b.startTime));
                 return <button key={day.dateStr} type="button" onClick={() => { handleSelectDate(day.dateStr); setViewMode('day'); }} className={`min-h-24 rounded-xl border p-3 text-left transition ${day.dateStr === selectedDate ? 'border-sky-400 bg-sky-500/15' : 'border-white/10 bg-white/[0.035] hover:border-sky-400/40'}`}>
                   <div className="mb-2 flex items-center justify-between"><span className="text-[10px] uppercase text-slate-500">{day.dayShort}</span><span className={`text-sm ${day.isToday ? 'font-bold text-sky-300' : 'text-slate-200'}`}>{day.dayNum}</span></div>
                   {evts.slice(0, 3).map((evt) => <div key={evt.id} className="mb-1 truncate rounded px-1.5 py-1 text-[10px]" style={{ backgroundColor: `${evt.color || '#38bdf8'}22`, borderLeft: `2px solid ${evt.color || '#38bdf8'}` }}>{evt.title}</div>)}
@@ -349,8 +359,8 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
             </div>}
 
             {(viewMode === 'day' || viewMode === 'agenda') && <div className="space-y-2">
-              {(viewMode === 'agenda' ? [...workspace.events].sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center"><CalendarDays className="mx-auto mb-2 h-7 w-7 text-slate-600" /><p className="text-sm text-slate-400">Nothing scheduled here yet.</p><button type="button" onClick={() => setEventEditorOpen(true)} className="mt-3 rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-slate-950">Create an event</button></div> :
-                (viewMode === 'agenda' ? [...workspace.events].sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).map((evt) => <div key={evt.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 sm:p-4">
+              {(viewMode === 'agenda' ? workspace.events.filter((e) => { const q = searchQuery.trim().toLocaleLowerCase(); return !q || e.title.toLocaleLowerCase().includes(q) || e.category.toLocaleLowerCase().includes(q) || (e.location || '').toLocaleLowerCase().includes(q); }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center"><CalendarDays className="mx-auto mb-2 h-7 w-7 text-slate-600" /><p className="text-sm text-slate-400">Nothing scheduled here yet.</p><button type="button" onClick={() => setEventEditorOpen(true)} className="mt-3 rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-slate-950">Create an event</button></div> :
+                (viewMode === 'agenda' ? workspace.events.filter((e) => { const q = searchQuery.trim().toLocaleLowerCase(); return !q || e.title.toLocaleLowerCase().includes(q) || e.category.toLocaleLowerCase().includes(q) || (e.location || '').toLocaleLowerCase().includes(q); }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)) : dayEvents).map((evt) => <div key={evt.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 sm:p-4">
                   <div className="mt-1 h-10 w-1 shrink-0 rounded-full" style={{ backgroundColor: evt.color || '#38bdf8' }} />
                   <div className="min-w-0 flex-1"><div className="text-[11px] text-slate-400">{evt.date} · {evt.startTime}–{evt.endTime}</div><h3 className="mt-1 truncate text-sm font-semibold text-slate-100">{evt.title}</h3>{evt.location && <p className="mt-1 flex items-center gap-1 text-xs text-slate-400"><MapPin className="h-3 w-3" />{evt.location}</p>}</div>
                   {onDeleteEvent && <button type="button" aria-label={`Delete ${evt.title}`} onClick={() => onDeleteEvent(evt.id)} className="rounded-lg p-2 text-slate-500 hover:bg-rose-500/10 hover:text-rose-300"><Trash2 className="h-4 w-4" /></button>}
