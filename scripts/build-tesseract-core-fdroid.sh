@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CORE_DIR="$ROOT_DIR/third_party/tesseract.js-core"
 VAR_FILE="$CORE_DIR/build-scripts/var.sh"
+LIBTIFF_SCRIPT="$CORE_DIR/build-scripts/build-libtiff.sh"
 TOOLCHAIN_FILE="/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake"
 EXPECTED_CORE_COMMIT="acffef2b66eb44a31df297e11d905f4b39001068"
 
@@ -26,6 +27,7 @@ done
 test -f "$CORE_DIR/build.sh"
 test -f "$TOOLCHAIN_FILE"
 test -f "$VAR_FILE"
+test -f "$LIBTIFF_SCRIPT"
 
 # This build edits tracked source files and cleans generated outputs. Refuse to
 # run on a dirty submodule so cleanup cannot discard developer changes.
@@ -43,19 +45,21 @@ if [ "$actual_core_commit" != "$EXPECTED_CORE_COMMIT" ]; then
 fi
 
 # Debian's packaged Emscripten is used instead of downloading a toolchain.
-# Disable only the optional Relaxed-SIMD/AVX variants (introduced for emsdk
-# 4.0.15); the standard, SIMD, LSTM and legacy variants are compiled from source.
+# Disable only the optional Relaxed-SIMD variant, which is not needed by this
+# app's OCR runtime and may not be supported by the distro compiler.
 sed -i 's/^BUILD_WASM_RELAXED_SIMD=1$/BUILD_WASM_RELAXED_SIMD=0/' "$VAR_FILE"
 sed -i 's|TOOLCHAIN_FILE=\$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake|TOOLCHAIN_FILE=/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake|' "$VAR_FILE"
 sed -i '/closure 1/d' "$VAR_FILE"
 sed -i 's|^PROC=.*|PROC=1|' "$VAR_FILE"
-# Autoconf's native-executable probe fails for WebAssembly unless the target
-# is declared explicitly. Mark every autotools dependency as a cross-compile.
-sed -i '/^CONF_FLAGS=/ s/--disable-shared/--disable-shared --host=wasm32-unknown-emscripten/' "$VAR_FILE"
-if ! grep -q '^CONF_FLAGS=.*--host=wasm32-unknown-emscripten' "$VAR_FILE"; then
-  echo "Failed to configure the Emscripten target for autotools dependencies." >&2
+
+# libtiff's configure script runs a native executable probe. Explicitly identify
+# the WebAssembly target so Autoconf uses cross-compilation checks instead.
+grep -q -- '--host=wasm32-unknown-emscripten' "$LIBTIFF_SCRIPT" || \
+  sed -i '/--disable-shared/a\  --host=wasm32-unknown-emscripten' "$LIBTIFF_SCRIPT"
+grep -q -- '--host=wasm32-unknown-emscripten' "$LIBTIFF_SCRIPT" || {
+  echo "Failed to configure libtiff for the Emscripten target." >&2
   exit 1
-fi
+}
 
 # Never let prebuilt artifacts from the source repository masquerade as build
 # outputs. The upstream build must regenerate every runtime core file.
@@ -84,16 +88,14 @@ for filename in "${required_files[@]}"; do
 done
 
 for wasm_file in "$CORE_DIR"/tesseract-core*.wasm; do
-  magic="$(od -An -tx1 -N4 "$wasm_file" | tr -d ' \n')"
+  magic="$(od -An -tx1 -N4 "$wasm_file" | tr -d ' \\n')"
   test "$magic" = "0061736d" || {
     echo "Invalid WebAssembly output: $wasm_file" >&2
     exit 1
   }
 done
 
-# Copy only the freshly built runtime outputs outside the submodule. F-Droid
-# can then remove all generated build products and the submodule's upstream
-# prebuilt WASM files from the source tree before scanning.
+# Copy only the freshly built runtime outputs outside the submodule.
 CACHE_DIR="$ROOT_DIR/node_modules/.cache/bluenote-tesseract-core"
 mkdir -p "$CACHE_DIR"
 cp "${required_files[@]/#/$CORE_DIR/}" "$CACHE_DIR/"
@@ -101,9 +103,7 @@ for filename in "${required_files[@]}"; do
   cmp -s "$CORE_DIR/$filename" "$CACHE_DIR/$filename"
 done
 
-# Restore every submodule to its pinned source state and remove generated
-# intermediates. The copied, locally compiled files remain in node_modules
-# until the web bundle has been assembled.
+# Restore the pinned source tree and remove generated intermediates.
 git -C "$CORE_DIR" submodule foreach --recursive 'git clean -fdx && git checkout -- .'
 git -C "$CORE_DIR" clean -fdx
 git -C "$CORE_DIR" checkout -- .
