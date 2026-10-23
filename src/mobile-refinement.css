@@ -28,11 +28,12 @@
   /* Shorten the Projects intro while keeping the heading and actions visible. */
   .bn-feature-header--projects-os { align-items: stretch !important; padding: 12px !important; }
   .bn-feature-header--projects-os > :is(.flex-1, .grow) { min-width: 0 !important; }
-  main .bn-feature-header--projects-os p {
-    display: -webkit-box !important;
-    -webkit-box-orient: vertical !important;
-    -webkit-line-clamp: 2 !important;
+  body .bn-feature-page--projects-os .bn-feature-header--projects-os p {
+    display: block !important;
+    max-height: 2.8em !important;
+    line-height: 1.4em !important;
     overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   .bn-feature-header--projects-os :is(button, a[role="button"]) {
     min-height: 40px !important;
