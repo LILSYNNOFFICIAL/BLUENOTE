@@ -28,7 +28,7 @@
   /* Shorten the Projects intro while keeping the heading and actions visible. */
   .bn-feature-header--projects-os { align-items: stretch !important; padding: 12px !important; }
   .bn-feature-header--projects-os > :is(.flex-1, .grow) { min-width: 0 !important; }
-  .bn-feature-page--projects-os > .bg-gradient-to-br p {
+  .bn-projects-os-landing-hero p {
     display: block !important;
     max-height: 2.8em !important;
     line-height: 1.4em !important;
