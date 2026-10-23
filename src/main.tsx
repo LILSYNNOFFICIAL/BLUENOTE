@@ -14,6 +14,7 @@ import App from './App.tsx';
 import './index.css';
 import './premium-redesign.css';
 import './mobile-declutter.css';
+import './mobile-refinement.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
