@@ -658,7 +658,7 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Projects OS Hero Header */}
-      <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 text-white border border-blue-500/30 shadow-xl">
+      <div className="bn-projects-os-landing-hero p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 text-white border border-blue-500/30 shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-[11px] font-extrabold uppercase tracking-widest text-blue-300">
