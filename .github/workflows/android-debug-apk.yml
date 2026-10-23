@@ -1,4 +1,4 @@
-name: BlueNote Installable Debug APK
+name: BlueNote F-Droid-Compatible Debug APK
 
 on:
   push:
@@ -56,17 +56,19 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps --no-fund --no-audit
 
-      - name: Build and sync BlueNote assets
-        run: npm run android:sync
+      - name: Build and sync F-Droid-compatible BlueNote assets
+        env:
+          F_DROID_BUILD: 'true'
+        run: npm run android:sync:fdroid
 
-      - name: Build installable debug APK
-        run: gradle -p android --no-daemon --stacktrace assemblePlaystoreDebug
+      - name: Build installable F-Droid debug APK
+        run: gradle -p android --no-daemon --stacktrace assembleFdroidDebug
 
       - name: Verify APK package, version, and Android signature
         shell: bash
         run: |
           set -euo pipefail
-          APK=android/app/build/outputs/apk/playstore/debug/app-playstore-debug.apk
+          APK=android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='io.github.lilsynnofficial.bluenote.debug' versionCode='7' versionName='1.0.8'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
@@ -75,7 +77,7 @@ jobs:
       - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: bluenote-1.0.8-installable-debug
+          name: bluenote-1.0.8-fdroid-compatible-debug
           path: android/app/build/outputs/apk/playstore/debug/app-playstore-debug.apk
           if-no-files-found: error
           retention-days: 14
