@@ -5,8 +5,6 @@ import {
   Bell,
   Plus,
   AlertTriangle,
-  Sparkles,
-  AlarmClock,
   Check,
   MapPin,
   Trash2,
@@ -44,6 +42,7 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'agenda'>('month');
   const [eventEditorOpen, setEventEditorOpen] = useState(false);
   const [eventNote, setEventNote] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(todayISO);
 
   // New Event Form
@@ -98,10 +97,11 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
 
   // Events for the selected date (or all events if none match selectedDate in Day view)
   const dayEvents = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
     return workspace.events
-      .filter((e) => e.date === selectedDate)
+      .filter((e) => e.date === selectedDate && (!query || e.title.toLocaleLowerCase().includes(query) || e.category.toLocaleLowerCase().includes(query) || (e.location || '').toLocaleLowerCase().includes(query)))
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [workspace.events, selectedDate]);
+  }, [workspace.events, selectedDate, searchQuery]);
 
   // Tasks due on selectedDate
   const dayTasks = useMemo(() => {
@@ -258,10 +258,9 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
             <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
               <input
                 aria-label="Search activities"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') setEventEditorOpen(true); }}
-                placeholder="Search or name an activity"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search activities"
                 className="w-full rounded-full border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/15"
               />
             </div>
@@ -318,7 +317,8 @@ export const CalendarAndPlannerView: React.FC<CalendarAndPlannerViewProps> = ({
               <div className="bn-calendar-month-grid grid grid-cols-7 gap-1 sm:gap-2">
                 {monthCells.map((cell, idx) => {
                   if (!cell.dateStr || !cell.dayNum) return <div key={`blank-${idx}`} aria-hidden="true" className="min-h-[62px] rounded-xl border border-transparent sm:min-h-[94px] lg:min-h-[112px]" />;
-                  const evts = workspace.events.filter((e) => e.date === cell.dateStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+                  const query = searchQuery.trim().toLocaleLowerCase();
+                  const evts = workspace.events.filter((e) => e.date === cell.dateStr && (!query || e.title.toLocaleLowerCase().includes(query) || e.category.toLocaleLowerCase().includes(query) || (e.location || '').toLocaleLowerCase().includes(query))).sort((a, b) => a.startTime.localeCompare(b.startTime));
                   const tasksDue = workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived' && t.dueDate === cell.dateStr);
                   const isSelected = cell.dateStr === selectedDate;
                   const isToday = cell.dateStr === todayISO;
