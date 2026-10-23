@@ -11,6 +11,8 @@ on:
       - package-lock.json
       - capacitor.config.ts
       - src/**
+      - scripts/**
+      - .gitmodules
   workflow_dispatch:
 
 permissions:
@@ -19,13 +21,15 @@ permissions:
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
-      - name: Checkout source
+      - name: Checkout source and pinned submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -38,6 +42,13 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Install F-Droid source-build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends emscripten cmake make autoconf automake libtool pkg-config clang llvm
 
       - name: Install Android SDK packages
         shell: bash
@@ -74,10 +85,10 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           sha256sum "$APK"
 
-      - name: Upload installable debug APK
+      - name: Upload installable F-Droid debug APK
         uses: actions/upload-artifact@v4
         with:
           name: bluenote-1.0.8-fdroid-compatible-debug
-          path: android/app/build/outputs/apk/playstore/debug/app-playstore-debug.apk
+          path: android/app/build/outputs/apk/fdroid/debug/app-fdroid-debug.apk
           if-no-files-found: error
           retention-days: 14
