@@ -49,6 +49,13 @@ sed -i 's/^BUILD_WASM_RELAXED_SIMD=1$/BUILD_WASM_RELAXED_SIMD=0/' "$VAR_FILE"
 sed -i 's|TOOLCHAIN_FILE=\$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake|TOOLCHAIN_FILE=/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake|' "$VAR_FILE"
 sed -i '/closure 1/d' "$VAR_FILE"
 sed -i 's|^PROC=.*|PROC=1|' "$VAR_FILE"
+# Autoconf's native-executable probe fails for WebAssembly unless the target
+# is declared explicitly. Mark every autotools dependency as a cross-compile.
+sed -i '/^CONF_FLAGS=/ s/--disable-shared/--disable-shared --host=wasm32-unknown-emscripten/' "$VAR_FILE"
+if ! grep -q '^CONF_FLAGS=.*--host=wasm32-unknown-emscripten' "$VAR_FILE"; then
+  echo "Failed to configure the Emscripten target for autotools dependencies." >&2
+  exit 1
+fi
 
 # Never let prebuilt artifacts from the source repository masquerade as build
 # outputs. The upstream build must regenerate every runtime core file.
