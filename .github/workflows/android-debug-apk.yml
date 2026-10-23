@@ -48,7 +48,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends emscripten cmake make autoconf automake libtool pkg-config clang llvm
+          sudo apt-get install --yes --no-install-recommends emscripten cmake make autoconf automake libtool libtool-bin pkg-config clang llvm
+          for tool in emcc emconfigure emmake cmake make autoconf automake libtool pkg-config clang llvm-ar; do
+            command -v "$tool"
+          done
 
       - name: Install Android SDK packages
         shell: bash
