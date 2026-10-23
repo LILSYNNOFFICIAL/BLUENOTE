@@ -1,0 +1,62 @@
+/* Mobile refinement pass. Desktop presentation is unchanged. */
+@media (max-width: 767px) {
+  .bn-dashboard {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .bn-dashboard .bn-dashboard-hero {
+    gap: 10px !important;
+    padding: 13px !important;
+    border: 1px solid var(--bn-line, #e2e8f0) !important;
+    background: var(--bn-surface, #fff) !important;
+  }
+  .bn-dashboard .bn-dashboard-hero-head { align-items: flex-start !important; }
+  .bn-dashboard .bn-dashboard-hero-head :is(.text-xs, .text-sm) { line-height: 1.35 !important; }
+  .bn-dashboard .bn-dashboard-hero .bn-omnibox-form {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  .bn-dashboard .bn-dashboard-hero .bn-omnibox-form > button { min-height: 42px !important; }
+  .bn-dashboard .bn-dashboard-metrics { margin-top: 0 !important; }
+  .bn-dashboard .bn-dashboard-metrics > :is(h2, h3, p) { margin-block: 0 4px !important; }
+  .bn-dashboard .bn-metric-grid > * { min-width: 0 !important; overflow: hidden; }
+  .bn-dashboard .bn-dashboard-grid > *,
+  .bn-dashboard .bn-priority-panel > * { min-width: 0 !important; }
+
+  /* Shorten the Projects intro while keeping the heading and actions visible. */
+  .bn-feature-header--projects-os { align-items: stretch !important; padding: 12px !important; }
+  .bn-feature-header--projects-os > :is(.flex-1, .grow) { min-width: 0 !important; }
+  .bn-feature-header--projects-os p {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden !important;
+  }
+  .bn-feature-header--projects-os :is(button, a[role="button"]) {
+    min-height: 40px !important;
+    white-space: normal !important;
+    text-align: center;
+  }
+  .bn-page-content :is(.bn-toolbar, .bn-page-actions),
+  .bn-feature-page :is(.bn-toolbar, .bn-page-actions) {
+    gap: 6px !important;
+    margin-block: 0 !important;
+  }
+  .bn-page-content :is(.bn-toolbar, .bn-page-actions) > *,
+  .bn-feature-page :is(.bn-toolbar, .bn-page-actions) > * { min-width: 0 !important; }
+
+  /* Keep the final card and focused controls clear of the fixed bottom nav. */
+  .bn-main-scroll {
+    padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  .bn-safe-bottom-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom, 0px)) !important; }
+}
+@media (max-width: 380px) {
+  .bn-dashboard .bn-dashboard-hero { padding: 11px !important; }
+  .bn-dashboard .bn-metric-grid { gap: 6px !important; }
+  .bn-dashboard .bn-metric-grid > * { padding: 8px !important; }
+  .bn-feature-header--projects-os { padding: 10px !important; }
+}
