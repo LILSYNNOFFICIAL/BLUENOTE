@@ -1152,3 +1152,43 @@ html.theme-blue :is(button, a, input, textarea, select):focus-visible {
     backdrop-filter: none;
   }
 }
+
+
+/* Complete the shared BlueNote shell treatment without replacing feature components. */
+html.theme-blue .bn-workspace-shell {
+  color: #e6eefc !important;
+  background: #050b18 !important;
+}
+html.theme-blue .bn-workspace-shell .bn-sidebar {
+  background: rgba(5, 13, 29, .84) !important;
+  border-color: rgba(148, 190, 255, .14) !important;
+  box-shadow: 12px 0 36px -30px rgba(0, 0, 0, .9) !important;
+}
+html.theme-blue .bn-workspace-shell .bn-main-scroll {
+  background: transparent !important;
+  scrollbar-color: rgba(96, 165, 250, .35) transparent;
+}
+html.theme-blue .bn-workspace-shell .bn-header {
+  background: rgba(5, 14, 31, .78) !important;
+  border-color: rgba(148, 190, 255, .14) !important;
+}
+html.theme-blue .bn-workspace-shell .bn-sidebar :is(button, a):hover,
+html.theme-blue .bn-workspace-shell .bn-header :is(button, a):hover {
+  background-color: rgba(96, 165, 250, .09);
+}
+html.theme-blue .bn-workspace-shell .bn-sidebar :is(.bg-white, .bg-slate-50, .bg-slate-100),
+html.theme-blue .bn-workspace-shell .bn-main-scroll :is(.bg-white, .bg-slate-50, .bg-slate-100) {
+  background-color: rgba(21, 39, 67, .62) !important;
+  border-color: rgba(148, 190, 255, .15) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+html.theme-blue .bn-workspace-shell :is(input, textarea, select) {
+  color-scheme: dark;
+}
+html.theme-blue .bn-workspace-shell :is(input, textarea, select)::placeholder {
+  color: #71839f;
+}
+html.theme-blue .bn-workspace-shell .bn-safe-bottom-nav {
+  padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+}
