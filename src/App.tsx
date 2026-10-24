@@ -595,7 +595,7 @@ export default function App() {
   }, []);
 
   // Apply Theme & Accessibility classes to root container and <html> element (Default: Architectural White 'light')
-  const activeTheme = workspace.settings.theme || 'light';
+  const activeTheme = workspace.settings.theme || 'blue';
   const activeThemeMeta =
     THEME_OPTIONS.find((t) => t.id === activeTheme) || THEME_OPTIONS[0];
   const isDark = activeThemeMeta.isDark;
