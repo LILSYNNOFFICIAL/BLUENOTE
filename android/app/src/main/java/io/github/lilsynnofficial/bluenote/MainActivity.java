@@ -21,6 +21,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import org.json.JSONObject;
@@ -62,6 +65,16 @@ public class MainActivity extends Activity {
 
         webView = new WebView(this);
         setContentView(webView);
+
+        // Android 15+ may enforce edge-to-edge for apps targeting API 35 or newer.
+        // Apply system-bar insets as WebView padding so app content is not hidden
+        // behind the status bar at the top or the navigation/gesture bar at the bottom.
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return windowInsets;
+        });
+        ViewCompat.requestApplyInsets(webView);
 
         // Serve bundled app files from a secure HTTPS origin. ES modules are subject to
         // CORS checks and can fail silently on file:// URLs, leaving a white screen.
