@@ -791,3 +791,83 @@ main [role="dialog"], main [role="alertdialog"], [role="menu"], [role="listbox"]
 .theme-light .bn-sidebar .bn-nav-item[data-active="true"] :is(svg, span) {
   color: var(--bn-accent-strong) !important;
 }
+
+
+/* BlueNote Glass Dashboard: shared visual treatment for web and Android */
+.theme-blue {
+  --bn-canvas: #080e18;
+  --bn-surface: rgba(20, 32, 52, 0.76);
+  --bn-surface-raised: rgba(28, 43, 66, 0.82);
+  --bn-surface-soft: rgba(32, 48, 72, 0.58);
+  --bn-surface-inset: rgba(8, 17, 31, 0.68);
+  --bn-line: rgba(174, 202, 235, 0.16);
+  --bn-line-strong: rgba(174, 202, 235, 0.28);
+  --bn-ink: #f1f6ff;
+  --bn-ink-secondary: #b7c5d9;
+  --bn-ink-muted: #8294ad;
+  --bn-accent: #3b9cff;
+  --bn-accent-strong: #73bdff;
+  --bn-accent-soft: rgba(50, 126, 232, 0.18);
+  --bn-accent-line: rgba(94, 163, 255, 0.34);
+  --bn-shadow-soft: 0 8px 28px rgba(0, 0, 0, .14), inset 0 1px 0 rgba(255,255,255,.035);
+  --bn-shadow-raised: 0 18px 44px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+html.theme-blue body,
+html.theme-blue .bn-app-shell {
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(61, 105, 164, .20), transparent 38%),
+    radial-gradient(ellipse at 88% 100%, rgba(24, 112, 202, .18), transparent 42%),
+    #080e18 !important;
+  color: var(--bn-ink);
+}
+
+html.theme-blue .bn-card,
+html.theme-blue main .bg-white,
+html.theme-blue main [class*="bg-slate-"],
+html.theme-blue main [class*="bg-gray-"],
+html.theme-blue .bn-sidebar,
+html.theme-blue header.bn-header,
+html.theme-blue [role="dialog"],
+html.theme-blue [data-radix-popper-content-wrapper] > *,
+html.theme-blue .bn-glass {
+  background-color: rgba(26, 40, 61, .56) !important;
+  border-color: rgba(176, 203, 235, .17) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .13), inset 0 1px 0 rgba(255,255,255,.035) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+
+html.theme-blue header.bn-header {
+  background-color: rgba(10, 18, 31, .74) !important;
+  border-bottom-color: rgba(176, 203, 235, .14) !important;
+}
+
+html.theme-blue .bn-sidebar {
+  background-color: rgba(12, 22, 37, .68) !important;
+  border-right-color: rgba(176, 203, 235, .14) !important;
+}
+
+html.theme-blue main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.theme-blue main textarea,
+html.theme-blue main select {
+  background: rgba(7, 15, 27, .48) !important;
+  color: #f1f6ff !important;
+  border-color: rgba(176, 203, 235, .20) !important;
+}
+
+html.theme-blue main button[class*="bg-blue-"],
+html.theme-blue main a[class*="bg-blue-"] {
+  box-shadow: 0 7px 20px rgba(36, 116, 238, .20), inset 0 1px 0 rgba(255,255,255,.12);
+}
+
+@media (max-width: 767px) {
+  html.theme-blue .bn-card,
+  html.theme-blue main .bg-white,
+  html.theme-blue main [class*="bg-slate-"],
+  html.theme-blue main [class*="bg-gray-"],
+  html.theme-blue .bn-glass {
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    backdrop-filter: blur(14px) saturate(135%);
+  }
+}
