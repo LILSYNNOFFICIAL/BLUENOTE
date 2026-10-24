@@ -3,6 +3,7 @@ name: BlueNote F-Droid-Compatible Debug APK
 on:
   push:
     branches:
+      - main
       - feat/bluenote-workspace-redesign-20261013
     paths:
       - .github/workflows/android-debug-apk.yml
