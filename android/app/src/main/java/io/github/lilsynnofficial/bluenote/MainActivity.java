@@ -21,6 +21,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.webkit.WebViewAssetLoader;
+
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -32,12 +34,16 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_RESULT_CODE = 1001;
+    private static final String APP_ASSET_ORIGIN = "appassets.androidplatform.net";
+    private static final String APP_START_URL =
+            "https://" + APP_ASSET_ORIGIN + "/assets/public/index.html";
     private static final String RELEASE_API_URL =
             "https://api.github.com/repos/LILSYNNOFFICIAL/BLUENOTE/releases/latest";
     private static final String PLAYSTORE_APK_URL =
             "https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/latest/download/bluenote-playstore.apk";
     private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor();
     private WebView webView;
+    private WebViewAssetLoader assetLoader;
     private ValueCallback<Uri[]> filePathCallback;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -57,14 +63,19 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         setContentView(webView);
 
+        // Serve bundled app files from a secure HTTPS origin. ES modules are subject to
+        // CORS checks and can fail silently on file:// URLs, leaving a white screen.
+        // WebViewAssetLoader provides normal same-origin module loading without enabling
+        // file-to-file or universal file access.
+        assetLoader = new WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        // Bundled Vite assets are loaded from file:///android_asset/public/index.html.
-        // WebView must allow its packaged file assets to load; file-to-file and file-to-network
-        // access remain disabled below to avoid broad cross-origin access.
-        settings.setAllowFileAccess(true);
+        settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);
@@ -82,11 +93,22 @@ public class MainActivity extends Activity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public android.webkit.WebResourceResponse shouldInterceptRequest(
+                    WebView view, WebResourceRequest request) {
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme();
-                if ("file".equals(scheme)) {
+                if ("https".equalsIgnoreCase(scheme)
+                        && APP_ASSET_ORIGIN.equalsIgnoreCase(uri.getHost())) {
                     return false;
+                }
+                if ("file".equals(scheme)) {
+                    // Bundled files must be served through WebViewAssetLoader, not file://.
+                    return true;
                 }
                 if (uri.getHost() != null) {
                     String host = uri.getHost().toLowerCase();
@@ -118,7 +140,8 @@ public class MainActivity extends Activity {
                 Uri origin = request.getOrigin();
                 String scheme = origin != null ? origin.getScheme() : null;
                 String host = origin != null ? origin.getHost() : null;
-                boolean trustedLocalOrigin = "file".equalsIgnoreCase(scheme);
+                boolean trustedLocalOrigin = "https".equalsIgnoreCase(scheme)
+                        && APP_ASSET_ORIGIN.equalsIgnoreCase(host);
                 boolean trustedWebOrigin = "lilsynnofficial.github.io".equalsIgnoreCase(host);
                 if (!trustedLocalOrigin && !trustedWebOrigin) {
                     request.deny();
@@ -128,9 +151,11 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+            public void onGeolocationPermissionsShowPrompt(
+                    String origin, GeolocationPermissions.Callback callback) {
                 Uri uri = Uri.parse(origin);
-                boolean trusted = "file".equalsIgnoreCase(uri.getScheme())
+                boolean trusted = ("https".equalsIgnoreCase(uri.getScheme())
+                        && APP_ASSET_ORIGIN.equalsIgnoreCase(uri.getHost()))
                         || "lilsynnofficial.github.io".equalsIgnoreCase(uri.getHost());
                 callback.invoke(origin, trusted, false);
             }
@@ -157,7 +182,7 @@ public class MainActivity extends Activity {
         });
 
         if (savedInstanceState == null) {
-            webView.loadUrl("file:///android_asset/public/index.html");
+            webView.loadUrl(APP_START_URL);
             checkForPlaystoreUpdate();
         } else {
             webView.restoreState(savedInstanceState);
