@@ -1076,3 +1076,79 @@ html.theme-light aside.bn-sidebar button.bg-blue-600 :is(svg, span) {
     min-height: 44px;
   }
 }
+
+
+/* BlueNote signature glass layer: shared by desktop web and Android WebView. */
+html.theme-blue body {
+  background-color: #050c1a;
+  background-image:
+    radial-gradient(70rem 40rem at 88% -8%, rgba(37, 99, 235, .22), transparent 62%),
+    radial-gradient(42rem 36rem at -10% 75%, rgba(14, 165, 233, .09), transparent 60%),
+    linear-gradient(145deg, #071326 0%, #050b18 58%, #08162b 100%) !important;
+}
+html.theme-blue .bn-app-shell {
+  background: transparent !important;
+}
+html.theme-blue main .bg-white,
+html.theme-blue main .dark\:bg-slate-900,
+html.theme-blue .bn-card,
+html.theme-blue .fixed .bg-white,
+html.theme-blue .fixed .dark\:bg-slate-900 {
+  background: linear-gradient(145deg, rgba(20, 39, 70, .66), rgba(8, 20, 41, .72)) !important;
+  border: 1px solid rgba(148, 190, 255, .16) !important;
+  box-shadow: 0 18px 42px -24px rgba(0, 0, 0, .88), inset 0 1px 0 rgba(224, 238, 255, .09) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+html.theme-blue main .bg-slate-50,
+html.theme-blue main .bg-slate-50\/90,
+html.theme-blue main .bg-slate-50\/80,
+html.theme-blue main .bg-slate-50\/70,
+html.theme-blue main .bg-slate-50\/50,
+html.theme-blue main .dark\:bg-slate-800,
+html.theme-blue main .dark\:bg-slate-800\/90,
+html.theme-blue main .dark\:bg-slate-800\/80,
+html.theme-blue main .dark\:bg-slate-800\/60,
+html.theme-blue main .dark\:bg-slate-800\/50,
+html.theme-blue main .dark\:bg-slate-800\/40 {
+  background: rgba(35, 58, 94, .42) !important;
+  border-color: rgba(148, 190, 255, .14) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  backdrop-filter: blur(14px) saturate(135%);
+}
+html.theme-blue aside.bn-sidebar {
+  background: rgba(4, 12, 27, .82) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+html.theme-blue header.bn-header {
+  background: rgba(5, 14, 31, .72) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  backdrop-filter: blur(24px) saturate(155%);
+}
+html.theme-blue .bn-card:hover,
+html.theme-blue main button:hover {
+  border-color: rgba(96, 165, 250, .32);
+}
+html.theme-blue :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid rgba(96, 165, 250, .82);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  html.theme-blue .bn-app-shell { min-height: 100dvh; }
+  html.theme-blue .bn-safe-bottom-nav {
+    background: rgba(5, 13, 29, .82) !important;
+    border-top-color: rgba(148, 190, 255, .15) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(155%);
+    backdrop-filter: blur(22px) saturate(155%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html.theme-blue main .bg-white,
+  html.theme-blue main .dark\:bg-slate-900,
+  html.theme-blue .bn-card {
+    background: #0b1930 !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
