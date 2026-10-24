@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { getSafeAvatarSrc } from './utils/safeAvatarUrl';
 import {
   Sparkles,
   LayoutDashboard,
@@ -68,6 +69,7 @@ import {
   onSnapshot,
   onAuthStateChanged,
   getRedirectResult,
+  isPasswordRecoveryPending,
   handleFirestoreError,
   OperationType,
   User,
@@ -78,7 +80,7 @@ import {
   parseQuickCaptureLocally,
 } from './services/aiService';
 import { AIKeysAndFreeAIModal } from './components/AIKeysAndFreeAIModal';
-import { DashboardView } from './components/DashboardView';
+import { CalendarHomeView } from './components/CalendarHomeView';
 import { UniversalInboxView } from './components/UniversalInboxView';
 import { TasksAndChecklistsView } from './components/TasksAndChecklistsView';
 import { NotesEditorView } from './components/NotesEditorView';
@@ -114,8 +116,13 @@ import {
   recordUserObservation,
 } from './services/patternEngine';
 import { usePWAInstall } from './hooks/usePWAInstall';
+import { resolveWorkspaceForAccount, WORKSPACE_OWNER_KEY } from './utils/workspaceOwnership';
 
 const STORAGE_KEY = 'bluenote_workspace_clean_v4';
+
+function getWorkspaceAuthLabel(label?: string | null): string {
+  return !label || /firebase|firestore/i.test(label) ? 'Supabase Auth' : label;
+}
 
 const LEGACY_DEMO_IDS = new Set([
   'pat-toilet-paper',
@@ -231,7 +238,7 @@ function stripLegacyDemoData(ws: WorkspaceState): WorkspaceState {
   };
 }
 
-// Recursively remove undefined fields so Firestore native maps never fail validation
+// Recursively remove undefined fields so cloud workspace JSON never fails validation
 function sanitizeForFirestore<T>(obj: T): T {
   if (obj === null || obj === undefined) return null as unknown as T;
   if (Array.isArray(obj)) {
@@ -297,6 +304,7 @@ export default function App() {
   const [localSaveState, setLocalSaveState] = useState<'saved' | 'saving' | 'offline'>('saved');
   const [canUndo, setCanUndo] = useState(false);
 
+  const cloudWorkspaceLoaded = useRef(false);
   const isApplyingRemoteUpdate = useRef(false);
   const isUndoing = useRef(false);
   const undoStack = useRef<WorkspaceState[]>([]);
@@ -318,7 +326,7 @@ export default function App() {
 
   // Local autosave + lightweight undo history. Every workspace mutation is still
   // immediately persisted locally, while the previous snapshot remains available
-  // for one-tap recovery. Remote Firestore updates are not added to the undo stack.
+  // for one-tap recovery. Remote Supabase workspace updates are not added to the undo stack.
   useEffect(() => {
     const serialized = JSON.stringify(workspace);
 
@@ -399,7 +407,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [mobileMenuOpen, brainDumpModal.open, focusModalOpen, commandPaletteOpen, androidModalOpen, activeSection]);
 
-  // Listen to Firebase Auth state (including mobile OAuth redirect result)
+  // Listen to Supabase Auth state (including OAuth redirect result)
   useEffect(() => {
     getRedirectResult(auth).catch(() => {
       // Redirect errors are handled by AuthModal when initiated
@@ -414,23 +422,70 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  // Real-time Firestore listener when user is authenticated with Firebase Auth
+  // Prompt at launch when there is no active Supabase session.
+  // Visual-review builds inspect the local-first workspace without opening the
+  // sign-in gate. This flag is enabled only by the screenshot workflow and does
+  // not bypass authentication in normal production builds.
+  const isVisualReviewBuild = import.meta.env.VITE_VISUAL_REVIEW === 'true';
+
+  useEffect(() => {
+    if (
+      !isVisualReviewBuild &&
+      authReady &&
+      (!currentUser || isPasswordRecoveryPending())
+    ) {
+      setAuthModalOpen(true);
+    }
+  }, [authReady, currentUser, isVisualReviewBuild]);
+
+  // Cross-device workspace listener backed by the BlueNote Supabase project
   useEffect(() => {
     if (!authReady || !currentUser) return;
     const path = `workspaces/${currentUser.uid}`;
     const docRef = doc(db, 'workspaces', currentUser.uid);
+    const storedOwnerId = localStorage.getItem(WORKSPACE_OWNER_KEY);
+    const accountWorkspace = resolveWorkspaceForAccount(
+      storedOwnerId,
+      currentUser.uid,
+      workspace,
+      initialWorkspace
+    );
+    if (accountWorkspace.accountChanged) {
+      // Replace the shared local cache before changing its owner marker. If the
+      // storage write fails, fail closed and do not start cloud sync for this account.
+      const isolatedWorkspace = stripLegacyDemoData(accountWorkspace.workspace);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(isolatedWorkspace));
+      } catch (err) {
+        setSyncStatus('offline');
+        handleFirestoreError(err, OperationType.WRITE, path);
+        return;
+      }
+      isApplyingRemoteUpdate.current = true;
+      setWorkspace(isolatedWorkspace);
+      setTimeout(() => { isApplyingRemoteUpdate.current = false; }, 0);
+    }
+    try {
+      localStorage.setItem(WORKSPACE_OWNER_KEY, currentUser.uid);
+    } catch (err) {
+      setSyncStatus('offline');
+      handleFirestoreError(err, OperationType.WRITE, path);
+      return;
+    }
+    cloudWorkspaceLoaded.current = false;
     setSyncStatus('syncing');
 
     const unsub = onSnapshot(
       docRef,
       (snapshot) => {
+        cloudWorkspaceLoaded.current = true;
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data?.workspace && typeof data.workspace === 'object') {
             isApplyingRemoteUpdate.current = true;
             setWorkspace((prev) =>
               stripLegacyDemoData({
-                ...prev,
+                ...(accountWorkspace.accountChanged ? initialWorkspace : prev),
                 ...(data.workspace as WorkspaceState),
               })
             );
@@ -443,10 +498,10 @@ export default function App() {
           // Initialize cloud workspace with current local workspace
           const initialPayload = {
             uid: currentUser.uid,
-            email: (currentUser.email || workspace.settings.email || '').slice(0, 250),
-            name: (currentUser.displayName || workspace.settings.name || 'BlueNote User').slice(0, 120),
+            email: (currentUser.email || accountWorkspace.workspace.settings.email || '').slice(0, 250),
+            name: (currentUser.displayName || accountWorkspace.workspace.settings.name || 'BlueNote User').slice(0, 120),
             updatedAt: new Date().toISOString(),
-            workspace: sanitizeForFirestore(workspace),
+            workspace: sanitizeForFirestore(accountWorkspace.workspace),
           };
           setDoc(docRef, initialPayload)
             .then(() => setSyncStatus('synced'))
@@ -465,9 +520,9 @@ export default function App() {
     return () => unsub();
   }, [authReady, currentUser]);
 
-  // Sync local changes to Firestore debounced
+  // Sync local changes to Supabase debounced
   useEffect(() => {
-    if (!authReady || !currentUser || isApplyingRemoteUpdate.current) return;
+    if (!authReady || !currentUser || !cloudWorkspaceLoaded.current || isApplyingRemoteUpdate.current) return;
     const timer = setTimeout(async () => {
       const path = `workspaces/${currentUser.uid}`;
       const docRef = doc(db, 'workspaces', currentUser.uid);
@@ -1173,9 +1228,9 @@ export default function App() {
     group: 'core' | 'knowledge' | 'ai';
   }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'core' },
-    { id: 'projects-os', label: 'PROJECTS', icon: FolderKanban, group: 'core' },
+    { id: 'projects-os', label: 'PROJECTS OS', icon: FolderKanban, group: 'core' },
     { id: 'inbox', label: 'Universal Inbox', icon: Inbox, badge: pendingInboxCount || undefined, group: 'core' },
-    { id: 'predictive', label: '🔮 Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
+    { id: 'predictive', label: 'Predictive Lists', icon: Sparkles, badge: surfacedPredictionsCount || undefined, group: 'core' },
     { id: 'tasks', label: 'Tasks & Lists', icon: CheckSquare, badge: activeTasksCount || undefined, group: 'core' },
     { id: 'calendar', label: 'Calendar & Planner', icon: Calendar, group: 'core' },
     { id: 'notes', label: 'Smart Notes', icon: FileText, group: 'knowledge' },
@@ -1195,7 +1250,7 @@ export default function App() {
         workspace.settings.largeText ? 'text-[106%]' : ''
       } ${workspace.settings.highContrast ? 'contrast-125' : ''} h-[100dvh] max-h-[100dvh] overflow-hidden`}
     >
-      <div className="bn-app-shell h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
+      <div className="bn-app-shell bn-workspace-shell h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200">
         {/* Left Collapsible Executive Command Sidebar */}
         <aside
           className={`bn-sidebar ${
@@ -1221,11 +1276,11 @@ export default function App() {
                         <span className="text-blue-500">Note</span>
                       </span>
                       <span className="text-[9px] font-mono font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                        PRO 2.0
+                        LOCAL-FIRST
                       </span>
                     </div>
                     <p className="text-[11px] font-medium text-slate-400 dark:text-slate-400 leading-none mt-1">
-                      Executive Second Brain
+                      Life & work, in one place
                     </p>
                   </div>
                 )}
@@ -1247,28 +1302,28 @@ export default function App() {
             <button
               onClick={() => setBrainDumpModal({ open: true, tab: 'brain-dump' })}
               className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-blue-600/25 border border-blue-400/20 flex items-center justify-between gap-2 transition-all group"
-              title="AI Brain Dump & Voice Capture (⇧⌘B)"
+              title="Quick capture and voice input (Ctrl/Cmd+B)"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 shrink-0 group-hover:rotate-12 transition-transform" />
-                {!sidebarCollapsed && <span>AI Brain Dump</span>}
+                {!sidebarCollapsed && <span>Quick Capture</span>}
               </div>
               {!sidebarCollapsed && (
                 <kbd className="px-1.5 py-0.5 text-[9px] font-mono bg-black/20 text-blue-100 rounded border border-white/15">
-                  ⇧⌘B
+                  ⌘/Ctrl B
                 </kbd>
               )}
             </button>
 
             {/* Navigation Groups */}
-            <nav className="space-y-5">
+            <nav className="bn-primary-navigation space-y-6" aria-label="Primary workspace navigation">
               {(['core', 'knowledge', 'ai'] as const).map((groupKey) => {
                 const groupTitle =
                   groupKey === 'core'
-                    ? 'Command Center'
+                    ? 'Workspace'
                     : groupKey === 'knowledge'
-                    ? 'Knowledge Vault'
-                    : 'Neural Intelligence';
+                    ? 'Library & Records'
+                    : 'Intelligence';
                 const items = NAV_ITEMS.filter((i) => i.group === groupKey);
                 return (
                   <div key={groupKey} className="space-y-1">
@@ -1285,7 +1340,9 @@ export default function App() {
                           key={item.id}
                           onClick={() => setActiveSection(item.id)}
                           title={sidebarCollapsed ? item.label : undefined}
-                          className={`relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                          aria-current={active ? 'page' : undefined}
+                          data-active={active ? 'true' : 'false'}
+                          className={`bn-nav-item relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                             active
                               ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
                               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white'
@@ -1325,12 +1382,12 @@ export default function App() {
             <button
               type="button"
               onClick={() => setAuthModalOpen(true)}
-              title="Edit Profile, Bio, Photograph & BLUENOTE-AI-APP.firebase.com Identity"
+              title="Edit Profile, Bio, Photograph & Supabase Auth Identity"
               className="w-full p-2.5 mb-2 rounded-2xl bg-slate-50 dark:bg-slate-800/70 hover:bg-blue-50/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2.5 text-left transition-all group"
             >
               {workspace.settings.avatarUrl ? (
                 <img
-                  src={workspace.settings.avatarUrl}
+                  src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                   alt={workspace.settings.name || 'User'}
                   className="w-9 h-9 rounded-xl object-cover border border-blue-500 shrink-0"
                 />
@@ -1355,8 +1412,7 @@ export default function App() {
                   <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                     {workspace.settings.bio ||
                       workspace.settings.roleTitle ||
-                      workspace.settings.authDomainAlias ||
-                      'BLUENOTE-AI-APP.firebase.com'}
+                      getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
                   </div>
                 </div>
               )}
@@ -1581,12 +1637,12 @@ export default function App() {
                     : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-blue-400'
                 }`}
                 title={`Profile, Bio, Photo & Cloud Sync (${
-                  workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
+                  getWorkspaceAuthLabel(workspace.settings.authDomainAlias)
                 })`}
               >
                 {workspace.settings.avatarUrl ? (
                   <img
-                    src={workspace.settings.avatarUrl}
+                    src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                     alt={workspace.settings.name || 'Profile'}
                     className="w-5 h-5 rounded-full object-cover border border-blue-500 shrink-0"
                   />
@@ -1665,11 +1721,12 @@ export default function App() {
           {/* Active Workspace View (Smooth Scroll on Mobile & Desktop) */}
           <main
             ref={mainScrollRef}
+            id="main-workspace-content"
             className="bn-main-scroll flex-1 min-h-0 p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 overflow-y-auto overflow-x-hidden"
           >
             <BlueNotePageTemplate section={activeSection}>
             {/* Mobile Compact Quick Capture */}
-            <div className="md:hidden mb-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm p-2">
+            <div className={`${activeSection === 'dashboard' ? 'hidden' : 'md:hidden'} mb-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm p-2`}>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -1694,110 +1751,20 @@ export default function App() {
                 </button>
               </form>
             </div>            {activeSection === 'dashboard' && (
-              <DashboardView
+              <CalendarHomeView
                 workspace={workspace}
                 onNavigate={handleNavigate}
                 onToggleTask={handleToggleTask}
-                onStartFocus={(task) => {
-                  setFocusTask(task);
-                  setFocusModalOpen(true);
-                }}
-                onOpenBrainDump={(tab = 'brain-dump') =>
-                  setBrainDumpModal({ open: true, tab })
-                }
-                onQuickCapture={handleQuickCapture}
-                onChangeEnergyMode={(mode: EnergyMode) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    settings: { ...prev.settings, energyMode: mode },
-                  }));
-                  showToast(`Switched to ${mode} Energy Mode — dashboard adapted`);
-                }}
-                onSnoozeReminder={(id, mins) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    reminders: prev.reminders.map((r) =>
-                      r.id === id ? { ...r, status: 'Snoozed' } : r
-                    ),
-                  }));
-                  showToast(`Reminder snoozed for ${mins} minutes`);
-                }}
-                onCompleteReminder={(id) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    reminders: prev.reminders.map((r) =>
-                      r.id === id ? { ...r, status: 'Completed' } : r
-                    ),
-                  }));
-                  showToast('Reminder marked completed');
-                }}
-                onToggleHabit={(habitId, dateStr) => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const targetDate = dateStr || today;
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: prev.habits.map((h) => {
-                      if (h.id !== habitId) return h;
-                      const isTodayTarget = targetDate === today;
-                      const currentlyChecked = isTodayTarget
-                        ? h.completedToday || h.historyDates.includes(today)
-                        : h.historyDates.includes(targetDate);
-                      const nextChecked = !currentlyChecked;
-                      const nextHistory = nextChecked
-                        ? Array.from(new Set([...h.historyDates, targetDate]))
-                        : h.historyDates.filter((d) => d !== targetDate);
-
-                      return {
-                        ...h,
-                        completedToday: isTodayTarget ? nextChecked : h.completedToday,
-                        streak: nextChecked ? h.streak + 1 : Math.max(0, h.streak - 1),
-                        historyDates: nextHistory,
-                      };
-                    }),
-                  }));
-                }}
-                onAddHabit={(newHab) => {
-                  const today = new Date().toISOString().split('T')[0];
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: [
-                      {
-                        id: `hab-${Date.now()}`,
-                        name: newHab.name,
-                        icon: 'Flame',
-                        schedule: newHab.schedule,
-                        streak: 1,
-                        completedToday: true,
-                        historyDates: [today],
-                        targetPerWeek: newHab.targetPerWeek,
-                        reminderTime: newHab.reminderTime,
-                      },
-                      ...prev.habits,
-                    ],
-                  }));
-                  showToast(`Added daily habit "${newHab.name}"`);
-                }}
-                onDeleteHabit={(habitId) => {
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    habits: prev.habits.filter((h) => h.id !== habitId),
-                  }));
-                  showToast('Habit removed');
-                }}
-                onRedistributeWorkload={() => {
-                  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-                  const nextWeek = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
-                  setWorkspace((prev) => ({
-                    ...prev,
-                    tasks: prev.tasks.map((t, idx) => {
-                      if (t.status === 'Completed' || t.priority === 'Critical') return t;
-                      return {
-                        ...t,
-                        dueDate: idx % 2 === 0 ? tomorrow : nextWeek,
-                      };
-                    }),
-                  }));
-                  showToast('AI balanced your schedule and moved non-critical tasks to open slots');
+                onAddTask={handleAddTask}
+                onOpenBrainDump={(tab = 'brain-dump') => setBrainDumpModal({ open: true, tab })}
+                onAddEvent={(evt) => {
+                  const created: CalendarEvent = {
+                    ...evt,
+                    id: `evt-${Date.now()}`,
+                    createdAt: new Date().toISOString(),
+                  };
+                  setWorkspace((prev) => ({ ...prev, events: [...prev.events, created] }));
+                  showToast(`Added "${created.title}" to your calendar`);
                 }}
               />
             )}
@@ -3597,7 +3564,8 @@ export default function App() {
               <button
                 key={m.id}
                 onClick={() => setActiveSection(m.id)}
-                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] font-semibold transition-all ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-[10px] font-semibold transition-all ${
                   active
                     ? 'text-blue-600 dark:text-blue-400 bg-blue-500/10 font-bold'
                     : 'text-slate-500 dark:text-slate-400'
@@ -3722,7 +3690,7 @@ export default function App() {
               ...prev,
               settings: { ...prev.settings, name, email },
             }));
-            showToast(`Signed in as ${name || 'BlueNote User'} on ${workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}`);
+            showToast(`Signed in as ${name || 'BlueNote User'} on ${getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}`);
           }}
           onUpdateProfileSettings={(updates) => {
             setWorkspace((prev) => ({

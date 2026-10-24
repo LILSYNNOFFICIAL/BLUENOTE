@@ -263,9 +263,9 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
     ];
 
     return (
-      <div className="space-y-5">
+      <div className="bn-feature-page bn-feature-page--projects-os space-y-5">
         {/* Top Project Workspace Header */}
-        <div className="p-5 rounded-3xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
+        <div className="bn-feature-header bn-feature-header--projects-os p-5 rounded-3xl bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
@@ -658,7 +658,7 @@ export const ProjectsOSView: React.FC<ProjectsOSViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Projects OS Hero Header */}
-      <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 text-white border border-blue-500/30 shadow-xl">
+      <div className="bn-projects-os-landing-hero p-6 rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 text-white border border-blue-500/30 shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-[11px] font-extrabold uppercase tracking-widest text-blue-300">

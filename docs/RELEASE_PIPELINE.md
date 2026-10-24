@@ -2,7 +2,7 @@
 
 ## One-time GitHub Actions secret setup
 
-The Firebase-login `playstore` APK is a separately signed release artifact. Android updates require compatible signing identity, so the release workflow intentionally refuses to fall back to the debug certificate.
+The `playstore` APK is a separately signed release artifact. Android updates require a compatible signing identity, so the release workflow intentionally refuses to fall back to the debug certificate.
 
 Add these repository secrets under GitHub Actions:
 
@@ -11,7 +11,7 @@ Add these repository secrets under GitHub Actions:
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
 
-Store the release keystore outside the repository and keep an offline backup. Android's documentation recommends keeping the private signing key secure; losing the signing key can prevent future updates. See the Android signing documentation.
+Store the release keystore outside the repository and keep an offline backup. Losing the signing key can prevent future updates signed with that identity.
 
 ## Release
 
@@ -19,16 +19,18 @@ When a version is actually final:
 
 1. Set `versionCode` and `versionName` in `android/app/build.gradle`.
 2. Run the normal CI/build checks.
-3. Create a semantic Git tag such as `v1.0.2` on the verified commit.
+3. Create a semantic Git tag on the verified commit.
 4. The release workflow builds:
-   - `bluenote-playstore.apk` — Firebase login enabled, developer-signed.
-   - `bluenote-fdroid.apk` — Firebase-free/local-only flavor.
-   - `SHA256SUMS.txt`.
+   - `bluenote-playstore.apk`: Supabase Auth and optional cloud workspace sync, developer-signed.
+   - `bluenote-fdroid.apk`: local-first core with optional Supabase Auth and cloud sync, built through the F-Droid source-build path.
+   - `SHA256SUMS.txt` for release integrity verification.
 5. The GitHub release is published from that exact tag.
+
+Never publish APKs until the release workflow confirms the expected assets were attached to the intended release.
 
 ## Updates
 
-The Firebase-login build checks the latest GitHub release at startup. If a newer release exists, BlueNote displays an in-app update dialog with the signed APK download.
+The Android release updater checks the latest GitHub release at startup. If a newer compatible release is available, BlueNote can display an in-app update prompt with the signed APK download.
 
 Android still requires user confirmation to install an APK update; the app does not silently install code.
 
@@ -36,4 +38,4 @@ F-Droid builds do not use the developer APK updater. F-Droid remains the update 
 
 ## Important signing rule
 
-Never publish a Firebase APK signed with a debug key. A later release signed with a different key cannot reliably update an installed APK. Keep the release keystore stable across all Firebase/direct-download releases.
+Never publish a distributable Android APK signed with a debug key. A later release signed with a different key cannot reliably update an installed APK. Keep the release keystore stable across direct-download releases.

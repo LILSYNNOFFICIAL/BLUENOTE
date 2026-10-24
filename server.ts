@@ -155,7 +155,7 @@ async function startServer() {
     res.json({
       status: 'ok',
       geminiConfigured: hasKey,
-      authProvider: 'firebase-auth',
+      authProvider: 'supabase-auth',
       mode: hasKey ? 'hybrid-server-gemini-and-free-cloud-ai' : 'free-cloud-and-local-ai',
     });
   });

@@ -44,6 +44,7 @@ It brings everyday organization and creative workflows into one place:
 - **Second Brain Graph**
 - **AI image generation/editing** for optional creative workflows
 - **Offline/local-first core workflows** that do not require a user API key
+- **Optional Supabase account sign-in and cross-device workspace sync** for users who choose to connect an account
 
 ## ✨ Core Features
 
@@ -89,16 +90,16 @@ Application ID:
 
 BlueNote uses two Android product flavors:
 
-| Flavor | Purpose | Firebase web services | Distribution |
+| Flavor | Purpose | Account backend | Distribution |
 |---|---|---|---|
-| `fdroid` | Local-first / free-software Android build | Excluded from F-Droid web bundle | F-Droid |
-| `playstore` | Google Play distribution | Supported where configured | Google Play |
+| `fdroid` | Local-first / free-software Android build | Supabase Auth and optional sync; disclosed as a network service | F-Droid |
+| `playstore` | Google Play distribution | Supabase Auth and optional sync | Google Play |
 
-### Current development status (2026-10-13)
+### Current development status (2026-10-19)
 
 - Latest published GitHub release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused source release. The release page currently has **no uploaded APK/checksum assets**, so do not assume the published tag is a downloadable binary.
 - The official F-Droid submission is open as [fdroiddata MR !52169](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/52169). Its public pipeline and pinned-source build passed, but the maintainer was asked to hold merging until the newer Android WebView security changes are merged and device-smoke-tested. Reproducible-build comparison remains unverified, and BlueNote is not yet accepted into the official F-Droid repository.
-- [PR #23: premium interface layer](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) was merged into `main` on 2026-10-13. [PR #24: workspace GUI redesign](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) is a separate open draft, not merged or deployed. Its own branch still needs rendered visual acceptance and source-built OCR/F-Droid validation on that branch. The separate source-build and APK-validation runs succeeded on `validate-fdroid-apk-workflow`, not PR #24's head; they do not validate PR #24 or the pending WebView patch.
+- [PR #23: premium interface layer](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) was merged into `main` on 2026-10-13. [PR #24: workspace GUI redesign and Supabase sync](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) remains open, draft, and unmerged. Its GitHub Pages preview is deployed under `/pr-24/`; the built artifact has been inspected for the Supabase project reference and auth endpoints, with no Firebase Identity Toolkit, Firebase app-domain, or Firestore endpoint matches in the preview JavaScript. CI covers auth/sync regression tests, TypeScript validation, web and Android builds, security scanning, and visual review. Check the linked Actions workflows for the latest commit's results. Live email-confirmation, password-recovery, and cross-device sync round trips remain unverified.
 - [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is an open draft. Its description requires passing checks and Android device/emulator smoke tests before merge.
 - [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7) remain separate open work. Neither should be described as merged or shipped.
 
@@ -119,7 +120,7 @@ There is no public Google Play listing linked at this time.
 
 ## 🛡️ F-Droid / Free Software Build
 
-BlueNote includes an explicit F-Droid build path designed to keep the Android distribution independent of Firebase web authentication and cloud synchronization.
+BlueNote includes an explicit F-Droid build path designed to preserve local-first operation without requiring a proprietary SDK; optional hosted account sync uses the dedicated Supabase project.
 
 ### Build flow
 
@@ -159,26 +160,22 @@ Expected APK path:
 
 BlueNote separates the normal web/Play distribution from the F-Droid/local-first distribution.
 
-### Web / Play distribution
+### Supabase Auth and workspace sync
 
-The normal application can use Firebase Authentication for:
+BlueNote uses the dedicated BlueNote Supabase project for email/password registration, sign-in, password recovery, and optional cross-device workspace synchronization. Google OAuth is not configured and is not offered in the current interface.
 
-- Google Sign-In
-- Email/password authentication
-- Password reset
-- Cloud workspace synchronization where configured
-
-Confidential backend credentials such as API keys and OAuth secrets are intended to remain server-side and are not intentionally exposed through `VITE_*` client variables or Vite build-time secret injection.
+- Only the public Supabase project URL and publishable key are shipped in the client. Never add a service-role key or other privileged secret to the app.
+- Workspace rows are protected by PostgreSQL Row Level Security. Each account can access only the row whose `user_id` matches its authenticated Supabase user ID.
+- Core organizer workflows continue to save locally and remain available without signing in; cloud sync requires an account and internet access.
+- Supabase Auth redirect allowlist and email delivery settings must be configured and tested before registration confirmation and recovery can be considered verified.
 
 ### F-Droid distribution
 
-The F-Droid flavor is designed around the local-first application path:
+The F-Droid flavor uses the same open-source Supabase account adapter as other builds and retains local-first core workflows. The optional Supabase account/sync feature is a hosted network dependency and is disclosed in F-Droid metadata with the `NonFreeNet` Anti-Feature. Core organizer workflows do not require an account or internet connection.
 
-- Firebase web authentication/synchronization is excluded from the F-Droid web bundle.
-- Core organizer workflows remain available locally.
 - User API keys are not required for the core organizer.
 - Keyless browser OCR fallback is available through Tesseract.js.
-- Optional online AI/image integrations are not required for the core notes, tasks, organizer, habits, OCR, and offline workflows.
+- Optional online AI/image integrations are not required for core notes, tasks, organizer, habits, OCR, and offline workflows.
 
 F-Droid maintainers perform the final independent source, dependency, network-service, licensing, Anti-Feature, and reproducible-build review.
 

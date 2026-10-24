@@ -184,9 +184,9 @@ export const PredictiveListsView: React.FC<PredictiveListsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--predictive space-y-6 pb-12">
       {/* Top Executive Header */}
-      <div className="bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
+      <div className="bn-feature-header bn-feature-header--predictive bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-600 via-blue-600 to-emerald-500" />
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

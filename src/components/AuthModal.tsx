@@ -9,7 +9,6 @@ import {
   LogOut,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   Camera,
   Upload,
   Trash2,
@@ -19,20 +18,18 @@ import {
 } from 'lucide-react';
 import {
   auth,
-  googleProvider,
-  signInWithPopup,
-  signInWithRedirect,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   updateProfile,
   signOut,
   getFirebaseAuthDomain,
-  getDetectedHostname,
-  getDetectedAppUrl,
+  isPasswordRecoveryPending,
+  updatePassword,
   User,
 } from '@/src/firebase';
 import { UserSettings, compressImageFileToDataUrl } from '../types/bluenote';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -57,7 +54,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onUpdateLocalProfileName,
   onUpdateProfileSettings,
 }) => {
-  const [mode, setMode] = useState<'signup' | 'signin' | 'reset'>('signin');
+  const [mode, setMode] = useState<'signup' | 'signin' | 'reset' | 'new-password'>('signin');
   const [email, setEmail] = useState(settings?.email || '');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState(settings?.name || '');
@@ -69,6 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(isPasswordRecoveryPending());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -83,6 +81,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setInfoMessage(null);
     }
   }, [isOpen, currentUser, settings]);
+
+  useEffect(() => {
+    if (isOpen && isPasswordRecoveryPending()) {
+      setPasswordRecoveryPending(true);
+      setMode('new-password');
+      setError(null);
+      setInfoMessage('Choose a new password for your BlueNote account.');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -125,74 +132,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const formatFirebaseAuthError = (err: unknown): string => {
+  const formatSupabaseAuthError = (err: unknown): string => {
     const code = (err as { code?: string })?.code || '';
     const message = err instanceof Error ? err.message : String(err || '');
-    const hostname = getDetectedHostname();
-    const appUrl = getDetectedAppUrl();
 
-    if (code === 'auth/unauthorized-domain' || message.includes('unauthorized-domain')) {
-      return `Firebase Authentication rejected hostname "${hostname}" (deployed application URL: ${appUrl}). Firebase Authorized Domains uses the hostname only—never include the "/BLUENOTE/" path. To authorize this host: open Firebase Console (project: ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains, and add "${hostname}" (while keeping authDomain set to ai-studio-applet-webapp-d45ee.firebaseapp.com).`;
+    if (code === 'auth/unauthorized-domain' || message.toLowerCase().includes('redirect url')) {
+      return `Supabase rejected this app's redirect URL. In the BlueNote Supabase dashboard, add the current app URL to Authentication → URL Configuration → Redirect URLs, then try again.`;
     }
-    if (code === 'auth/popup-closed-by-user' || message.includes('popup-closed-by-user')) {
-      return 'Sign-in popup was closed before completing.';
+    if (code === 'auth/popup-closed-by-user') {
+      return 'Sign-in was cancelled before it completed.';
     }
-    if (code === 'auth/operation-not-allowed' || message.includes('PASSWORD_LOGIN_DISABLED')) {
-      return 'Email/Password sign-in is currently disabled in Firebase Console (Authentication → Sign-in method). Use "Continue with Google" or enable the Email/Password provider in Firebase Console.';
+    if (code === 'auth/operation-not-allowed') {
+      return 'Email/password sign-in is disabled in BlueNote Supabase Auth settings.';
     }
     if (code === 'auth/email-already-in-use') {
-      return 'An account with this email already exists. Switch to "Sign In" above.';
+      return 'An account with this email already exists. Switch to Sign In.';
     }
     if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
       return 'Invalid email or password. Please check your credentials and try again.';
     }
     if (code === 'auth/user-not-found') {
-      return 'No account found with this email. Switch to "Create Account (Sign Up)" above.';
+      return 'No account found with this email. Switch to Create Account.';
     }
     return message || 'Authentication could not complete.';
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setInfoMessage(null);
-    setLoading(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user) {
-        const finalName =
-          displayName.trim() || result.user.displayName || 'BlueNote User';
-        const finalEmail = result.user.email || email.trim();
-        const finalAvatar = avatarUrl || result.user.photoURL || '';
-        onUpdateLocalProfileName(finalName, finalEmail);
-        if (onUpdateProfileSettings) {
-          onUpdateProfileSettings({
-            name: finalName,
-            email: finalEmail,
-            roleTitle: roleTitle.trim(),
-            bio: bio.trim(),
-            avatarUrl: finalAvatar,
-            authDomainAlias: getFirebaseAuthDomain(),
-          });
-        }
-      }
-      onClose();
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || '';
-      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
-        try {
-          setInfoMessage('Redirecting to Google Sign-In...');
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr: unknown) {
-          setError(formatFirebaseAuthError(redirectErr));
-          setLoading(false);
-          return;
-        }
-      }
-      setError(formatFirebaseAuthError(err));
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
@@ -215,6 +177,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
+      if (mode === 'new-password') {
+        await updatePassword(password);
+        setPasswordRecoveryPending(false);
+        onClose();
+        return;
+      }
+
       if (mode === 'signup') {
         const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
         const finalName =
@@ -234,7 +203,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       onClose();
     } catch (err: unknown) {
-      setError(formatFirebaseAuthError(err));
+      const code = (err as { code?: string })?.code || '';
+      if (code === 'auth/email-confirmation-required') {
+        setInfoMessage(err instanceof Error ? err.message : 'Check your email to confirm the account, then sign in.');
+        setMode('signin');
+        setPassword('');
+        return;
+      }
+      setError(formatSupabaseAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -302,10 +278,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
               </div>
               <h2 className="text-base font-extrabold tracking-tight truncate mt-0.5">
-                {currentUser
+                {currentUser && !passwordRecoveryPending
                   ? 'Executive Profile, Bio & Cloud Sync'
                   : mode === 'signup'
                   ? 'Create a BlueNote account'
+                  : mode === 'new-password'
+                  ? 'Choose a New Password'
                   : mode === 'reset'
                   ? 'Reset Account Password'
                   : 'Sign in to BlueNote'}
@@ -330,7 +308,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div className="relative group shrink-0">
                 {avatarUrl ? (
                   <img
-                    src={avatarUrl}
+                    src={getSafeAvatarSrc(avatarUrl, window.location.origin) || undefined}
                     alt={displayName || 'Profile Photograph'}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-blue-500 shadow-md"
                   />
@@ -452,7 +430,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          {currentUser ? (
+          {currentUser && !passwordRecoveryPending ? (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
@@ -495,7 +473,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           ) : (
             <>
               {/* Mode Switch Tabs: Sign Up vs Sign In */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <div className={passwordRecoveryPending ? 'hidden' : 'grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700'}>
                 <button
                   type="button"
                   onClick={() => {
@@ -598,30 +576,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     ? 'Authenticating...'
                     : mode === 'signup'
                     ? 'Create Account'
+                    : mode === 'new-password'
+                    ? 'Save New Password'
                     : mode === 'reset'
                     ? 'Send Password Reset Email'
                     : 'Sign In'}
                 </button>
               </form>
 
-              <div className="relative flex items-center justify-center">
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-                <span className="bg-white dark:bg-slate-900 px-3 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-                  or single sign-on
-                </span>
-                <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                BlueNote accounts use email and password. Google sign-in is hidden until its provider is configured in the dedicated BlueNote Supabase project.
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={loading}
-                  className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600" />
-                  Continue with Google
-                </button>
+              <div className="grid grid-cols-1 gap-2.5">
                 <button
                   type="button"
                   onClick={handleSaveProfileOnly}

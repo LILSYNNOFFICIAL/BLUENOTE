@@ -61,7 +61,10 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(false);
+        // Bundled Vite assets are loaded from file:///android_asset/public/index.html.
+        // WebView must allow its packaged file assets to load; file-to-file and file-to-network
+        // access remain disabled below to avoid broad cross-origin access.
+        settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(false);
         settings.setAllowFileAccessFromFileURLs(false);
         settings.setAllowUniversalAccessFromFileURLs(false);

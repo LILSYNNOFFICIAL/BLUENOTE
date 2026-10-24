@@ -48,9 +48,9 @@ export const UniversalInboxView: React.FC<UniversalInboxViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--inbox space-y-6 pb-12">
       {/* Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">
+      <div className="bn-feature-header bn-feature-header--inbox bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 mb-1">

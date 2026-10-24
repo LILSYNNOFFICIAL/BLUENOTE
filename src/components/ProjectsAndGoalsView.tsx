@@ -85,9 +85,9 @@ export const ProjectsAndGoalsView: React.FC<ProjectsAndGoalsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--projects space-y-6 pb-12">
       {/* Header & 1-Click Project Templates */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
+      <div className="bn-feature-header bn-feature-header--projects bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-2xs space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 mb-1">

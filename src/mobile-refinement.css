@@ -1,0 +1,142 @@
+/* Mobile refinement pass. Desktop presentation is unchanged. */
+@media (max-width: 767px) {
+  .bn-dashboard {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .bn-dashboard .bn-dashboard-hero {
+    gap: 10px !important;
+    padding: 13px !important;
+    border: 1px solid var(--bn-line, #e2e8f0) !important;
+    background: var(--bn-surface, #fff) !important;
+  }
+  .bn-dashboard .bn-dashboard-hero-head { align-items: flex-start !important; }
+  .bn-dashboard .bn-dashboard-hero-head :is(.text-xs, .text-sm) { line-height: 1.35 !important; }
+  .bn-dashboard .bn-dashboard-hero .bn-omnibox-form {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  .bn-dashboard .bn-dashboard-hero .bn-omnibox-form > button { min-height: 42px !important; }
+  .bn-dashboard .bn-dashboard-metrics { margin-top: 0 !important; }
+  .bn-dashboard .bn-dashboard-metrics > :is(h2, h3, p) { margin-block: 0 4px !important; }
+  .bn-dashboard .bn-metric-grid > * { min-width: 0 !important; overflow: hidden; }
+  .bn-dashboard .bn-dashboard-grid > *,
+  .bn-dashboard .bn-priority-panel > * { min-width: 0 !important; }
+
+  /* Shorten the Projects intro while keeping the heading and actions visible. */
+  .bn-feature-header--projects-os { align-items: stretch !important; padding: 12px !important; }
+  .bn-feature-header--projects-os > :is(.flex-1, .grow) { min-width: 0 !important; }
+  .bn-projects-os-landing-hero p {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    max-height: 2.8em !important;
+    line-height: 1.4em !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .bn-feature-header--projects-os :is(button, a[role="button"]) {
+    min-height: 40px !important;
+    white-space: normal !important;
+    text-align: center;
+  }
+  .bn-page-content :is(.bn-toolbar, .bn-page-actions),
+  .bn-feature-page :is(.bn-toolbar, .bn-page-actions) {
+    gap: 6px !important;
+    margin-block: 0 !important;
+  }
+  .bn-page-content :is(.bn-toolbar, .bn-page-actions) > *,
+  .bn-feature-page :is(.bn-toolbar, .bn-page-actions) > * { min-width: 0 !important; }
+
+  /* Keep the final card and focused controls clear of the fixed bottom nav. */
+  .bn-main-scroll {
+    padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  .bn-safe-bottom-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom, 0px)) !important; }
+}
+@media (max-width: 380px) {
+  .bn-dashboard .bn-dashboard-hero { padding: 11px !important; }
+  .bn-dashboard .bn-metric-grid { gap: 6px !important; }
+  .bn-dashboard .bn-metric-grid > * { padding: 8px !important; }
+  .bn-feature-header--projects-os { padding: 10px !important; }
+}
+
+
+/* Calendar reference layout: desktop frame, compact touch grid, and Android-safe editor. */
+.bn-calendar-reference { min-width: 0; }
+.bn-calendar-frame { min-width: 0; }
+.bn-calendar-workspace > * { min-width: 0; }
+.bn-calendar-month-grid { grid-auto-rows: minmax(62px, auto); }
+.bn-calendar-day { min-height: 62px; overflow: hidden; }
+.bn-calendar-agenda { max-height: none; }
+.bn-calendar-modal { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bn-calendar-editor {
+  max-height: calc(100dvh - max(1rem, env(safe-area-inset-top, 0px)) - max(1rem, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 1024px) {
+  .bn-calendar-month-grid { grid-auto-rows: minmax(92px, auto); }
+  .bn-calendar-day { min-height: 92px; }
+  .bn-calendar-agenda { max-height: 78vh; overflow-y: auto; }
+}
+@media (max-width: 639px) {
+  .bn-calendar-frame { border-radius: 18px !important; }
+  .bn-calendar-topbar { padding: 14px !important; }
+  .bn-calendar-day { padding: 5px !important; border-radius: 9px !important; }
+  .bn-calendar-month-grid { gap: 4px !important; grid-auto-rows: minmax(60px, auto); }
+  .bn-calendar-editor { padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px)) !important; }
+}
+@media (max-width: 360px) {
+  .bn-calendar-day { padding: 3px !important; }
+  .bn-calendar-day > div:first-child { gap: 0 !important; }
+  .bn-calendar-day > div:first-child > span:first-child { min-width: 20px; height: 20px; font-size: 10px; }
+  .bn-calendar-day > div:first-child > span:last-child { font-size: 8px; }
+}
+
+/* Respect BlueNote's selected light-family themes without changing the reference layout. */
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame {
+  background: #edf2f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #17243b !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-topbar,
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-agenda,
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-workspace > nav {
+  background: rgba(255,255,255,.72) !important;
+  border-color: #d7e0ec !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame :is(.text-white, .text-slate-100, .text-slate-200, .text-slate-300) {
+  color: #17243b !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame :is(.text-slate-400, .text-slate-500, .text-slate-600) {
+  color: #62718a !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame :is(.bg-slate-950, .bg-slate-900, .bg-slate-800) {
+  background-color: #f8faff !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame :is(.border-white\/10, .border-white\/\[0\.07\], .border-white\/\[0\.08\], .border-white\/\[0\.035\]) {
+  border-color: #d7e0ec !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame .bn-calendar-day {
+  background: rgba(255,255,255,.8) !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-frame .bn-calendar-day[aria-pressed="true"] {
+  background: #dcecff !important;
+  border-color: #3986e8 !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-editor {
+  background: #f8faff !important;
+  border-color: #d7e0ec !important;
+  color: #17243b !important;
+}
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-editor :is(.text-white, .text-slate-100, .text-slate-200, .text-slate-300) { color: #17243b !important; }
+:is(.theme-light, .theme-sepia, .theme-nord) .bn-calendar-editor :is(input, textarea, select) {
+  background-color: #edf2f9 !important;
+  color: #17243b !important;
+  border-color: #cbd5e1 !important;
+}

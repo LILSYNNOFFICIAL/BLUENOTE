@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 import {
   Sparkles,
   CheckCircle2,
@@ -105,7 +106,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [newHabitReminder, setNewHabitReminder] = useState<string>('08:00');
   const [habitChartView, setHabitChartView] = useState<'combined' | 'bars'>('combined');
 
-  const todayISO = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const todayISO = now.toISOString().split('T')[0];
+  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   // Build 30-day streak trends & completion rate dataset for Recharts
   const thirtyDayHabitAnalytics = React.useMemo(() => {
@@ -284,9 +287,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ].slice(0, 4);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-dashboard space-y-6 pb-12">
       {briefingItems.length > 0 && (
-        <section className="bg-slate-950 text-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-800">
+        <section className="bn-briefing bg-slate-950 text-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-800" data-panel="daily-briefing">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300">BlueNote Briefing</div>
@@ -318,11 +321,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* Top Executive Command Hero & Natural Language Omnibox */}
-      <div className="bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-6 relative overflow-hidden">
+      <div className="bn-dashboard-hero bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-6 relative overflow-hidden">
         {/* Subtle Top Accent Hairline */}
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-sky-400" />
 
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+        <div className="bn-dashboard-hero-head flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div className="flex items-start sm:items-center gap-4">
             {/* User Profile Photograph / Monogram Avatar */}
             <button
@@ -333,7 +336,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               {workspace.settings.avatarUrl ? (
                 <img
-                  src={workspace.settings.avatarUrl}
+                  src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                   alt={workspace.settings.name || 'Profile'}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover border-2 border-blue-500 shadow-md group-hover:scale-105 transition-transform"
                 />
@@ -357,7 +360,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Executive Command Center</span>
+                  <span>Workspace Overview</span>
                   <span className="text-slate-300 dark:text-slate-600">•</span>
                   <span className="font-mono text-[10px] text-slate-600 dark:text-slate-300">
                     {new Date().toLocaleDateString('en-US', {
@@ -374,7 +377,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight pt-0.5">
-                Good morning, {(workspace.settings.name || 'Explorer').split(' ')[0]}.
+                {greeting}, {(workspace.settings.name || 'Explorer').split(' ')[0]}.
               </h1>
               {workspace.settings.bio ? (
                 <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 italic line-clamp-2">
@@ -384,13 +387,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
                   You have{' '}
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {displayedTasks.length} priority tasks
+                    {displayedTasks.length} open tasks
                   </span>{' '}
                   (~{totalEstimatedMins} mins estimated) and{' '}
                   <span className="font-bold text-slate-900 dark:text-white">
-                    {workspace.events.length} scheduled blocks
+                    {todayEvents.length} events
                   </span>{' '}
-                  queued for today.{' '}
+                  on your calendar today.{' '}
                   <button
                     type="button"
                     onClick={() => onNavigate('settings')}
@@ -485,8 +488,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
 
         {/* Universal Natural Language Command Bar */}
-        <form onSubmit={handleQuickSubmit} className="flex flex-col md:flex-row gap-2.5">
-          <div className="flex-1 flex items-center gap-3 bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-inner">
+        <form onSubmit={handleQuickSubmit} className="bn-omnibox-form flex flex-col md:flex-row gap-2.5">
+          <div className="bn-omnibox-control flex-1 flex items-center gap-3 bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-inner">
             <div className="p-1.5 rounded-lg bg-blue-600/10 text-blue-600 dark:text-blue-400 shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
@@ -494,7 +497,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               type="text"
               value={quickInput}
               onChange={(e) => setQuickInput(e.target.value)}
-              placeholder='Command or capture anything: "Remind me Friday to pay rent", "I need oat milk", "Mike’s number is (555) 555-1234"...'
+              placeholder='Capture a task, reminder, idea, contact, or link…' aria-label="Quick capture a task, reminder, idea, contact, or link"
               className="w-full bg-transparent text-sm font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none"
             />
           </div>
@@ -525,9 +528,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           </div>
         </form>
+      </div>
 
+      <section className="bn-dashboard-metrics" aria-label="Workspace metrics">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white">Your day at a glance</h2>
+          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Live workspace metrics</span>
+        </div>
         {/* Executive 4-Card Telemetry Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+        <div className="bn-metric-grid grid grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
           <div className="p-4 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between gap-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -617,7 +626,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* AI Proactive Suggestions & Coach Bar */}
       {visibleWidgets.aiSuggestions && (
@@ -721,11 +730,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       )}
 
       {/* Main Bento Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="bn-dashboard-grid grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6">
         {/* Left 7 Columns: Today's Tasks & Projects/Notes */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-8 space-y-5 xl:space-y-6">
           {visibleWidgets.tasks && (
-            <div className="bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="bn-priority-panel bn-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4" data-panel="priority-queue">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3.5">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -957,7 +966,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Right 5 Columns: Calendar, Smart Reminders, Habits & Pinned */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-4 space-y-5 xl:space-y-6">
           {visibleWidgets.calendarReminders && (
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-2xs space-y-4">
               <div className="flex items-center justify-between">
@@ -975,14 +984,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               {/* Events */}
               <div className="space-y-2">
-                {workspace.events.length === 0 ? (
+                {todayEvents.length === 0 ? (
                   <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center">
                     <p className="text-xs text-slate-500">
                       No events scheduled today. Open Planner to block focus time or meetings.
                     </p>
                   </div>
                 ) : (
-                  workspace.events.slice(0, 3).map((evt) => (
+                  todayEvents.slice(0, 3).map((evt) => (
                     <div
                       key={evt.id}
                       className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-l-4"

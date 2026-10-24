@@ -10,7 +10,6 @@ const forbidden = [
   'firebaseapp.com',
   'firebasestorage.app',
   'firebaseio.com',
-  'https://',
 
 ];
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { getSafeAvatarSrc } from '../utils/safeAvatarUrl';
 import {
   Settings,
   Palette,
@@ -33,6 +34,10 @@ import {
 } from '../types/bluenote';
 import { getActiveAIProviderBadge } from '../services/aiService';
 import { authorizeGmailWithFirebaseGoogle, getDetectedHostname, getDetectedAppUrl } from '@/src/firebase';
+
+function getWorkspaceAuthLabel(label?: string | null): string {
+  return !label || /firebase|firestore/i.test(label) ? 'Supabase Auth' : label;
+}
 import { AUTOMATION_TEMPLATES } from '../data/initialWorkspace';
 
 interface SettingsAndSystemViewProps {
@@ -118,9 +123,9 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
   const deletedNotes = workspace.notes.filter((n) => Boolean(n.deletedAt));
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="bn-feature-page bn-feature-page--settings space-y-6 pb-12">
       {/* Top Executive Settings Header */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
+      <div className="bn-feature-header bn-feature-header--settings bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-5 relative overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500" />
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-3.5">
@@ -195,12 +200,12 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                   Executive Profile, Bio &amp; Photograph
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Upload your profile photograph, customize your personal bio, and manage your BLUENOTE-AI-APP.firebase.com cloud identity.
+                  Upload your profile photograph, customize your personal bio, and manage your BlueNote account and cloud sync.
                 </p>
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/25 text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 self-start sm:self-auto">
                 <Globe className="w-3.5 h-3.5" />
-                {workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'}
+                {getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
               </span>
             </div>
 
@@ -210,7 +215,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 <div className="relative group">
                   {workspace.settings.avatarUrl ? (
                     <img
-                      src={workspace.settings.avatarUrl}
+                      src={getSafeAvatarSrc(workspace.settings.avatarUrl, window.location.origin) || undefined}
                       alt={workspace.settings.name || 'User Photograph'}
                       className="w-28 h-28 rounded-3xl object-cover border-2 border-blue-500 shadow-lg"
                     />
@@ -316,7 +321,7 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                       type="email"
                       value={workspace.settings.email || ''}
                       onChange={(e) => onUpdateSettings({ email: e.target.value })}
-                      placeholder="you@bluenote-ai-app.firebase.com"
+                      placeholder="you@example.com"
                       className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
@@ -324,15 +329,13 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5 text-blue-500" />
-                      Sign-Up / Cloud Auth Domain Label
+                      Account Provider Label
                     </label>
                     <input
                       type="text"
-                      value={
-                        workspace.settings.authDomainAlias || 'BLUENOTE-AI-APP.firebase.com'
-                      }
+                      value={getWorkspaceAuthLabel(workspace.settings.authDomainAlias)}
                       onChange={(e) => onUpdateSettings({ authDomainAlias: e.target.value })}
-                      placeholder="BLUENOTE-AI-APP.firebase.com"
+                      placeholder="Supabase Auth"
                       className="w-full mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/90 px-3.5 py-2.5 text-sm font-mono font-bold text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
@@ -759,18 +762,18 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
               {emailPreviewSent ? 'Test Daily Summary Queued!' : 'Send Test Daily Email Now'}
             </button>
 
-            {/* Firebase-Authenticated Google Access-Token Gmail Connection (Zero Developer Credentials) */}
+            {/* Optional Gmail integration (not configured) */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
               <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-blue-500" />
-                <span>Gmail Sync (Firebase Google Authorization)</span>
+                <span>Gmail Sync (not configured)</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Uses your signed-in Firebase Google account access token directly. No Google Client ID, Client Secret, or API keys are ever required.
+                Gmail access requires a separate Google OAuth and Gmail API configuration. BlueNote account sign-in is handled by Supabase and does not grant Gmail access.
               </p>
               <button
                 type="button"
-                disabled={gmailConnecting}
+                disabled={true}
                 onClick={async () => {
                   setGmailConnecting(true);
                   setGmailError(null);
@@ -784,10 +787,10 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                     if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
                       const host = getDetectedHostname();
                       setGmailError(
-                        `Firebase rejected hostname "${host}" (URL: ${getDetectedAppUrl()}). Add "${host}" under Firebase Console (ai-studio-applet-webapp-d45ee) → Authentication → Settings → Authorized domains.`
+                        `Google OAuth is not configured for Gmail access. The current app URL is ${getDetectedAppUrl()}.`
                       );
                     } else {
-                      setGmailError(msg || 'Could not complete Firebase Google authorization.');
+                      setGmailError(msg || 'Could not complete Google OAuth authorization.');
                     }
                   } finally {
                     setGmailConnecting(false);
@@ -798,10 +801,10 @@ export const SettingsAndSystemView: React.FC<SettingsAndSystemViewProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-blue-400 dark:text-blue-600" />
                 <span>
                   {gmailConnecting
-                    ? 'Authorizing with Firebase Google...'
+                    ? 'Authorizing with Google OAuth...'
                     : gmailConnectedEmail
                     ? `Gmail Authorized (${gmailConnectedEmail})`
-                    : 'Connect Gmail with Google Sign-In'}
+                    : 'Gmail integration not configured'}
                 </span>
               </button>
               {gmailError && (
