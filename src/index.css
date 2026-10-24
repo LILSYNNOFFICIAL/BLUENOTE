@@ -1443,3 +1443,56 @@ html.theme-light .bn-agenda-copy span { color:#6e7e98; }
   .bn-workspace-shell .bn-sidebar, .bn-workspace-shell .bn-header,
   .bn-calendar-main, .bn-calendar-side { backdrop-filter:none; -webkit-backdrop-filter:none; }
 }
+
+
+/* Theme-aware shell defaults: cool-white is the default; Blue Aurora is dark. */
+.bn-workspace-shell {
+  background:
+    radial-gradient(ellipse at 88% -5%, rgba(95,148,240,.13), transparent 38%),
+    radial-gradient(ellipse at 0% 82%, rgba(107,205,211,.08), transparent 34%),
+    linear-gradient(145deg,#f5f8ff 0%,#f8fbff 52%,#f0f5fb 100%) !important;
+}
+.bn-workspace-shell .bn-sidebar {
+  background: rgba(250,252,255,.84) !important;
+  border-right-color: rgba(44,71,119,.11) !important;
+}
+.bn-workspace-shell .bn-header {
+  background: rgba(250,252,255,.82) !important;
+  border-bottom-color: rgba(44,71,119,.10) !important;
+}
+.bn-workspace-shell .bn-page-template .bg-white,
+.bn-workspace-shell .bn-page-template .dark\\:bg-slate-900 {
+  background: linear-gradient(145deg,rgba(255,255,255,.88),rgba(242,247,255,.82)) !important;
+  border-color: rgba(77,110,166,.15) !important;
+  box-shadow: 0 18px 44px -34px rgba(48,75,122,.30), inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+.theme-blue .bn-workspace-shell {
+  color: #eaf1ff !important;
+  background:
+    radial-gradient(ellipse at 82% 0%,rgba(54,111,218,.16),transparent 42%),
+    radial-gradient(ellipse at 4% 84%,rgba(66,170,196,.075),transparent 36%),
+    linear-gradient(145deg,#07101f 0%,#081326 50%,#07101c 100%) !important;
+}
+.theme-blue .bn-workspace-shell .bn-sidebar {
+  background: rgba(8,17,33,.80) !important;
+  border-right-color: rgba(170,199,246,.13) !important;
+}
+.theme-blue .bn-workspace-shell .bn-header {
+  background: rgba(7,16,31,.72) !important;
+  border-bottom-color: rgba(170,199,246,.14) !important;
+}
+.theme-blue .bn-workspace-shell .bn-page-template .bg-white,
+.theme-blue .bn-workspace-shell .bn-page-template .dark\\:bg-slate-900 {
+  background: linear-gradient(145deg,rgba(21,36,60,.69),rgba(10,22,40,.73)) !important;
+  border-color: rgba(169,198,244,.15) !important;
+  box-shadow: 0 20px 50px -34px rgba(0,0,0,.78),inset 0 1px 0 rgba(236,244,255,.10) !important;
+}
+.theme-blue .bn-calendar-main, .theme-blue .bn-calendar-side {
+  background: linear-gradient(145deg,rgba(21,37,62,.75),rgba(8,20,38,.78)) !important;
+  border-color: rgba(168,194,237,.16) !important;
+}
+.theme-blue .bn-calendar-home { color:#eaf1ff !important; }
+@media (max-width:767px) {
+  .bn-calendar-layout { gap:12px; }
+  .bn-calendar-home-header { padding-inline:2px; }
+}
