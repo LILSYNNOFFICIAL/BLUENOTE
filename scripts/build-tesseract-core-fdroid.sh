@@ -37,7 +37,16 @@ fi
 sed -i 's/^BUILD_WASM_RELAXED_SIMD=1$/BUILD_WASM_RELAXED_SIMD=0/' "$VAR_FILE"
 sed -i 's|TOOLCHAIN_FILE=\$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake|TOOLCHAIN_FILE=/usr/share/emscripten/cmake/Modules/Platform/Emscripten.cmake|' "$VAR_FILE"
 sed -i '/closure 1/d' "$VAR_FILE"
-sed -i 's|^PROC=.*|PROC=1|' "$VAR_FILE"
+# Use bounded parallelism instead of forcing the large WebAssembly build to one job.
+# GitHub-hosted runners have limited memory, so cap concurrency to four workers.
+BUILD_PROCS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
+case "$BUILD_PROCS" in
+  ''|*[!0-9]*) BUILD_PROCS=2 ;;
+esac
+if [ "$BUILD_PROCS" -gt 4 ]; then BUILD_PROCS=4; fi
+if [ "$BUILD_PROCS" -lt 1 ]; then BUILD_PROCS=1; fi
+echo "Building Tesseract.js-core with $BUILD_PROCS parallel worker(s)."
+sed -i "s|^PROC=.*|PROC=$BUILD_PROCS|" "$VAR_FILE"
 
 # Both Autoconf libraries compile to WebAssembly. Mark each configure invocation
 # as cross-compiling, otherwise its native executable probe fails under emcc.
