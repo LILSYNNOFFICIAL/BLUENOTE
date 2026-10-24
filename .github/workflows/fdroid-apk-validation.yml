@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   build-fdroid-apk:
-    name: Source-build OCR and assemble unsigned F-Droid APK
+    name: Source-build OCR and assemble installable test APK
     runs-on: ubuntu-latest
     timeout-minutes: 90
     container: node:22-trixie
@@ -107,10 +107,30 @@ jobs:
           test -s android/app/src/main/assets/public/tesseract/lang/eng.traineddata.gz
           sha256sum "$APK"
 
-      - name: Upload unsigned F-Droid APK
+      # This disposable key is only for direct device testing. F-Droid will
+      # rebuild and sign its own release using its own signing infrastructure.
+      - name: Sign test APK with temporary debug key
+        run: |
+          APK=android/app/build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
+          SIGNED=android/app/build/outputs/apk/fdroid/release/bluenote-fdroid-1.0.8-test-signed.apk
+          KEYSTORE="$RUNNER_TEMP/bluenote-debug-test.keystore"
+          keytool -genkeypair -v \\
+            -keystore "$KEYSTORE" \\
+            -storepass android -keypass android \\
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \\
+            -dname "CN=Android Debug,O=Android,C=US"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \\
+            --ks "$KEYSTORE" --ks-key-alias androiddebugkey \\
+            --ks-pass pass:android --key-pass pass:android \\
+            --out "$SIGNED" "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$SIGNED"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$SIGNED" | grep -F "package: name='io.github.lilsynnofficial.bluenote' versionCode='7' versionName='1.0.8'"
+          sha256sum "$SIGNED"
+
+      - name: Upload signed test APK
         uses: actions/upload-artifact@v4
         with:
-          name: bluenote-fdroid-1.0.8-unsigned
-          path: android/app/build/outputs/apk/fdroid/release/app-fdroid-release-unsigned.apk
+          name: bluenote-fdroid-1.0.8-test-signed
+          path: android/app/build/outputs/apk/fdroid/release/bluenote-fdroid-1.0.8-test-signed.apk
           if-no-files-found: error
           retention-days: 14
