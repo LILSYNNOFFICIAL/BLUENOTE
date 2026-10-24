@@ -1,9 +1,6 @@
 name: F-Droid OCR source build
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
