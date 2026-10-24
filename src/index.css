@@ -1192,3 +1192,254 @@ html.theme-blue .bn-workspace-shell :is(input, textarea, select)::placeholder {
 html.theme-blue .bn-workspace-shell .bn-safe-bottom-nav {
   padding-bottom: max(.5rem, env(safe-area-inset-bottom));
 }
+
+
+/* ==========================================================================
+   BLUENOTE LIQUID AURORA REDESIGN
+   Shared production styling for browser and Android WebView. No decorative orb.
+   ========================================================================== */
+.bn-workspace-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 82% 0%, rgba(54, 111, 218, .16), transparent 42%),
+    radial-gradient(ellipse at 4% 84%, rgba(66, 170, 196, .075), transparent 36%),
+    linear-gradient(145deg, #07101f 0%, #081326 50%, #07101c 100%) !important;
+}
+html.theme-light .bn-workspace-shell {
+  background:
+    radial-gradient(ellipse at 88% -5%, rgba(95, 148, 240, .14), transparent 38%),
+    radial-gradient(ellipse at 0% 82%, rgba(107, 205, 211, .09), transparent 34%),
+    linear-gradient(145deg, #f5f8ff 0%, #f8fbff 52%, #f0f5fb 100%) !important;
+}
+.bn-workspace-shell .bn-sidebar {
+  background: rgba(8, 17, 33, .78) !important;
+  border-right: 1px solid rgba(170, 199, 246, .13) !important;
+  box-shadow: 14px 0 42px -34px rgba(0,0,0,.65) !important;
+  backdrop-filter: blur(28px) saturate(155%);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+}
+html.theme-light .bn-workspace-shell .bn-sidebar {
+  background: rgba(250, 252, 255, .82) !important;
+  border-right-color: rgba(44, 71, 119, .11) !important;
+}
+.bn-workspace-shell .bn-header {
+  background: rgba(7, 16, 31, .68) !important;
+  border-bottom: 1px solid rgba(170, 199, 246, .14) !important;
+  backdrop-filter: blur(28px) saturate(165%);
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+}
+html.theme-light .bn-workspace-shell .bn-header {
+  background: rgba(250, 252, 255, .78) !important;
+  border-bottom-color: rgba(44, 71, 119, .10) !important;
+}
+.bn-workspace-shell .bn-main-scroll {
+  background: transparent !important;
+}
+.bn-workspace-shell .bn-page-template {
+  max-width: 1480px;
+  margin-inline: auto;
+}
+.bn-workspace-shell .bn-page-template .bn-card,
+.bn-workspace-shell .bn-page-template > section,
+.bn-workspace-shell .bn-page-template article {
+  border-radius: 20px;
+}
+.bn-workspace-shell .bn-page-template .bg-white,
+.bn-workspace-shell .bn-page-template .dark\:bg-slate-900 {
+  background: linear-gradient(145deg, rgba(21, 36, 60, .69), rgba(10, 22, 40, .73)) !important;
+  border-color: rgba(169, 198, 244, .15) !important;
+  box-shadow: 0 20px 50px -34px rgba(0,0,0,.78), inset 0 1px 0 rgba(236,244,255,.10) !important;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+html.theme-light .bn-workspace-shell .bn-page-template .bg-white,
+html.theme-light .bn-workspace-shell .bn-page-template .dark\:bg-slate-900 {
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(244,248,255,.76)) !important;
+  border-color: rgba(77, 110, 166, .14) !important;
+  box-shadow: 0 18px 44px -34px rgba(48,75,122,.35), inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+.bn-workspace-shell .bn-page-template button,
+.bn-workspace-shell .bn-page-template input,
+.bn-workspace-shell .bn-page-template textarea,
+.bn-workspace-shell .bn-page-template select {
+  border-radius: 13px;
+}
+.bn-workspace-shell .bn-page-template button:focus-visible,
+.bn-workspace-shell .bn-header button:focus-visible,
+.bn-workspace-shell .bn-sidebar button:focus-visible {
+  outline: 2px solid rgba(112, 169, 255, .88);
+  outline-offset: 3px;
+}
+.bn-calendar-home {
+  color: #eaf1ff;
+  max-width: 1420px;
+  margin-inline: auto;
+  padding: clamp(0px, 1vw, 12px);
+}
+html.theme-light .bn-calendar-home { color: #17253e; }
+.bn-calendar-home-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  margin: 4px 0 26px;
+}
+.bn-calendar-home-header h1 {
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-weight: 750;
+  letter-spacing: -.055em;
+  margin: 10px 0 7px;
+}
+.bn-calendar-home-header p { color: #a1b1cb; font-size: 14px; }
+html.theme-light .bn-calendar-home-header p { color: #6b7a93; }
+.bn-calendar-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8fb7ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+html.theme-light .bn-calendar-eyebrow { color: #3868bd; }
+.bn-calendar-header-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bn-calendar-header-actions button,
+.bn-day-add-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(168,194,237,.19);
+  background: rgba(149,177,224,.07);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: 13px;
+}
+.bn-calendar-header-actions .bn-calendar-primary {
+  color: #fff;
+  border-color: rgba(123,169,255,.55);
+  background: linear-gradient(135deg,#3477e9,#2458c7);
+  box-shadow: 0 8px 24px -12px rgba(49,111,235,.85), inset 0 1px 0 rgba(255,255,255,.24);
+}
+.bn-calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(245px, 300px); gap: 18px; align-items: start; }
+.bn-calendar-main, .bn-calendar-side {
+  min-width: 0;
+  border: 1px solid rgba(168,194,237,.16);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(21,37,62,.75), rgba(8,20,38,.78));
+  box-shadow: 0 26px 65px -45px rgba(0,0,0,.9), inset 0 1px 0 rgba(232,242,255,.10);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+html.theme-light .bn-calendar-main, html.theme-light .bn-calendar-side {
+  background: linear-gradient(145deg,rgba(255,255,255,.87),rgba(242,247,255,.84));
+  border-color: rgba(77,110,166,.16);
+  box-shadow: 0 22px 55px -42px rgba(39,69,120,.38), inset 0 1px 0 #fff;
+}
+.bn-week-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:22px 22px 18px; border-bottom:1px solid rgba(168,194,237,.13); }
+.bn-week-toolbar > div:first-child { margin-right:auto; }
+.bn-week-toolbar h2, .bn-calendar-day-heading h2, .bn-calendar-side h2 { font-size:18px; font-weight:750; letter-spacing:-.035em; }
+.bn-week-toolbar > div:first-child span { display:block; margin-top:5px; color:#8fa2c0; font-size:11px; }
+html.theme-light .bn-week-toolbar > div:first-child span { color:#71809a; }
+.bn-calendar-view-switch, .bn-week-controls { display:flex; align-items:center; gap:4px; padding:4px; border:1px solid rgba(168,194,237,.15); background:rgba(1,8,20,.2); border-radius:12px; }
+html.theme-light .bn-calendar-view-switch, html.theme-light .bn-week-controls { background:rgba(220,231,249,.45); }
+.bn-calendar-view-switch button, .bn-week-controls button { min-height:30px; padding:0 10px; border-radius:9px; color:#aab9d1; font-size:11px; }
+html.theme-light .bn-calendar-view-switch button, html.theme-light .bn-week-controls button { color:#52627c; }
+.bn-calendar-view-switch button.active { color:#fff; background:#2c63c7; box-shadow:0 3px 12px rgba(26,76,163,.35); }
+html.theme-light .bn-calendar-view-switch button.active { color:#fff; }
+.bn-week-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; padding:18px 20px 22px; }
+.bn-week-day { min-width:0; min-height:112px; display:flex; flex-direction:column; align-items:center; gap:9px; padding:13px 4px 10px; border:1px solid rgba(168,194,237,.12); background:rgba(111,143,193,.045); color:inherit; border-radius:16px; }
+.bn-week-day:hover { border-color:rgba(122,171,255,.42); background:rgba(78,126,211,.10); }
+.bn-week-day.is-selected { border-color:rgba(109,164,255,.78); background:linear-gradient(160deg,rgba(54,112,216,.29),rgba(37,77,142,.16)); box-shadow:inset 0 0 0 1px rgba(113,166,255,.12),0 8px 25px -18px #3278eb; }
+.bn-week-day.is-today .bn-week-day-number { background:#3477e9; color:white; }
+.bn-week-day-name { color:#8fa2c0; font-size:10px; font-weight:700; }
+.bn-week-day-number { display:grid; place-items:center; width:32px; height:32px; border-radius:11px; font-size:15px; font-weight:750; }
+.bn-week-dots { display:flex; gap:4px; min-height:5px; }
+.bn-week-dots i { display:block; width:5px; height:5px; border-radius:50%; }
+.bn-week-dots i.task-dot { background:#4dd5b0; }
+.bn-week-count { color:#8fa2c0; font-size:9px; white-space:nowrap; }
+html.theme-light .bn-week-day { background:rgba(222,232,249,.26); border-color:rgba(78,110,163,.12); }
+html.theme-light .bn-week-day-name, html.theme-light .bn-week-count { color:#71809a; }
+.bn-month-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; padding:16px; }
+.bn-month-grid .bn-week-day { min-height:78px; border-radius:12px; }
+.bn-month-grid .bn-week-day-number { width:27px; height:27px; font-size:12px; }
+.bn-week-day.is-outside-month { opacity:.38; }
+.bn-calendar-day-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:21px 22px 13px; border-top:1px solid rgba(168,194,237,.11); }
+.bn-calendar-day-heading h2 { margin-top:7px; }
+.bn-day-add-actions { display:flex; gap:7px; }
+.bn-agenda-list { padding:0 18px 18px; }
+.bn-agenda-item { display:grid; grid-template-columns:54px 3px minmax(0,1fr) 30px; gap:12px; align-items:center; padding:14px 10px; border-bottom:1px solid rgba(168,194,237,.11); }
+.bn-agenda-item:last-child { border-bottom:0; }
+.bn-agenda-time { color:#aab9d1; font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+.bn-agenda-time small { display:block; color:#7d91b1; font-size:9px; margin-top:4px; font-weight:500; }
+html.theme-light .bn-agenda-time, html.theme-light .bn-agenda-time small { color:#6d7b94; }
+.bn-agenda-color { align-self:stretch; min-height:36px; border-radius:8px; }
+.bn-agenda-color.task-color { background:#37c6a0; }
+.bn-agenda-copy { min-width:0; display:flex; flex-direction:column; gap:5px; }
+.bn-agenda-copy strong { font-size:12px; font-weight:750; overflow-wrap:anywhere; }
+.bn-agenda-copy span { color:#91a3bf; font-size:10px; }
+html.theme-light .bn-agenda-copy span { color:#6e7e98; }
+.bn-agenda-open { display:grid; place-items:center; width:28px; height:28px; border:1px solid rgba(168,194,237,.14); border-radius:9px; color:#a9c7ff; }
+.bn-task-check { display:grid; place-items:center; color:#62d7b4; }
+.bn-agenda-item:has(.bn-task-check) { grid-template-columns:20px 48px 3px minmax(0,1fr) 28px; }
+.bn-agenda-item.is-complete .bn-agenda-copy { opacity:.52; text-decoration:line-through; }
+.bn-calendar-empty { display:flex; flex-direction:column; align-items:center; text-align:center; gap:9px; padding:34px 16px; color:#8fa2c0; }
+.bn-calendar-empty strong { color:inherit; font-size:13px; }
+.bn-calendar-empty span { font-size:11px; }
+.bn-calendar-empty button { margin-top:5px; padding:9px 13px; border:1px solid rgba(122,171,255,.35); border-radius:11px; color:#a9c7ff; font-size:11px; }
+.bn-calendar-side { padding:22px; }
+.bn-calendar-side-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.bn-calendar-side-top h2 { margin-top:8px; }
+.bn-agenda-total { display:grid; place-items:center; width:34px; height:34px; border-radius:12px; background:rgba(61,125,229,.2); color:#9dc2ff; font-size:14px; font-weight:800; }
+.bn-calendar-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:22px 0; }
+.bn-calendar-stats > div { display:flex; flex-direction:column; gap:5px; padding:13px; border:1px solid rgba(168,194,237,.13); border-radius:14px; background:rgba(124,154,201,.06); }
+.bn-calendar-stats strong { font-size:22px; letter-spacing:-.04em; }
+.bn-calendar-stats span { color:#8fa2c0; font-size:10px; }
+.bn-calendar-side h3 { margin:21px 0 10px; font-size:12px; font-weight:750; }
+.bn-calendar-side-link { display:flex; align-items:center; gap:9px; width:100%; padding:11px 0; border-bottom:1px solid rgba(168,194,237,.1); color:inherit; text-align:left; font-size:11px; }
+@media (max-width: 1050px) {
+  .bn-calendar-layout { grid-template-columns:minmax(0,1fr); }
+  .bn-calendar-side { display:grid; grid-template-columns:1fr; }
+}
+@media (max-width: 767px) {
+  .bn-calendar-home { padding:0; }
+  .bn-calendar-home-header { align-items:flex-start; flex-direction:column; gap:15px; margin:0 0 16px; }
+  .bn-calendar-home-header h1 { font-size:30px; margin:8px 0 5px; }
+  .bn-calendar-home-header p { font-size:12px; max-width:320px; line-height:1.5; }
+  .bn-calendar-header-actions { width:100%; display:grid; grid-template-columns:1fr 1fr; }
+  .bn-calendar-header-actions .bn-calendar-primary { grid-column:1 / -1; grid-row:1; }
+  .bn-calendar-header-actions button { min-height:42px; }
+  .bn-calendar-main, .bn-calendar-side { border-radius:18px; }
+  .bn-week-toolbar { padding:16px 13px 13px; gap:9px; }
+  .bn-week-toolbar h2 { font-size:16px; }
+  .bn-week-toolbar > div:first-child { width:100%; }
+  .bn-calendar-view-switch, .bn-week-controls { flex:1; justify-content:center; }
+  .bn-calendar-view-switch button, .bn-week-controls button { padding-inline:8px; }
+  .bn-week-grid { gap:4px; padding:12px 9px 16px; }
+  .bn-week-day { min-height:94px; padding:9px 1px 7px; gap:7px; border-radius:12px; }
+  .bn-week-day-name { font-size:9px; }
+  .bn-week-day-number { width:27px; height:27px; border-radius:9px; font-size:13px; }
+  .bn-week-count { font-size:8px; letter-spacing:-.03em; }
+  .bn-month-grid { gap:3px; padding:8px; }
+  .bn-month-grid .bn-week-day { min-height:62px; gap:5px; }
+  .bn-month-grid .bn-week-count { display:none; }
+  .bn-calendar-day-heading { padding:17px 13px 11px; align-items:flex-start; }
+  .bn-calendar-day-heading h2 { font-size:16px; }
+  .bn-day-add-actions { gap:5px; }
+  .bn-day-add-actions button { padding:0 9px; min-height:34px; font-size:10px; }
+  .bn-agenda-list { padding:0 8px 8px; }
+  .bn-agenda-item { grid-template-columns:43px 3px minmax(0,1fr) 25px; gap:8px; padding:12px 5px; }
+  .bn-agenda-item:has(.bn-task-check) { grid-template-columns:18px 42px 3px minmax(0,1fr) 25px; gap:6px; }
+  .bn-agenda-time { font-size:10px; }
+  .bn-agenda-copy strong { font-size:11px; }
+  .bn-agenda-copy span { font-size:9px; }
+  .bn-calendar-side { padding:17px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .bn-workspace-shell .bn-sidebar, .bn-workspace-shell .bn-header,
+  .bn-calendar-main, .bn-calendar-side { backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
