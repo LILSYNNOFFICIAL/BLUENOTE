@@ -3,6 +3,7 @@ export type TaskStatus = 'Not Started' | 'In Progress' | 'Waiting' | 'Scheduled'
 export type EnergyMode = 'Focused' | 'Normal' | 'Busy' | 'Tired' | 'Sick' | 'Vacation' | 'High Energy' | 'Low Energy';
 export type ThemeMode =
   | 'light'
+  | 'aurora'
   | 'dark'
   | 'blue'
   | 'emerald'
@@ -618,6 +619,22 @@ export const THEME_OPTIONS: ThemeOptionMeta[] = [
     textPreview: 'text-slate-900',
     badge: 'Default Light',
     themeColorHex: '#ffffff',
+  },
+  {
+    id: 'aurora',
+    label: 'Liquid Aurora',
+    shortLabel: 'Aurora',
+    title: 'Liquid Aurora (Crystal Glass)',
+    desc: 'Deep midnight glass with flowing sapphire, cyan, mint and violet aurora reflections',
+    isDark: true,
+    dot: 'bg-cyan-300 border border-blue-400/60',
+    swatch: 'bg-[#071225] border border-cyan-300/40',
+    bgPreview: 'bg-[#050a17]',
+    cardPreview: 'bg-[#101b32] border-cyan-300/30',
+    accentDot: 'bg-cyan-300',
+    textPreview: 'text-blue-50',
+    badge: 'Signature Glass',
+    themeColorHex: '#050a17',
   },
   {
     id: 'dark',

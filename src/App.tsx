@@ -595,7 +595,7 @@ export default function App() {
   }, []);
 
   // Apply Theme & Accessibility classes to root container and <html> element (Default: Architectural White 'light')
-  const activeTheme = workspace.settings.theme || 'blue';
+  const activeTheme = workspace.settings.theme || 'aurora';
   const activeThemeMeta =
     THEME_OPTIONS.find((t) => t.id === activeTheme) || THEME_OPTIONS[0];
   const isDark = activeThemeMeta.isDark;
@@ -1592,7 +1592,7 @@ export default function App() {
                 role="group"
                 aria-label="Primary BlueNote themes"
               >
-                {(['light', 'blue', 'dark'] as const).map((themeId) => {
+                {(['light', 'aurora', 'dark'] as const).map((themeId) => {
                   const t = THEME_OPTIONS.find((option) => option.id === themeId)!;
                   const active = activeTheme === themeId;
                   return (
@@ -3443,7 +3443,7 @@ export default function App() {
                     <button type="button" onClick={() => { setActiveSection('settings'); setMobileMenuOpen(false); }} className="text-[10px] font-bold text-blue-600 dark:text-blue-400">All themes</button>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {(['light', 'blue', 'dark'] as const).map((themeId) => {
+                    {(['light', 'aurora', 'dark'] as const).map((themeId) => {
                       const t = THEME_OPTIONS.find((option) => option.id === themeId)!;
                       const active = activeTheme === themeId;
                       return (

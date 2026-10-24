@@ -17,7 +17,7 @@ export const initialWorkspace: WorkspaceState = {
     language: 'English (US)',
     timeFormat: '12h',
     weekStart: 'Monday',
-    theme: 'blue',
+    theme: 'aurora',
     accentColor: '#2563eb',
     energyMode: 'Normal',
     highContrast: false,
