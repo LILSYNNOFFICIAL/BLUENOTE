@@ -30,6 +30,14 @@ jobs:
             ca-certificates git emscripten cmake make build-essential \
             autoconf automake libtool libtool-bin pkg-config
 
+      - name: Cache npm download store
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install locked JavaScript dependencies
         run: npm ci --legacy-peer-deps --no-fund --no-audit
 
