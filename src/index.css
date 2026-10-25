@@ -1714,3 +1714,12 @@ html.theme-light .bn-agenda-copy span { color:#6e7e98; }
   .bn-home-dashboard .bn-calendar-home-header { margin-bottom: 12px; }
   .bn-home-dashboard .bn-calendar-header-actions { grid-template-columns: 1fr 1fr; }
 }
+
+/* Keep the selected Week/Month view aligned with BlueNote's cobalt accent. */
+html.theme-light .bn-home-dashboard .bn-calendar-view-switch button.active,
+.bn-home-dashboard .bn-calendar-view-switch button.active {
+  background: #2c63c7;
+  color: #ffffff;
+  border-color: #2c63c7;
+  box-shadow: 0 3px 12px rgba(26, 76, 163, .28);
+}
