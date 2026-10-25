@@ -264,7 +264,7 @@ export default function App() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return stripLegacyDemoData({ ...initialWorkspace, ...parsed, settings: { ...initialWorkspace.settings, ...(parsed.settings || {}), theme: parsed.settings?.theme === 'light' ? 'blue' : (parsed.settings?.theme || initialWorkspace.settings.theme) } });
+        return stripLegacyDemoData({ ...initialWorkspace, ...parsed, settings: { ...initialWorkspace.settings, ...(parsed.settings || {}), theme: (!parsed.settings?.theme || parsed.settings?.theme === 'aurora' || parsed.settings?.theme === 'light') ? 'light' : parsed.settings.theme } });
       }
     } catch (e) {
       console.warn('Failed to load workspace from localStorage:', e);
