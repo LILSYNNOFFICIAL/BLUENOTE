@@ -1751,22 +1751,80 @@ export default function App() {
                 </button>
               </form>
             </div>            {activeSection === 'dashboard' && (
-              <CalendarHomeView
-                workspace={workspace}
-                onNavigate={handleNavigate}
-                onToggleTask={handleToggleTask}
-                onAddTask={handleAddTask}
-                onOpenBrainDump={(tab = 'brain-dump') => setBrainDumpModal({ open: true, tab })}
-                onAddEvent={(evt) => {
-                  const created: CalendarEvent = {
-                    ...evt,
-                    id: `evt-${Date.now()}`,
-                    createdAt: new Date().toISOString(),
-                  };
-                  setWorkspace((prev) => ({ ...prev, events: [...prev.events, created] }));
-                  showToast(`Added "${created.title}" to your calendar`);
-                }}
-              />
+              <div className="bn-home-dashboard">
+                <section className="bn-home-welcome">
+                  <div className="bn-home-welcome-copy">
+                    <div className="bn-home-eyebrow"><span /> YOUR SPACE, IN FOCUS</div>
+                    <h1>A clearer mind<br /><em>starts here.</em></h1>
+                    <p>Your thoughts, plans, and priorities, together in one calm space.</p>
+                    <div className="bn-home-welcome-actions">
+                      <button type="button" className="bn-home-primary" onClick={() => setBrainDumpModal({ open: true, tab: 'brain-dump' })}>
+                        <Plus size={17} /> Capture a thought
+                      </button>
+                      <button type="button" className="bn-home-secondary" onClick={() => handleNavigate('tasks')}>
+                        <CheckSquare size={16} /> View my tasks <ArrowRight size={15} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bn-home-welcome-note">
+                    <Sparkles size={18} />
+                    <span>Make room for what matters.</span>
+                  </div>
+                </section>
+                <CalendarHomeView
+                  workspace={workspace}
+                  onNavigate={handleNavigate}
+                  onToggleTask={handleToggleTask}
+                  onAddTask={handleAddTask}
+                  onOpenBrainDump={(tab = 'brain-dump') => setBrainDumpModal({ open: true, tab })}
+                  onAddEvent={(evt) => {
+                    const created: CalendarEvent = {
+                      ...evt,
+                      id: `evt-${Date.now()}`,
+                      createdAt: new Date().toISOString(),
+                    };
+                    setWorkspace((prev) => ({ ...prev, events: [...prev.events, created] }));
+                    showToast(`Added "${created.title}" to your calendar`);
+                  }}
+                />
+                <section className="bn-home-stat-row" aria-label="Workspace overview">
+                  <button type="button" className="bn-home-stat" onClick={() => handleNavigate('notes')}>
+                    <span className="bn-home-stat-icon"><FileText size={17} /></span>
+                    <span><strong>{workspace.notes.filter((n) => !n.deletedAt && !n.isArchived).length}</strong><small>Thoughts captured</small></span>
+                    <ArrowRight size={15} />
+                  </button>
+                  <button type="button" className="bn-home-stat" onClick={() => handleNavigate('tasks')}>
+                    <span className="bn-home-stat-icon"><CheckSquare size={17} /></span>
+                    <span><strong>{workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived').length}</strong><small>Open tasks</small></span>
+                    <ArrowRight size={15} />
+                  </button>
+                  <button type="button" className="bn-home-stat" onClick={() => handleNavigate('projects-os')}>
+                    <span className="bn-home-stat-icon"><FolderKanban size={17} /></span>
+                    <span><strong>{(workspace.osProjects || []).filter((p) => !p.isArchived).length}</strong><small>Active projects</small></span>
+                    <ArrowRight size={15} />
+                  </button>
+                </section>
+                <section className="bn-home-lower-grid">
+                  <article className="bn-home-lower-card">
+                    <div className="bn-home-lower-head"><div><span>YOUR PERSONAL LIBRARY</span><h2>Recent thoughts</h2></div><button type="button" onClick={() => handleNavigate('notes')}>All notes <ArrowRight size={14} /></button></div>
+                    {workspace.notes.filter((n) => !n.deletedAt && !n.isArchived).slice(0, 3).length ? workspace.notes.filter((n) => !n.deletedAt && !n.isArchived).slice(0, 3).map((note) => (
+                      <button type="button" className="bn-home-note-row" key={note.id} onClick={() => handleNavigate('notes', note.id)}>
+                        <span className="bn-home-note-mark"><FileText size={15} /></span>
+                        <span className="bn-home-note-copy"><strong>{note.title || 'Untitled note'}</strong><small>{note.summary || note.content?.replace(/[#*\n]/g, ' ').slice(0, 92) || 'Open this note to continue.'}</small></span>
+                        <ArrowRight size={14} />
+                      </button>
+                    )) : <p className="bn-home-empty">Your saved thoughts will appear here.</p>}
+                  </article>
+                  <article className="bn-home-lower-card">
+                    <div className="bn-home-lower-head"><div><span>KEEP YOUR MOMENTUM</span><h2>On your mind</h2></div><button type="button" onClick={() => handleNavigate('tasks')}>All tasks <ArrowRight size={14} /></button></div>
+                    {workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived').slice(0, 4).length ? workspace.tasks.filter((t) => !t.deletedAt && t.status !== 'Completed' && t.status !== 'Archived').slice(0, 4).map((task) => (
+                      <button type="button" className="bn-home-task-row" key={task.id} onClick={() => handleNavigate('tasks', task.id)}>
+                        <span className="bn-home-task-check"><CheckSquare size={16} /></span><span className="bn-home-task-copy"><strong>{task.title}</strong><small>{task.dueDate ? `Due ${task.dueDate}` : 'No due date'} · {task.priority} priority</small></span><ArrowRight size={14} />
+                      </button>
+                    )) : <p className="bn-home-empty">No open tasks. Enjoy the breathing room.</p>}
+                  </article>
+                </section>
+              </div>
             )}
 
             {activeSection === 'inbox' && (
