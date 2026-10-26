@@ -52,8 +52,8 @@
 
   /* Keep the final card and focused controls clear of the fixed bottom nav. */
   .bn-main-scroll {
-    padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    scroll-padding-bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
   }
   .bn-safe-bottom-nav { padding-bottom: max(.55rem, env(safe-area-inset-bottom, 0px)) !important; }
 }
