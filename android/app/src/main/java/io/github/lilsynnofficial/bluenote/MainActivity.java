@@ -21,10 +21,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import org.json.JSONObject;
@@ -56,11 +53,10 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();
-        // Android 15+ enforces edge-to-edge for apps targeting API 35. Explicitly
-        // inset the WebView content viewport so CSS 100dvh and fixed-position controls
-        // are measured between the status and navigation bars, not underneath them.
-        boolean edgeToEdgeEnforced = Build.VERSION.SDK_INT >= 35;
-        WindowCompat.setDecorFitsSystemWindows(window, !edgeToEdgeEnforced);
+        // Keep the WebView within the system-bar-safe app area. Do not apply
+        // system-bar insets as WebView padding: fixed-position HTML controls can
+        // then be offset a second time and overlap the Android navigation area.
+        WindowCompat.setDecorFitsSystemWindows(window, true);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(Color.parseColor("#FFFFFF"));
         window.setNavigationBarColor(Color.parseColor("#FFFFFF"));
@@ -70,14 +66,6 @@ public class MainActivity extends Activity {
         }
 
         webView = new WebView(this);
-        if (edgeToEdgeEnforced) {
-            ViewCompat.setOnApplyWindowInsetsListener(webView, (view, windowInsets) -> {
-                Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-                return windowInsets;
-            });
-            ViewCompat.requestApplyInsets(webView);
-        }
         setContentView(webView);
 
         // Serve bundled app files from a secure HTTPS origin. ES modules are subject to
