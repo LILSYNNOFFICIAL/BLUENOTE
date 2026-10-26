@@ -141,16 +141,3 @@
   border-color: #cbd5e1 !important;
 }
 
-
-/* Android viewport fix: keep BlueNote's fixed mobile tab bar above the OS navigation area. */
-@media (max-width: 767px) {
-  .bn-safe-bottom-nav {
-    bottom: env(safe-area-inset-bottom, 0px) !important;
-    padding-bottom: .55rem !important;
-  }
-
-  .bn-main-scroll {
-    padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px)) !important;
-    scroll-padding-bottom: calc(7.25rem + env(safe-area-inset-bottom, 0px));
-  }
-}
