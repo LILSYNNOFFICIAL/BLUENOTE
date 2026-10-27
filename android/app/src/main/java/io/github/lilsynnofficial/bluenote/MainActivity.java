@@ -9,6 +9,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.KeyEvent;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -21,7 +23,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import org.json.JSONObject;
@@ -53,20 +58,41 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();
-        // Keep the WebView within the system-bar-safe app area. Do not apply
-        // system-bar insets as WebView padding: fixed-position HTML controls can
-        // then be offset a second time and overlap the Android navigation area.
-        WindowCompat.setDecorFitsSystemWindows(window, true);
+        // Android 15+ can enforce edge-to-edge even when older layouts expected
+        // the system to resize the app window. Keep the native WebView viewport
+        // inside the system bars by resizing its bounds, not by adding WebView
+        // padding (which can leave CSS fixed-position controls under navigation).
+        WindowCompat.setDecorFitsSystemWindows(window, false);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(Color.parseColor("#FFFFFF"));
         window.setNavigationBarColor(Color.parseColor("#FFFFFF"));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = window.getDecorView();
-            decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            decor.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
+        FrameLayout appRoot = new FrameLayout(this);
         webView = new WebView(this);
-        setContentView(webView);
+        appRoot.addView(webView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(appRoot);
+
+        ViewCompat.setOnApplyWindowInsetsListener(appRoot, (view, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime());
+            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) webView.getLayoutParams();
+            if (params.leftMargin != insets.left
+                    || params.topMargin != insets.top
+                    || params.rightMargin != insets.right
+                    || params.bottomMargin != insets.bottom) {
+                params.setMargins(insets.left, insets.top, insets.right, insets.bottom);
+                webView.setLayoutParams(params);
+            }
+            // The WebView is explicitly fitted to the safe rectangle above.
+            return WindowInsetsCompat.CONSUMED;
+        });
+        ViewCompat.requestApplyInsets(appRoot);
 
         // Serve bundled app files from a secure HTTPS origin. ES modules are subject to
         // CORS checks and can fail silently on file:// URLs, leaving a white screen.
