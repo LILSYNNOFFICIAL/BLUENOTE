@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feat/bluenote-workspace-redesign-20261013
+      - fix/android-bottom-nav-safe-area
     paths:
       - .github/workflows/android-debug-apk.yml
       - android/**

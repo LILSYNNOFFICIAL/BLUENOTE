@@ -1468,7 +1468,7 @@ export default function App() {
         </aside>
 
         {/* Main Content Column */}
-        <div className="flex-1 flex flex-col min-w-0 h-[100dvh] max-h-[100dvh] overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
           {/* Top Global Executive Header Bar (Mobile-Optimized, Zero Horizontal Overflow) */}
           <header className="bn-header bn-safe-header shrink-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800 px-2.5 sm:px-5 lg:px-7 py-2 flex items-center justify-between gap-2">
             {/* Left: Mobile Drawer Trigger, Brand Logo, Search & Desktop Quick Capture */}
