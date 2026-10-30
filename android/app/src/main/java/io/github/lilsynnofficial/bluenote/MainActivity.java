@@ -106,34 +106,12 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme();
-                if ("https".equalsIgnoreCase(scheme)
-                        && APP_ASSET_ORIGIN.equalsIgnoreCase(uri.getHost())) {
+                if (isTrustedAppOrigin(uri)) {
                     return false;
                 }
-                if ("file".equals(scheme)) {
-                    // Bundled files must be served through WebViewAssetLoader, not file://.
-                    return true;
-                }
-                if (uri.getHost() != null) {
-                    String host = uri.getHost().toLowerCase();
-                    if (host.equals("localhost")
-                            || host.equals("127.0.0.1")
-                            || host.equals("ai-studio-applet-webapp-d45ee.firebaseapp.com")
-                            || host.equals("ai-studio-applet-webapp-d45ee.web.app")
-                            || host.equals("google.com")
-                            || host.endsWith(".google.com")
-                            || host.equals("googleapis.com")
-                            || host.endsWith(".googleapis.com")
-                            || host.equals("lilsynnofficial.github.io")
-                            || host.endsWith(".lilsynnofficial.github.io")) {
-                        return false;
-                    }
-                }
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    startActivity(intent);
-                } catch (Exception ignored) {
-                }
+                // Never navigate the packaged app WebView to arbitrary remote content.
+                // External destinations are opened by the user's browser instead.
+                openExternalUrl(uri);
                 return true;
             }
         });
@@ -141,27 +119,31 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
-                Uri origin = request.getOrigin();
-                String scheme = origin != null ? origin.getScheme() : null;
-                String host = origin != null ? origin.getHost() : null;
-                boolean trustedLocalOrigin = "https".equalsIgnoreCase(scheme)
-                        && APP_ASSET_ORIGIN.equalsIgnoreCase(host);
-                boolean trustedWebOrigin = "lilsynnofficial.github.io".equalsIgnoreCase(host);
-                if (!trustedLocalOrigin && !trustedWebOrigin) {
+                if (!isTrustedAppOrigin(request.getOrigin())) {
                     request.deny();
                     return;
                 }
-                runOnUiThread(() -> request.grant(request.getResources()));
+
+                // Grant only the capture capabilities BlueNote actually uses.
+                java.util.ArrayList<String> allowedResources = new java.util.ArrayList<>();
+                for (String resource : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
+                            || PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                        allowedResources.add(resource);
+                    }
+                }
+                if (allowedResources.isEmpty()) {
+                    request.deny();
+                    return;
+                }
+                runOnUiThread(() -> request.grant(allowedResources.toArray(new String[0])));
             }
 
             @Override
             public void onGeolocationPermissionsShowPrompt(
                     String origin, GeolocationPermissions.Callback callback) {
-                Uri uri = Uri.parse(origin);
-                boolean trusted = ("https".equalsIgnoreCase(uri.getScheme())
-                        && APP_ASSET_ORIGIN.equalsIgnoreCase(uri.getHost()))
-                        || "lilsynnofficial.github.io".equalsIgnoreCase(uri.getHost());
-                callback.invoke(origin, trusted, false);
+                // BlueNote does not currently require browser geolocation.
+                callback.invoke(origin, false, false);
             }
 
             @Override
@@ -170,6 +152,14 @@ public class MainActivity extends Activity {
                     ValueCallback<Uri[]> filePathCallback,
                     FileChooserParams fileChooserParams
             ) {
+                if (filePathCallback == null || fileChooserParams == null) {
+                    return false;
+                }
+                Uri currentUri = webView.getUrl() == null ? null : Uri.parse(webView.getUrl());
+                if (!isTrustedAppOrigin(currentUri)) {
+                    filePathCallback.onReceiveValue(null);
+                    return true;
+                }
                 if (MainActivity.this.filePathCallback != null) {
                     MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
@@ -179,7 +169,8 @@ public class MainActivity extends Activity {
                     startActivityForResult(intent, FILE_CHOOSER_RESULT_CODE);
                 } catch (Exception e) {
                     MainActivity.this.filePathCallback = null;
-                    return false;
+                    filePathCallback.onReceiveValue(null);
+                    return true;
                 }
                 return true;
             }
@@ -190,6 +181,24 @@ public class MainActivity extends Activity {
             checkForPlaystoreUpdate();
         } else {
             webView.restoreState(savedInstanceState);
+        }
+    }
+
+    private boolean isTrustedAppOrigin(Uri uri) {
+        return uri != null
+                && "https".equalsIgnoreCase(uri.getScheme())
+                && APP_ASSET_ORIGIN.equalsIgnoreCase(uri.getHost())
+                && (uri.getPort() == -1 || uri.getPort() == 443)
+                && uri.getUserInfo() == null;
+    }
+
+    private void openExternalUrl(Uri uri) {
+        if (uri == null || uri.getScheme() == null) return;
+        String scheme = uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+        if (!"https".equals(scheme) && !"mailto".equals(scheme) && !"tel".equals(scheme)) return;
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, uri));
+        } catch (Exception ignored) {
         }
     }
 
