@@ -1,13 +1,9 @@
 name: Temporary npm lockfile regeneration
 
 on:
-  workflow_dispatch:
-    inputs:
-      target_branch:
-        description: Branch whose npm lockfile should be regenerated
-        required: true
-        default: security/patch-transitive-npm-advisories
-        type: string
+  push:
+    branches:
+      - security/patch-transitive-npm-advisories
 
 permissions:
   contents: write
@@ -19,7 +15,7 @@ jobs:
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_branch }}
+          ref: ${{ github.ref_name }}
           persist-credentials: true
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -36,4 +32,4 @@ jobs:
           git add package-lock.json
           git diff --cached --quiet && { echo "Lockfile already synchronized"; exit 0; }
           git commit -m "chore: synchronize npm lockfile"
-          git push origin "HEAD:${{ inputs.target_branch }}"
+          git push origin "HEAD:${{ github.ref_name }}"
