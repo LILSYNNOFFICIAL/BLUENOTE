@@ -26,11 +26,11 @@
 | 🤖 **Android Release Pipeline** | [Build & Release Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/android-release.yml) |
 | 🌍 **Pages Deployment** | [Deployment Workflow](https://github.com/LILSYNNOFFICIAL/BLUENOTE/actions/workflows/deploy.yml) |
 
-> **Current published release: 1.0.8** ([release notes](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)). This is an F-Droid-focused release with Android version code 7. The earlier premium interface layer from [PR #23](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) is merged into `main`; the newer workspace redesign in [PR #24](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) and WebView hardening in [PR #22](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) remain separate, unmerged work. Check the [releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for current artifacts and the open pull requests below for work not yet accepted into `main`.
+> **Current published release: 1.0.8** ([release notes](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8)), Android version code 7. This release tag predates some of the newer work now present on `main`. The premium interface layer ([PR #23](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23)) and workspace redesign/Supabase integration ([PR #24](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24)) are merged into `main`. Android navigation refinements are being tracked in [PR #25](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/25), while additional WebView security hardening remains under review in [PR #22](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22). Check the [releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) for actual published binaries.
 
 ## 🧠 What Is BlueNote?
 
-BlueNote is a **local-first AI Life & Work Operating System** built as an Android/Web application.
+BlueNote is one **local-first AI Life & Work Operating System** delivered through a shared application codebase for the web and Android. These are two builds of the same BlueNote product, not separate apps with different feature sets. The core workspace, organization tools, and overall product experience are shared. The intentional platform difference is authentication: the website includes Firebase-based authentication and Google sign-in, while the Android app does not use Firebase and does not offer Google sign-in. This authentication difference does not mean the Android app is a separate or reduced version of BlueNote.
 
 It brings everyday organization and creative workflows into one place:
 
@@ -88,18 +88,20 @@ Application ID:
 
 `io.github.lilsynnofficial.bluenote`
 
-BlueNote uses two Android product flavors:
+BlueNote's Android app is built from the same application as the website. Android distribution flavors package the same Android application for their respective stores; they do not represent separate feature editions.
 
-| Flavor | Purpose | Account backend | Distribution |
-|---|---|---|---|
-| `fdroid` | Local-first / free-software Android build | Supabase Auth and optional sync; disclosed as a network service | F-Droid |
-| `playstore` | Google Play distribution | Supabase Auth and optional sync | Google Play |
+| Build | Core application | Authentication difference |
+|---|---|---|
+| **Website** | Shared BlueNote application | Includes Firebase-based authentication and Google sign-in |
+| **Android app** | Same BlueNote application and core features | Does not use Firebase and does not offer Google sign-in |
 
-### Current development status (2026-10-19)
+The distinction is limited to the platform-specific authentication integration. Do not interpret the absence of Firebase or Google sign-in on Android as missing BlueNote features.
+
+### Current development status (2026-10-30)
 
 - Latest published GitHub release: [BlueNote 1.0.8](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases/tag/1.0.8), an F-Droid-focused source release. The release page currently has **no uploaded APK/checksum assets**, so do not assume the published tag is a downloadable binary.
 - The official F-Droid submission is open as [fdroiddata MR !52169](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/52169). Its public pipeline and pinned-source build passed, but the maintainer was asked to hold merging until the newer Android WebView security changes are merged and device-smoke-tested. Reproducible-build comparison remains unverified, and BlueNote is not yet accepted into the official F-Droid repository.
-- [PR #23: premium interface layer](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) was merged into `main` on 2026-10-13. [PR #24: workspace GUI redesign and Supabase sync](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) remains open, draft, and unmerged. Its GitHub Pages preview is deployed under `/pr-24/`; the built artifact has been inspected for the Supabase project reference and auth endpoints, with no Firebase Identity Toolkit, Firebase app-domain, or Firestore endpoint matches in the preview JavaScript. CI covers auth/sync regression tests, TypeScript validation, web and Android builds, security scanning, and visual review. Check the linked Actions workflows for the latest commit's results. Live email-confirmation, password-recovery, and cross-device sync round trips remain unverified.
+- [PR #23: premium interface layer](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/23) was merged into `main` on 2026-10-13. [PR #24: workspace redesign and Supabase integration](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/24) was merged into `main` on 2026-10-24. [PR #25: Android bottom navigation and safe-area refinements](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/25) remains open; its CI passed, with physical-device navigation testing still important. [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) remains separate review work. Check each linked pull request and Actions run for its latest status. Authentication and cross-device behavior should be described according to the platform-specific setup above, not as separate website and app products.
 - [PR #22: WebView origin and generated-HTML security hardening](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) is an open draft. Its description requires passing checks and Android device/emulator smoke tests before merge.
 - [PR #11](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/11) and [PR #7](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/7) remain separate open work. Neither should be described as merged or shipped.
 
@@ -109,7 +111,7 @@ BlueNote uses two Android product flavors:
 - **Android version code:** `4`
 - **Package ID:** `io.github.lilsynnofficial.bluenote`
 - **Release tag:** historical preparation for `v1.0.3`; superseded by later releases
-- **Security baseline:** Android backup is disabled and WebView file/content access settings are restricted. However, the current `main` activity still loads the packaged page through `file:///android_asset/public/index.html`; the proposed `WebViewAssetLoader` HTTPS-origin migration is in [draft PR #22](https://github.com/LILSYNNOFFICIAL/BLUENOTE/pull/22) and is **not merged or shipped**. Do not treat that focused hardening as part of the published release until the PR is merged and device-tested.
+- **Historical note:** This section records the v1.0.3 preparation state only. Android WebView implementation has since evolved on `main`; consult the current Android source and release notes rather than applying this historical security description to current builds.
 - **APK status:** use the [Releases page](https://github.com/LILSYNNOFFICIAL/BLUENOTE/releases) to check for actual uploaded assets. The latest 1.0.8 release currently has no uploaded APK/checksum assets.
 
 ### Historical releases and downloads
@@ -158,11 +160,13 @@ Expected APK path:
 
 ## 🔐 Security & Privacy Architecture
 
-BlueNote separates the normal web/Play distribution from the F-Droid/local-first distribution.
+BlueNote shares one core application across web and Android. Platform-specific authentication integrations are kept separate from the shared workspace and feature set.
 
-### Supabase Auth and workspace sync
+### Platform authentication
 
-BlueNote uses the dedicated BlueNote Supabase project for email/password registration, sign-in, password recovery, and optional cross-device workspace synchronization. Google OAuth is not configured and is not offered in the current interface.
+The website includes Firebase-based authentication and Google sign-in. The Android application does not initialize or depend on Firebase and does not offer Google sign-in. This is an intentional platform distinction, not a separate Android product or a feature-parity limitation.
+
+BlueNote also includes the shared Supabase workspace service for account-backed workspace synchronization where configured. Keep authentication-provider details distinct from workspace storage/sync when documenting or changing either platform.
 
 - Only the public Supabase project URL and publishable key are shipped in the client. Never add a service-role key or other privileged secret to the app.
 - Workspace rows are protected by PostgreSQL Row Level Security. Each account can access only the row whose `user_id` matches its authenticated Supabase user ID.
@@ -171,7 +175,7 @@ BlueNote uses the dedicated BlueNote Supabase project for email/password registr
 
 ### F-Droid distribution
 
-The F-Droid flavor uses the same open-source Supabase account adapter as other builds and retains local-first core workflows. The optional Supabase account/sync feature is a hosted network dependency and is disclosed in F-Droid metadata with the `NonFreeNet` Anti-Feature. Core organizer workflows do not require an account or internet connection.
+The F-Droid Android flavor excludes Firebase and Google sign-in. It retains the shared BlueNote application and local-first core workflows. Any hosted workspace or sync service is a separate network capability and is disclosed in the F-Droid metadata as applicable. Core organizer workflows remain designed to work locally without requiring an account or internet connection.
 
 - User API keys are not required for the core organizer.
 - Keyless browser OCR fallback is available through Tesseract.js.
