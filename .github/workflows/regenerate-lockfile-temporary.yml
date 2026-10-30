@@ -1,4 +1,5 @@
 name: Temporary npm lockfile regeneration
+# Temporary CI helper; remove after lockfile sync.
 
 on:
   push:
